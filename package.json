@@ -1,0 +1,26 @@
+{
+  "name": "audiocarrier",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paluh/audiocarrier.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/paluh/audiocarrier/issues"
+  },
+  "homepage": "https://github.com/paluh/audiocarrier#readme",
+  "dependencies": {
+    "decimal.js": "^10.2.0",
+    "pg": "^8.0.2"
+  }
+}
