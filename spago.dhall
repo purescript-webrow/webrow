@@ -7,6 +7,8 @@ You can edit this file as you like.
 , dependencies =
     [ "console"
     , "effect"
+    , "httpure"
+    , "logging-journald"
     , "optparse"
     , "postgresql-client"
     , "psci-support"
