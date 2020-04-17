@@ -2,10 +2,10 @@ module ShopUtils.Types where
 
 import Prelude
 
-import Control.Monad.Except (ExceptT(..), mapExceptT, runExceptT, withExceptT)
-import Control.Monad.Reader (asks, withReaderT)
-import Control.Monad.Reader.Trans (ReaderT(..), mapReaderT, runReaderT)
-import Control.Monad.State (StateT(..), evalStateT, gets, runStateT)
+import Control.Monad.Except (ExceptT(..), runExceptT, withExceptT)
+import Control.Monad.Reader (asks)
+import Control.Monad.Reader.Trans (ReaderT(..), runReaderT)
+import Control.Monad.State (StateT(..), gets, runStateT)
 import Control.Monad.State.Trans (StateT)
 import Data.Either (Either(..))
 import Data.Symbol (class IsSymbol)
@@ -18,7 +18,7 @@ import Effect.Class (liftEffect)
 import Global.Unsafe (unsafeStringify)
 import HTTPure (Request, Response, ResponseM, internalServerError) as HTTPure
 import Prim.Row (class Cons, class Lacks) as Row
-import Record (delete, insert, set) as Record
+import Record (delete, insert, rename, set) as Record
 import ShopUtils.Logging (logger)
 import ShopUtils.Logging as Logging
 import Type.Prelude (SProxy(..))
@@ -37,28 +37,40 @@ hoistWith
   ⇒ (e → e')
   → (r' → r)
   → (s → m s') → (s' → m s)
-  → ExceptT e (ReaderT r (StateT s m))
+  →  ExceptT e  (ReaderT r  (StateT s  m))
   ~> ExceptT e' (ReaderT r' (StateT s' m))
 hoistWith fe fr fs fs' m = withExceptT fe $ ExceptT $ ReaderT \ctx → 
   withStateT' fs' fs (runReaderT (runExceptT m) $ fr ctx)
 
+hoistReader
+  ∷ ∀ e r' s m r
+  . Monad m
+  ⇒ (r' → r)
+  →  ExceptT e (ReaderT r  (StateT s m))
+  ~> ExceptT e (ReaderT r' (StateT s m))
 hoistReader fr = hoistWith identity fr pure pure
 
+hoistState
+  ∷ ∀ e s s' m r
+  . Monad m
+  ⇒ (s → m s') → (s' → m s)
+  →  ExceptT e (ReaderT r (StateT s  m))
+  ~> ExceptT e (ReaderT r (StateT s' m))
 hoistState = hoistWith identity identity
 
--- type RequestCtx ctx = ( request ∷ HTTPure.Request | ctx )
+type RequestCtx ctx = ( request ∷ HTTPure.Request | ctx )
 
 runApp
   ∷ ∀ e ctx st
-  . Row.Lacks "request" ctx
-  ⇒ { | ctx }
+  . { | ctx }
   → { | st }
-  → App e ( request ∷ HTTPure.Request | ctx ) st
-  → HTTPure.Request
-  → Aff (Either (Variant ( | e )) HTTPure.Response)
-runApp ctx st app request = evalStateT (runReaderT (runExceptT app) ctx') st
-  where
-    ctx' = Record.insert (SProxy ∷ SProxy "request") request ctx
+  → App e ctx st
+  → Aff
+      ( Tuple
+          (Either (Variant ( | e )) HTTPure.Response)
+          { | st }
+      )
+runApp ctx st app = runStateT (runReaderT (runExceptT app) ctx) st
 
 type Middleware e ctx st e' ctx' st' = App e ctx st → App e' ctx' st'
 type Middleware' e ctx st = App e ctx st → App e ctx st
@@ -149,34 +161,42 @@ type DBMiddleware e ctx st = Middleware
   e ( conn ∷ PostgreSQL.Connection | ctx ) st
   e ( db ∷ PostgreSQL.PoolConfiguration | ctx ) st
 
--- dbMiddleware ∷ ∀ e ctx st. DBMiddleware e (LoggerCtx ctx) st
--- dbMiddleware app = do
---   poolConfiguration ← asks _.db
---   pool ← liftEffect $ PostgreSQL.newPool poolConfiguration
---   ReaderT \ctx → StateT \st →
---     PostgreSQL.withConnection pool case _ of
---       Right conn → do
---         let ctx' = Record.set (SProxy ∷ SProxy "conn") conn ctx
---         runStateT (runReaderT app ctx') st
---       Left e → internalServerError e ctx.logger <#> (flip Tuple st)
+dbMiddleware
+  ∷ ∀ e ctx st
+  . Row.Lacks "db" ctx
+  ⇒ Row.Lacks "conn" ctx
+  ⇒ DBMiddleware e (LoggerCtx ctx) st
+dbMiddleware app = do
+  poolConfiguration ← asks _.db
+  pool ← liftEffect $ PostgreSQL.newPool poolConfiguration
+  ExceptT $ ReaderT \ctx → StateT \st →
+    PostgreSQL.withConnection pool case _ of
+      Right conn → runApp ctx' st app
+        where
+          ctx' = ctx
+            # Record.rename (SProxy ∷ SProxy "db") (SProxy ∷ SProxy "conn")
+            # Record.set (SProxy ∷ SProxy "conn") conn
+      Left e → internalServerError e ctx.logger <#> Right <#> (flip Tuple st)
 
--- type DbTransactionCtx ctx = DbConnectionCtx + (inTransaction ∷ Unit | ctx)
+type DbTransactionCtx ctx = DbConnectionCtx + ( inTransaction ∷ Unit | ctx )
 
--- type DBTransactionMiddleware ctx st = Middleware
---   (DbTransactionCtx + ctx) st
---   (DbConnectionCtx + ctx) st
+type DBTransactionMiddleware e ctx st = Middleware
+  e ( DbTransactionCtx + ctx ) st
+  e ( DbConnectionCtx + ctx ) st
 
--- dbTransactionMiddleware ∷ ∀ ctx st. Row.Lacks "inTransaction" ctx ⇒ DBTransactionMiddleware ctx st
--- dbTransactionMiddleware app = ReaderT \ctx → StateT \st → do
---     let
---       ctx' = Record.insert (SProxy ∷ SProxy "inTransaction") unit ctx
---     result ← PostgreSQL.withTransaction ctx.conn (runStateT (runReaderT app ctx') st)
---     case result of
---       Right t → pure t
---       Left e → internalServerError e ctx.logger <#> (flip Tuple st)
+dbTransactionMiddleware
+  ∷ ∀ e ctx st
+  . Row.Lacks "inTransaction" ctx
+  ⇒ DBTransactionMiddleware e (LoggerCtx ctx) st
+dbTransactionMiddleware app = ExceptT $ ReaderT \ctx → StateT \st → do
+    let ctx' = Record.insert (SProxy ∷ SProxy "inTransaction") unit ctx
+    result ← PostgreSQL.withTransaction ctx.conn $ runApp ctx' st app
+    case result of
+      Right t → pure t
+      Left e → internalServerError e ctx.logger <#> Right <#> (flip Tuple st)
 
 -- | XXX: Provide proper error handling appropriate for pwa and brower request
--- internalServerError ∷ ∀ e. e → Logging.Logger → HTTPure.ResponseM
--- internalServerError e logger = do
---   liftEffect $ Logging.error (unsafeStringify e) logger
---   HTTPure.internalServerError "Server error..."
+internalServerError ∷ ∀ e. e → Logging.Logger → HTTPure.ResponseM
+internalServerError e logger = do
+  liftEffect $ Logging.error (unsafeStringify e) logger
+  HTTPure.internalServerError "Server error..."
