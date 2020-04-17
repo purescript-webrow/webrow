@@ -11,7 +11,9 @@ You can edit this file as you like.
     , "logging-journald"
     , "optparse"
     , "postgresql-client"
+    , "profunctor-lenses"
     , "psci-support"
+    , "routing-duplex"
     , "run"
     , "selda"
     ]
