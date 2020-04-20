@@ -2,14 +2,19 @@ module ShopUtils.Register where
 
 import Prelude
 
+import Data.Either (either)
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype, un)
+import Data.Newtype (un)
 import Routing.Duplex as D
 import Routing.Duplex.Generic as DG
-import Run (Run(..), AFF)
+import Run (AFF, FProxy, Run, SProxy(..))
+import Run as Run
 import Run.Reader (READER)
+import ShopUtils.Crypto (Secret, sign, unsign)
+import ShopUtils.Mailer (MAILER, sendMail)
+import ShopUtils.Types (Email(..), Password, SignedEmail(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 data Route
@@ -26,40 +31,86 @@ route = D.path "register" $ DG.sum
       }
   }
 
-newtype Email = Email String
-derive instance newtypeEmail ∷ Newtype Email _
-
-newtype SignedEmail = SignedEmail String
-derive instance newtypeSignedEmail ∷ Newtype SignedEmail _
-
-newtype Password = Password String
-derive instance newtypePassword ∷ Newtype Password _
-
 checkIfTaken ∷ ∀ m. Email → m Unit
 checkIfTaken = unsafeCoerce unit
 
-sign
-  ∷ ∀ eff ctx
-  . String
+onRegisterRoute
+  ∷ ∀ eff ctx a
+  . Route
   → Run
       ( aff ∷ AFF
-      , reader ∷ READER { secret ∷ String | ctx } | eff
+      , mailer ∷ MAILER
+      , reader ∷ READER { secret ∷ Secret | ctx }
+      , register ∷ REGISTER
+      | eff
       )
-      String
-sign = unsafeCoerce unit
-
-type MAILER = Unit
-
-sendMail
-  ∷ ∀ eff
-  . { to ∷ Email, body ∷ String }
-  → Run ( mailer ∷ MAILER | eff ) Unit
-sendMail = unsafeCoerce unit
+      a
+onRegisterRoute = case _ of
+  RegisterEmail email → registerEmail email
+  RegisterPassword { email, password } → registerPassword email password
 
 registerEmail email = do
   -- validateEmail email
   checkIfTaken email -- either actual db function with concrete SQL table or a function of RegisterEffect
   signedEmail ← sign $ un Email email
-  let body = D.print route $ RegisterPassword { email: SignedEmail signedEmail, password: Nothing } 
-  sendMail { to: email, body }
-  pure "Email sent"
+  text ← printRegisterRoute $ RegisterPassword { email: SignedEmail signedEmail, password: Nothing }
+  _ ← sendMail { to: email, text, subject: "Email verification" }
+  response $ EmailSent email
+
+registerPassword signedEmail maybePassword = do
+  email ← unsign (un SignedEmail signedEmail) >>= either onInvalidSig pure 
+  case maybePassword of
+    Nothing → response RenderPasswordForm
+    Just password → do
+      -- validatePassword password
+      response $ CreateAccount (Email email) password
+  where
+    onInvalidSig err = do
+      -- TODO: log err
+      response InvalidEmailSignature
+
+-- handleRegister :: forall t75 m. Bind m => MonadEffect m => RegisterF (m t75) -> m t75
+-- handleRegister = case _ of
+--   PrintRegisterRoute r k → do
+--     k $ D.print route r
+--   AssertEmailNotTaken email next → do
+--     next
+--   Response rr → do
+--     unsafeCoerce unit
+
+-- interpretRegister = interpret (on _register handleRegister send)
+
+data RegisterF a
+  = PrintRegisterRoute Route (String → a) -- ^ 
+  | AssertEmailNotTaken Email a
+  | Response RegisterResponse
+
+derive instance functorRegisterF ∷ Functor RegisterF
+
+data RegisterResponse
+  = InvalidEmailSignature
+  | RenderPasswordForm
+  | CreateAccount Email Password
+  | EmailSent Email
+
+type REGISTER = FProxy RegisterF
+
+_register = SProxy ∷ SProxy "register"
+
+printRegisterRoute ∷
+  ∀ eff
+  . Route
+  → Run ( register ∷ REGISTER | eff ) String
+printRegisterRoute rr = Run.lift _register (PrintRegisterRoute rr identity)
+
+assertEmailNotTaken ∷
+  ∀ eff
+  . Email
+  → Run ( register ∷ REGISTER | eff ) Unit
+assertEmailNotTaken email = Run.lift _register (AssertEmailNotTaken email unit)
+
+response
+  ∷ ∀ a eff
+  . RegisterResponse
+  → Run ( register ∷ REGISTER | eff ) a
+response x = Run.lift _register (Response x)

@@ -6,6 +6,7 @@ You can edit this file as you like.
     "audiocarrier"
 , dependencies =
     [ "console"
+    , "crypto"
     , "effect"
     , "httpure"
     , "logging-journald"
