@@ -69,16 +69,27 @@ registerPassword signedEmail maybePassword = do
       -- TODO: log err
       response InvalidEmailSignature
 
--- handleRegister :: forall t75 m. Bind m => MonadEffect m => RegisterF (m t75) -> m t75
--- handleRegister = case _ of
---   PrintRegisterRoute r k → do
---     k $ D.print route r
---   AssertEmailNotTaken email next → do
---     next
---   Response rr → do
---     unsafeCoerce unit
+interpretRegister
+  ∷ ∀ a eff
+  . Run ( register ∷ REGISTER | eff ) a
+  → Run eff a
+interpretRegister = Run.interpret (Run.on _register handleRegister Run.send)
 
--- interpretRegister = interpret (on _register handleRegister send)
+interpretRegister'
+  ∷ ∀ m a
+  . Monad m
+  ⇒ Run ( register ∷ REGISTER ) a
+  → m a
+interpretRegister' = Run.interpret (Run.on _register handleRegister Run.case_)
+
+handleRegister ∷ ∀ m a. Monad m ⇒ RegisterF a → m a
+handleRegister = case _ of
+  PrintRegisterRoute r k → do
+    pure $ k $ D.print route r
+  AssertEmailNotTaken email next → do
+    pure next
+  Response rr → do
+    unsafeCoerce unit
 
 data RegisterF a
   = PrintRegisterRoute Route (String → a) -- ^ 
