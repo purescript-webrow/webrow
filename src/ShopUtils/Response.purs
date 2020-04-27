@@ -22,9 +22,9 @@ _response = SProxy ∷ SProxy "response"
 
 response ∷
   ∀ res eff a
-  . Response res
+  . Variant res
   → Run ( response ∷ RESPONSE res | eff ) a
-response v = Run.lift _response (Res v)
+response v = Run.lift _response (Res $ Response v)
 
 -- | Fully interpret the Response effect returning the Response variant
 runResponse

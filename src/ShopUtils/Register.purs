@@ -7,6 +7,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
+import Data.Variant (inj)
 import HTTPure as HTTPure
 import Routing.Duplex as D
 import Routing.Duplex.Generic as DG
@@ -17,6 +18,7 @@ import ShopUtils.Crypto (Secret, sign, unsign)
 import ShopUtils.Logging.Effect (LOGGER)
 import ShopUtils.Logging.Effect as LogEff
 import ShopUtils.Mailer (MAILER, sendMail)
+import ShopUtils.Response (RESPONSE, response)
 import ShopUtils.Types (Email(..), Password, SignedEmail(..))
 
 data Route
@@ -38,7 +40,7 @@ checkIfTaken email = do
   LogEff.warning $ "checkIfTaken " <> show email
 
 onRegisterRoute
-  ∷ ∀ eff ctx a
+  ∷ ∀ eff ctx res a
   . Route
   → Run
       ( aff ∷ AFF
@@ -46,6 +48,7 @@ onRegisterRoute
       , mailer ∷ MAILER
       , reader ∷ READER { secret ∷ Secret | ctx }
       , register ∷ REGISTER
+      , response ∷ RESPONSE ( register ∷ RegisterResponse | res )
       | eff
       )
       a
@@ -54,7 +57,7 @@ onRegisterRoute = case _ of
   RegisterPassword { email, password } → registerPassword email password
 
 registerEmail
-  ∷ ∀ eff ctx a
+  ∷ ∀ eff ctx res a
   . Email
   → Run
       ( aff ∷ AFF
@@ -62,6 +65,7 @@ registerEmail
       , mailer ∷ MAILER
       , reader ∷ READER { secret ∷ Secret | ctx }
       , register ∷ REGISTER
+      , response ∷ RESPONSE ( register ∷ RegisterResponse | res )
       | eff
       )
       a
@@ -71,66 +75,68 @@ registerEmail email = do
   signedEmail ← sign $ un Email email
   text ← printRegisterRoute $ RegisterPassword { email: SignedEmail signedEmail, password: Nothing }
   _ ← sendMail { to: email, text, subject: "Email verification" }
-  response $ EmailSent email
+  response $ inj _register $ EmailSent email
 
 registerPassword
-  ∷ ∀ eff ctx a
+  ∷ ∀ eff ctx res a
   . SignedEmail
   → Maybe Password
   → Run
       ( aff ∷ AFF
       , reader ∷ READER { secret ∷ Secret | ctx }
       , register ∷ REGISTER
+      , response ∷ RESPONSE ( register ∷ RegisterResponse | res )
       | eff
       )
       a
 registerPassword signedEmail maybePassword = do
   email ← unsign (un SignedEmail signedEmail) >>= either onInvalidSig pure 
   case maybePassword of
-    Nothing → response RenderPasswordForm
+    Nothing → response $ inj _register $ RenderPasswordForm
     Just password → do
       -- validatePassword password
-      response $ CreateAccount (Email email) password
+      response $ inj _register $ CreateAccount (Email email) password
   where
     onInvalidSig err = do
       -- TODO: log err
-      response InvalidEmailSignature
+      response $ inj _register InvalidEmailSignature
 
 runRegister
-  ∷ ∀ eff
-  . Run ( aff ∷ AFF, logger ∷ LOGGER, register ∷ REGISTER | eff ) HTTPure.Response
-  → Run ( aff ∷ AFF, logger ∷ LOGGER                      | eff ) HTTPure.Response
-runRegister = Run.run (Run.on _register handleRegister Run.send)
+  ∷ ∀ eff a
+  . Run ( aff ∷ AFF, logger ∷ LOGGER, register ∷ REGISTER | eff ) a
+  → Run ( aff ∷ AFF, logger ∷ LOGGER                      | eff ) a
+runRegister = Run.interpret (Run.on _register handleRegister Run.send)
 
 handleRegister
-  ∷ ∀ m eff
-  . Monad m
-  ⇒ RegisterF
-      (Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) HTTPure.Response)
-  → m (Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) HTTPure.Response)
+  ∷ ∀ eff
+  . RegisterF ~> Run ( aff ∷ AFF, logger ∷ LOGGER | eff )
 handleRegister = case _ of
   PrintRegisterRoute r k → do
+    -- TODO: fix route printing
     pure $ k $ D.print route r
   AssertEmailNotTaken email next → do
     pure next
-  Response rr → pure case rr of
-    InvalidEmailSignature →
-      Run.liftAff $ HTTPure.badRequest "InvalidEmailSignature"
-    RenderPasswordForm → 
-      ok "Password From (please provide a password)"
-    CreateAccount email password → do
-      -- TODO: register in the db and handle the result further
-      LogEff.err $ "Effect (CreateAccount " <> show email <> " " <> show password <> ") not handled"
-      Run.liftAff $ HTTPure.internalServerError "Registration failed"
-    EmailSent email →
-      ok $ "Email sent to " <> show email
-  where
-    ok = Run.liftAff <<< HTTPure.ok
+
+handleRegisterResponse
+  ∷ ∀ eff 
+  . RegisterResponse
+  → Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) HTTPure.Response
+handleRegisterResponse = case _ of
+  InvalidEmailSignature →
+    Run.liftAff $ HTTPure.badRequest "InvalidEmailSignature"
+  RenderPasswordForm → 
+    ok "Password From (please provide a password)"
+  CreateAccount email password → do
+    -- TODO: register in the db and handle the result further
+    LogEff.err $ "Effect (CreateAccount " <> show email <> " " <> show password <> ") not handled"
+    Run.liftAff $ HTTPure.internalServerError "Registration failed"
+  EmailSent email →
+    ok $ "Email sent to " <> show email
+  where ok = Run.liftAff <<< HTTPure.ok
 
 data RegisterF a
-  = PrintRegisterRoute Route (String → a) -- ^ 
+  = PrintRegisterRoute Route (String → a)
   | AssertEmailNotTaken Email a
-  | Response RegisterResponse
 
 derive instance functorRegisterF ∷ Functor RegisterF
 
@@ -155,9 +161,3 @@ assertEmailNotTaken ∷
   . Email
   → Run ( register ∷ REGISTER | eff ) Unit
 assertEmailNotTaken email = Run.lift _register (AssertEmailNotTaken email unit)
-
-response
-  ∷ ∀ a eff
-  . RegisterResponse
-  → Run ( register ∷ REGISTER | eff ) a
-response x = Run.lift _register (Response x)

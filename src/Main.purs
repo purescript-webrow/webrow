@@ -4,6 +4,8 @@ import Prelude
 
 import Data.Either (either)
 import Data.Generic.Rep (class Generic)
+import Data.Newtype (un)
+import Data.Variant (case_, on)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
@@ -16,7 +18,9 @@ import Run.Reader (READER, runReader)
 import ShopUtils.Crypto (Secret(..))
 import ShopUtils.Logging.Effect (LOGGER, runLoggerConsole)
 import ShopUtils.Mailer (MailerF(..), MAILER, _mailer)
+import ShopUtils.Register (_register, handleRegisterResponse)
 import ShopUtils.Register as Register
+import ShopUtils.Response (Response(..), runResponse)
 
 data Route
   = RegisterRoute Register.Route
@@ -37,8 +41,11 @@ router req = do
     (interpretBaseEffects <<< onRootRoute)
 
 onRootRoute ∷ Route → BaseRun HTTPure.Response
-onRootRoute = case _ of
+onRootRoute = (handleResponses <<< un Response) <=< runResponse <<< case _ of
   RegisterRoute rr → Register.onRegisterRoute rr # Register.runRegister
+  where
+    handleResponses = case_
+      # on _register handleRegisterResponse
 
 main ∷ Effect Unit
 main = do
