@@ -189,10 +189,21 @@ let prettyprinter =
       "master"
   }
 
+let routing-duplex-variant = 
+  { dependencies =
+      [ "routing-duplex"
+      ]
+  , repo = 
+      "https://github.com/paluh/purescript-routing-duplex-variant.git"
+  , version = 
+      "master"
+  }
+
 let additions =
   { selda = selda
   , postgresql-client = postgresql-client
   , prettyprinter = prettyprinter
+  , routing-duplex-variant = routing-duplex-variant
   }
 
 in  upstream // overrides // additions

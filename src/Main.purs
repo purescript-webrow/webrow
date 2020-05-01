@@ -3,15 +3,14 @@ module Main where
 import Prelude
 
 import Data.Either (either)
-import Data.Generic.Rep (class Generic)
 import Data.Newtype (un)
-import Data.Variant (case_, on)
+import Data.Variant (Variant, case_, on)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import HTTPure as HTTPure
 import Routing.Duplex as D
-import Routing.Duplex.Generic as DG
+import Routing.Duplex.Generic.Variant (variant')
 import Run (AFF, Run, runBaseAff)
 import Run as Run
 import Run.Reader (READER, runReader)
@@ -21,35 +20,36 @@ import ShopUtils.Mailer (MailerF(..), MAILER, _mailer)
 import ShopUtils.Register (_register, handleRegisterResponse)
 import ShopUtils.Register as Register
 import ShopUtils.Response (Response(..), runResponse)
+import ShopUtils.Route (interpretRoute)
 
-data Route
-  = RegisterRoute Register.Route
-  -- | PaymentRoute Payment.Route
-derive instance genericRoute ∷ Generic Route _
+type Route = Variant
+  ( register ∷ Register.Route 
+  )
 
 route ∷ D.RouteDuplex' Route
-route = D.root $ DG.sum
-  { "RegisterRoute": Register.route
-  -- , "PaymentRoute": Payment.route
-  }
+route = D.root $ variant'
+  $ {}
+  # Register.insertRoute
+  -- # Payment.insertRoute
 
 router ∷ HTTPure.Request → Aff HTTPure.Response
 router req = do
   let url = HTTPure.fullPath req
-  -- log url
   D.parse route url # either (HTTPure.badRequest <<< show)
-    (interpretBaseEffects <<< onRootRoute)
-
-onRootRoute ∷ Route → BaseRun HTTPure.Response
-onRootRoute = (handleResponses <<< un Response) <=< runResponse <<< case _ of
-  RegisterRoute rr → Register.onRegisterRoute rr # Register.runRegister
+    ( interpretBaseEffects
+      <<< (onResponse <<< un Response <=< runResponse)
+      <<< interpretRoute { domain: "http://localhost:8080", route }
+      <<< onRootRoute
+    )
   where
-    handleResponses = case_
+    onResponse = case_
       # on _register handleRegisterResponse
+
+    onRootRoute = case_
+      # on _register \rr → Register.onRegisterRoute rr # Register.runRegister
 
 main ∷ Effect Unit
 main = do
-  -- log $ D.print Register.route $ Register.RegisterEmail $ Email "someemail@gmail.com"
   void $ HTTPure.serve 8080 router $ log "Server now up on port 8080"
 
 type BaseRun = Run

@@ -15,6 +15,7 @@ You can edit this file as you like.
     , "profunctor-lenses"
     , "psci-support"
     , "routing-duplex"
+    , "routing-duplex-variant"
     , "run"
     , "selda"
     ]

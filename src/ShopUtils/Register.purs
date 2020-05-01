@@ -9,6 +9,8 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Variant (inj)
 import HTTPure as HTTPure
+import Prim.Row as Row
+import Record as Record
 import Routing.Duplex as D
 import Routing.Duplex.Generic as DG
 import Run (AFF, FProxy, Run, SProxy(..))
@@ -19,7 +21,15 @@ import ShopUtils.Logging.Effect (LOGGER)
 import ShopUtils.Logging.Effect as LogEff
 import ShopUtils.Mailer (MAILER, sendMail)
 import ShopUtils.Response (RESPONSE, response)
+import ShopUtils.Route (ROUTE, printFullRoute)
 import ShopUtils.Types (Email(..), Password, SignedEmail(..))
+
+insertRoute
+  ∷ ∀ rs
+  . Row.Lacks "register" rs
+  ⇒ { | rs }
+  → { register ∷ D.RouteDuplex' Route | rs }
+insertRoute = Record.insert _register route
 
 data Route
   = RegisterEmail Email
@@ -27,7 +37,7 @@ data Route
 derive instance genericRoute ∷ Generic Route _
 
 route ∷ D.RouteDuplex' Route
-route = D.path "register" $ DG.sum
+route = DG.sum
   { "RegisterEmail": (_Newtype $ D.param "email" ∷ D.RouteDuplex' Email)
   , "RegisterPassword": D.path "form" $ D.params
       { email: _Newtype <<< D.string
@@ -40,7 +50,7 @@ checkIfTaken email = do
   LogEff.warning $ "checkIfTaken " <> show email
 
 onRegisterRoute
-  ∷ ∀ eff ctx res a
+  ∷ ∀ eff ctx res rs a
   . Route
   → Run
       ( aff ∷ AFF
@@ -49,6 +59,7 @@ onRegisterRoute
       , reader ∷ READER { secret ∷ Secret | ctx }
       , register ∷ REGISTER
       , response ∷ RESPONSE ( register ∷ RegisterResponse | res )
+      , route ∷ ROUTE ( register ∷ Route | rs )
       | eff
       )
       a
@@ -57,7 +68,7 @@ onRegisterRoute = case _ of
   RegisterPassword { email, password } → registerPassword email password
 
 registerEmail
-  ∷ ∀ eff ctx res a
+  ∷ ∀ eff ctx res rs a
   . Email
   → Run
       ( aff ∷ AFF
@@ -66,6 +77,7 @@ registerEmail
       , reader ∷ READER { secret ∷ Secret | ctx }
       , register ∷ REGISTER
       , response ∷ RESPONSE ( register ∷ RegisterResponse | res )
+      , route ∷ ROUTE ( register ∷ Route | rs )
       | eff
       )
       a
@@ -73,7 +85,7 @@ registerEmail email = do
   -- validateEmail email
   checkIfTaken email -- either actual db function with concrete SQL table or a function of RegisterEffect
   signedEmail ← sign $ un Email email
-  text ← printRegisterRoute $ RegisterPassword { email: SignedEmail signedEmail, password: Nothing }
+  text ← printFullRoute $ inj _register $ RegisterPassword { email: SignedEmail signedEmail, password: Nothing }
   _ ← sendMail { to: email, text, subject: "Email verification" }
   response $ inj _register $ EmailSent email
 
@@ -111,9 +123,6 @@ handleRegister
   ∷ ∀ eff
   . RegisterF ~> Run ( aff ∷ AFF, logger ∷ LOGGER | eff )
 handleRegister = case _ of
-  PrintRegisterRoute r k → do
-    -- TODO: fix route printing
-    pure $ k $ D.print route r
   AssertEmailNotTaken email next → do
     pure next
 
@@ -135,8 +144,7 @@ handleRegisterResponse = case _ of
   where ok = Run.liftAff <<< HTTPure.ok
 
 data RegisterF a
-  = PrintRegisterRoute Route (String → a)
-  | AssertEmailNotTaken Email a
+  = AssertEmailNotTaken Email a
 
 derive instance functorRegisterF ∷ Functor RegisterF
 
@@ -149,12 +157,6 @@ data RegisterResponse
 type REGISTER = FProxy RegisterF
 
 _register = SProxy ∷ SProxy "register"
-
-printRegisterRoute ∷
-  ∀ eff
-  . Route
-  → Run ( register ∷ REGISTER | eff ) String
-printRegisterRoute rr = Run.lift _register (PrintRegisterRoute rr identity)
 
 assertEmailNotTaken ∷
   ∀ eff
