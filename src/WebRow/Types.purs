@@ -1,4 +1,4 @@
-module ShopUtils.Types where
+module WebRow.Types where
 
 import Prelude
 

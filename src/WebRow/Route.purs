@@ -1,4 +1,4 @@
-module ShopUtils.Route where
+module WebRow.Route where
 
 import Prelude
 

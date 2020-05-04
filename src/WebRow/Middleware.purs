@@ -1,4 +1,4 @@
-module ShopUtils.Middleware where
+module WebRow.Middleware where
 
 import Prelude
 
@@ -19,8 +19,8 @@ import Global.Unsafe (unsafeStringify)
 import HTTPure (Request, Response, ResponseM, internalServerError) as HTTPure
 import Prim.Row (class Cons, class Lacks) as Row
 import Record (delete, insert, rename, set) as Record
-import ShopUtils.Logging (logger)
-import ShopUtils.Logging as Logging
+import WebRow.Logging (logger)
+import WebRow.Logging as Logging
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 

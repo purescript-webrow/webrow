@@ -1,0 +1,38 @@
+module WebRow.Applets.Registration.Forms where
+
+-- import Prelude
+-- 
+-- import Data.Either (Either(..))
+-- import Data.Identity (Identity)
+-- import Data.Map (lookup) as Map
+-- import Data.Maybe (Maybe(..))
+-- import Data.Variant (inj)
+-- import Polyform.Validator (hoistFnEither)
+-- import Polyform.Validators.UrlEncoded (string)
+-- import Polyform.Validators.UrlEncoded (string) as Validators
+-- import Type.Prelude (SProxy(..))
+-- import WebRow.Forms.Result (formError)
+-- import WebRow.Forms.Widget.Validator (Widget(..))
+-- import WebRow.Forms.Widget.Validator (textInput) as Widgets.Validator
+-- import WebRow.Types (Password(..))
+-- 
+-- -- passwordForm ∷ WebRow.Forms.Form.PureValidator (passwordInput ∷ TextInput Identity String) Password
+-- passwordForm
+--   = passwordsWidget >>> Widget { render, validator }
+--   where
+--     passwordInput_ = SProxy ∷ SProxy "passwordInput"
+--     passwordInput = Widgets.Validator.textInput passwordInput_ Validators.string
+-- 
+--     passwordsWidget = { password1: _, password2: _ }
+--       <$> passwordInput "password1"
+--       <*> passwordInput "password2"
+-- 
+--     validator = hoistFnEither \{ password1, password2 } → if password1 /= password2
+--       then
+--         Left $ formError "no-match" "Password don't match"
+--       else
+--         Right (Password password1)
+-- 
+--     render { errors } = inj (SProxy ∷ SProxy "form") (Map.lookup "no-match" errors)
+-- 
+-- 

@@ -1,4 +1,4 @@
-module ShopUtils.Logging.Effect where
+module WebRow.Logging.Effect where
 
 import Prelude
 

@@ -1,4 +1,4 @@
-module ShopUtils.Mailer where
+module WebRow.Mailer where
 
 import Prelude
 
@@ -6,7 +6,7 @@ import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
 import Run (Run)
 import Run as Run
-import ShopUtils.Types (Email)
+import WebRow.Types (Email)
 
 data MailerF a
   = SendMail 

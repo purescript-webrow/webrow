@@ -1,4 +1,4 @@
-module ShopUtils.Crypto where
+module WebRow.Crypto where
 
 import Prelude
 
@@ -44,8 +44,8 @@ unsign
       )
       (Either String String)
 unsign signed = do
-  ctx ← ask
-  liftAff $ liftEffect $ runExceptT $ unsign' ctx.secret signed
+  secret ← ask <#> _.secret
+  liftAff $ liftEffect $ runExceptT $ unsign' secret signed
 
 urisafeBase64
   ∷ { encode ∷ Buffer → Effect String

@@ -1,4 +1,4 @@
-module ShopUtils.Payment where
+module WebRow.Payment where
 
 import Prelude
 
@@ -9,9 +9,9 @@ import Routing.Duplex.Generic as DG
 import Run (FProxy, Run)
 import Run as Run
 import Run.Reader (READER, ask)
-import ShopUtils.Logging.Effect (LOGGER)
-import ShopUtils.Logging.Effect as LogEff
-import ShopUtils.Response (RESPONSE, response)
+import WebRow.Logging.Effect (LOGGER)
+import WebRow.Logging.Effect as LogEff
+import WebRow.Response (RESPONSE, response)
 
 data Route
   = Payment

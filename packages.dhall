@@ -199,11 +199,19 @@ let routing-duplex-variant =
       "master"
   }
 
+let polyform = ../purescript-polyform/spago.dhall as Location
+let polyform-validators = ../purescript-polyform-validators/spago.dhall as Location
+
 let additions =
   { selda = selda
+  , polyform = polyform
+  , polyform-validators = polyform-validators
   , postgresql-client = postgresql-client
   , prettyprinter = prettyprinter
   , routing-duplex-variant = routing-duplex-variant
   }
+
+let overrides =
+  { httpure = upstream.httpure // { version = "master" }}
 
 in  upstream // overrides // additions

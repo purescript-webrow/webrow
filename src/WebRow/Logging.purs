@@ -1,4 +1,4 @@
-module ShopUtils.Logging where
+module WebRow.Logging where
 
 import Prelude
 
