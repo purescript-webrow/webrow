@@ -3,38 +3,33 @@ module Main where
 import Prelude
 
 import Data.Either (either)
-import Data.Functor.Variant (case_) as Functor.Variant
-import Data.Newtype (un)
-import Data.Variant (Variant, case_, on)
+import Data.Variant (Variant, case_)
 import Effect (Effect)
 import Effect.Aff (Aff)
-import Effect.Aff.Class (class MonadAff)
 import Effect.Class.Console (log)
 import HTTPure as HTTPure
 import Record (merge) as Record
 import Routing.Duplex as D
 import Routing.Duplex.Generic.Variant (variant')
-import Run (AFF, Run, EFFECT, runBaseAff, runBaseAff')
+import Run (AFF, EFFECT, Run, runBaseAff')
 import Run as Run
 import Run.Reader (READER, runReader)
 import Type.Row (type (+))
-import WebRow.Applets.Registration (RouteRow) as Registration
-import WebRow.Applets.Registration (_register)
-import WebRow.Applets.Registration (duplexes, router) as Register
+import WebRow.Applets.Registration (router) as Register
+import WebRow.Applets.Registration.Routes (duplexes, RouteRow) as Registration.Routes
 import WebRow.Applets.Registration.Templates.Dummy (onRegister) as Registration.Templates.Dummy
 import WebRow.Crypto (Secret(..))
 import WebRow.Logging.Effect (LOGGER, runLoggerConsole)
 import WebRow.Mailer (MailerF(..), MAILER, _mailer)
 import WebRow.Registration.Interpret.Dummy (interpret) as Registration.Interpret.Dummy
-import WebRow.Registration.Interpret.Dummy (interpreter) as Register.Interpret.Dummy
-import WebRow.Response (Response(..), Response, onHttpError, runResponse)
+import WebRow.Response (onHttpError)
 import WebRow.Response (runResponse) as Response
 import WebRow.Route (interpret) as Route
 
-type Routes = Variant (Registration.RouteRow + ())
+type Routes = Variant (Registration.Routes.RouteRow + ())
 
 route ∷ D.RouteDuplex' Routes
-route = D.root $ variant' $ {} `Record.merge` Register.duplexes
+route = D.root $ variant' $ {} `Record.merge` Registration.Routes.duplexes
 
 type BaseEffects =
   ( aff ∷ AFF

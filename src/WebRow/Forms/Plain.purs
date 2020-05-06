@@ -2,10 +2,10 @@ module WebRow.Forms.Plain where
 
 import Prelude
 
-import Data.Bifunctor (class Bifunctor, bimap, lmap)
-import Data.Either (hush)
+import Data.Bifunctor (class Bifunctor, bimap)
+import Data.Either (Either(..))
 import Data.Map (lookup) as Map
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Foreign.Object (lookup) as Object
 import Polyform.Reporter (Reporter, report, toEither) as Polyform.Reporter
@@ -35,39 +35,47 @@ instance semigroupoidForm ∷ (Monad m, Semigroup layout) ⇒ Semigroupoid (Form
     , layout: w1.layout <> w2.layout
     }
 
+
+type ValidatedFormBase layout step a =
+  { layout ∷ layout (Maybe Payload.Value) (Maybe (Report.Result step))
+  , report ∷ Report.Report step
+  | a
+  }
+
+type ValidatedForm layout step a =
+  Either (ValidatedFormBase layout step ()) (ValidatedFormBase layout step ( result ∷ a ))
+
 run
   ∷ ∀ layout m o step
   . Bifunctor layout
   ⇒ Monad m
   ⇒ Form m (layout Payload.Key Report.Key) step UrlDecoded o
   → UrlDecoded
-  → m
-    { layout ∷ layout (Maybe Payload.Value) (Maybe (Report.Result step))
-    , result ∷ Maybe o
-    , report ∷ Report.Report step
-    }
+  → m (ValidatedForm layout step o)
 run (Form { layout, reporter }) input = do
   result ← runReporter reporter input
   let
     report = Object.Builder.build (Polyform.Reporter.report result)
   let
     layout' = bimap (flip Map.lookup input) (flip Object.lookup report) layout
-  pure $ { layout: layout', result: hush <<< Polyform.Reporter.toEither $ result, report: report }
+  pure $ case Polyform.Reporter.toEither result of
+    Right a → Right { layout: layout', report, result: a }
+    Left _ → Left { layout: layout', report }
 
 prefill
-  ∷ ∀ layout m i o result step
+  ∷ ∀ layout m i o r result step
   . Bifunctor layout
-  ⇒ Form m (layout Payload.Key result) step i o
+  ⇒ Form m (layout Payload.Key r) step i o
   → Payload.UrlDecoded
-  → layout (Maybe Payload.Value) result
-prefill (Form { layout }) input = lmap (flip Map.lookup input) layout
+  → layout (Maybe Payload.Value) (Maybe result)
+prefill (Form { layout }) input = bimap (flip Map.lookup input) (const $ Nothing) layout
 
 -- | Provided to simplify inference
 prefill'
-  ∷ ∀ layout m i o result step
+  ∷ ∀ layout m i o r result step
   . Bifunctor layout
   ⇒ Applicative m
-  ⇒ Form m (layout Payload.Key result) step i o
+  ⇒ Form m (layout Payload.Key r) step i o
   → Payload.UrlDecoded
-  → m (layout (Maybe Payload.Value) result)
+  → m (layout (Maybe Payload.Value) (Maybe result))
 prefill' form input = pure (prefill form input)
