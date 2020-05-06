@@ -25,6 +25,7 @@ import Run (AFF, FProxy, Run, SProxy(..))
 import Run as Run
 import Run.Reader (READER, ask)
 import WebRow.Applets.Registration.Forms (passwordForm)
+import WebRow.Applets.Registration.Types (Password, SignedEmail(..))
 import WebRow.Crypto (Secret, sign, unsign)
 import WebRow.Forms.Builders.Plain (Field, Repr) as Builder.Plain
 import WebRow.Forms.Layout (Layout)
@@ -34,13 +35,12 @@ import WebRow.Forms.Plain (prefill', run) as Forms.Plain
 import WebRow.Forms.Validation.Report (Result) as Forms.Validation.Report
 import WebRow.Logging.Effect (LOGGER, info)
 import WebRow.Logging.Effect as LogEff
-import WebRow.Mailer (MAILER, sendMail)
+import WebRow.Mailer (Email(..), MAILER, sendMail)
 import WebRow.Response (RESPONSE, badRequest'', methodNotAllowed, methodNotAllowed')
 import WebRow.Response (response) as Response
 import WebRow.Route (ROUTE)
 import WebRow.Route (printFullRoute) as Route
 import WebRow.Routing.Duplex (params) as WebRow.Routing.Duplex
-import WebRow.Types (Email(..), Password, SignedEmail(..))
 
 _register = SProxy ∷ SProxy "register"
 

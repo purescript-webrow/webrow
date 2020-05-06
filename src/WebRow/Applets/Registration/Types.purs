@@ -1,12 +1,8 @@
-module WebRow.Types where
+module WebRow.Applets.Registration.Types where
 
 import Prelude
 
 import Data.Newtype (class Newtype)
-
-newtype Email = Email String
-derive instance newtypeEmail ∷ Newtype Email _
-derive newtype instance showEmail ∷ Show Email
 
 newtype SignedEmail = SignedEmail String
 derive instance newtypeSignedEmail ∷ Newtype SignedEmail _

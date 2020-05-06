@@ -2,11 +2,15 @@ module WebRow.Mailer where
 
 import Prelude
 
+import Data.Newtype (class Newtype)
 import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
 import Run (Run)
 import Run as Run
-import WebRow.Types (Email)
+
+newtype Email = Email String
+derive instance newtypeEmail ∷ Newtype Email _
+derive newtype instance showEmail ∷ Show Email
 
 data MailerF a
   = SendMail 

@@ -12,9 +12,10 @@ import Polyform.Validator (hoistFnEither) as Validator
 import Polyform.Validators.UrlEncoded (string)
 import Polyform.Validators.UrlEncoded (string) as Validators
 import Type.Prelude (SProxy(..))
+import WebRow.Applets.Registration.Types (Password(..))
 import WebRow.Forms.Builders.Plain (passwordField, sectionValidator)
-import WebRow.Types (Password(..))
 
+-- | TODO: Move this to polyform validators
 nonEmptyString = string >>> Validator.hoistFnEither \p → case p of
   "" → Left ["Value is required"]
   otherwise → Right p
@@ -30,19 +31,3 @@ passwordForm = passwordsForm >>> sectionValidator "no-match" validator
     passwordsForm = { password1: _, password2: _ }
       <$> passwordField "password1" nonEmptyString
       <*> passwordField "password2" nonEmptyString
-
-
-
---     passwordInput_ = SProxy ∷ SProxy "passwordInput"
---     passwordInput = Widgets.Validator.textInput passwordInput_ Validators.string
-
--- -- passwordForm ∷ WebRow.Forms.Form.PureValidator (passwordInput ∷ TextInput Identity String) Password
--- passwordForm
---   = passwordsWidget >>> Widget { render, validator }
---   where
---     passwordInput_ = SProxy ∷ SProxy "passwordInput"
---     passwordInput = Widgets.Validator.textInput passwordInput_ Validators.string
--- 
---     render { errors } = inj (SProxy ∷ SProxy "form") (Map.lookup "no-match" errors)
--- 
--- 
