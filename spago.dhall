@@ -20,6 +20,7 @@ You can edit this file as you like.
     , "routing-duplex-variant"
     , "run"
     , "selda"
+    , "smolder"
     ]
 , packages =
     ./packages.dhall

@@ -39,7 +39,7 @@ run
   → i
   → m
     { layout ∷ layout (Report.Result step)
-    , result ∷  (Maybe o)
+    , result ∷ Maybe o
     , report ∷ Report.Report step
     }
 run (Form { layout, reporter }) input = do
@@ -48,7 +48,9 @@ run (Form { layout, reporter }) input = do
     report = Object.Builder.build (Polyform.Reporter.report result)
   let
     layout' = layout <#> \k → case Object.lookup k report of
-      -- | TODO: we should handle this as a form DSL error
+      -- | TODO: We should probably handle this as a form DSL error
+      -- |       because all results should be present in the result
+      -- |       object.
       Nothing → { input: Nothing, result: Nothing }
       Just r → r
   pure $ { layout: layout', result: hush <<< Polyform.Reporter.toEither $ result, report: report }

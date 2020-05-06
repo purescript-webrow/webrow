@@ -5,11 +5,10 @@ import Prelude
 import Data.Newtype (class Newtype, un)
 import Data.Variant (SProxy(..), Variant, inj, on)
 import Data.Variant.Internal (FProxy)
-import Effect.Aff.Class (class MonadAff)
 import HTTPure (Headers, Response, badGateway', badRequest', forbidden', internalServerError', methodNotAllowed', notFound', notImplemented', serviceUnavailable', unauthorized') as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Headers (empty) as Headers
-import Run (Run)
+import Run (AFF, EFFECT, Run)
 import Run as Run
 
 type Body = String
@@ -114,7 +113,11 @@ serviceUnavailable headers = serverError $ ServiceUnavailable headers
 -- |
 -- | We want to probably turn this into a runner which
 -- | also does some logging based on the Run stack
-onHttpError ∷ ∀ m res. MonadAff m ⇒ (Variant res → m HTTPure.Response) → Response res → m HTTPure.Response
+onHttpError
+  ∷ ∀ eff res
+  . (Variant res → Run (aff ∷ AFF, effect ∷ EFFECT | eff) HTTPure.Response)
+  → Response res
+  → Run (aff ∷ AFF, effect ∷ EFFECT | eff) HTTPure.Response
 onHttpError case'
   = case'
   # on _clientError handleClientError

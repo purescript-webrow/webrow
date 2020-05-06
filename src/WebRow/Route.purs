@@ -27,15 +27,15 @@ hasRoutes
 hasRoutes = Run.lift _route (HasRoute identity)
 
 printRoute ∷ ∀ v eff. Variant v → Run ( route ∷ ROUTE v | eff ) String
-printRoute v = hasRoutes <#> _.route <#> flip D.print v 
+printRoute v = hasRoutes <#> _.route <#> flip D.print v
 
 printFullRoute ∷ ∀ v eff. Variant v → Run ( route ∷ ROUTE v | eff ) String
 printFullRoute v = (<>) <$> (hasRoutes <#> _.domain) <*> printRoute v
 
-interpretRoute
+interpret
   ∷ ∀ a v eff
   . RouteInfo v
   → Run ( route ∷ FProxy (RouteF v) | eff ) a
   → Run eff a
-interpretRoute info = Run.interpret
+interpret info = Run.interpret
   (Run.on _route (\(HasRoute k) → pure $ k info) Run.send)

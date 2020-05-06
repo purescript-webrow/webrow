@@ -11,6 +11,7 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Validation.Semigroup (V(..))
 import Data.Variant (Variant, inj, on)
+import Global.Unsafe (unsafeStringify)
 import HTTPure (Method(..), Request) as HTTPure
 import Node.FS (FileFlags(..))
 import Polyform.Validator (runValidator)
@@ -22,9 +23,14 @@ import Routing.Duplex.Parser (RouteParams)
 import Run (AFF, FProxy, Run, SProxy(..))
 import Run as Run
 import Run.Reader (READER, ask)
+import WebRow.Applets.Registration.Forms (passwordForm)
 import WebRow.Crypto (Secret, sign, unsign)
+import WebRow.Forms.Builders.Layout (Layout)
+import WebRow.Forms.Builders.Plain (Field, Repr) as Builder.Plain
 import WebRow.Forms.Payload (fromBody)
-import WebRow.Logging.Effect (LOGGER)
+import WebRow.Forms.Plain (emptyLayout, emptyLayout', run) as Forms.Plain
+import WebRow.Forms.Validation.Report (Result) as Forms.Validation.Report
+import WebRow.Logging.Effect (LOGGER, info)
 import WebRow.Logging.Effect as LogEff
 import WebRow.Mailer (MAILER, sendMail)
 import WebRow.Response (RESPONSE, badRequest'', methodNotAllowed, methodNotAllowed')
@@ -44,8 +50,9 @@ namespace = inj _register
 data ConfirmationResponse
   = ConfirmationSucceeded Email Password
   | InvalidEmailSignature
+  | InitialPasswordForm (Layout Builder.Plain.Field (Forms.Validation.Report.Result Builder.Plain.Repr))
   | EmailRegisteredInbetween Email
-  -- | PasswordValidationFailed (Widget (passwordInput ∷ TextInput Identity String))
+  | PasswordValidationFailed (Layout Builder.Plain.Field (Forms.Validation.Report.Result Builder.Plain.Repr))
 
 data RegisterEmailResponse
   = EmailSent Email
@@ -70,9 +77,7 @@ type RouteRow r = Namespace r Route
 printFullRoute ∷ ∀ eff routes. Route → Run (route ∷ ROUTE (RouteRow routes) | eff) String
 printFullRoute = Route.printFullRoute <<< namespace
 
-data RegisterF a
-  = ValidateEmail String (Either String Email → a)
-  | ValidateConfirmation { email ∷ String }
+data RegisterF a = CheckIfEmailRegistered Email (Either String Email → a)
 
 derive instance functorRegisterF ∷ Functor RegisterF
 
@@ -103,14 +108,15 @@ router
   → Variant (RouteRow routes)
   → Run (EffectRow ctx res routes eff) a
 router = on _register $ case _ of
-  RegisterEmail email → response $ RegisterEmailResponse $ EmailAlreadyRegistered email -- registerEmail email
-  Confirmation email → badRequest'' -- ConfirmationResponse $ EmailRegisteredInbetween email
+  RegisterEmail email → registerEmail email
+  Confirmation email → confirmation email
 
 confirmation
   ∷ ∀ eff ctx res a
   . SignedEmail
   → Run
       ( aff ∷ AFF
+      , logger ∷ LOGGER
       , reader ∷ READER { request ∷ HTTPure.Request, secret ∷ Secret | ctx }
       , register ∷ REGISTER
       , response ∷ RESPONSE ( register ∷ Response | res )
@@ -122,14 +128,16 @@ confirmation signedEmail = do
   req ← ask <#> _.request
   case req.method of
     HTTPure.Post → do
-      badRequest''
-      -- form ← fromBody <#> runValidator passwordForm
-      -- case form of
-      --   V (Right password) → response $ ConfirmationSucceeded email password
-      --   V (Left form) → response $ PasswordValidationFailed email form
+      payload ← fromBody
+      info $ unsafeStringify payload
+      Forms.Plain.run passwordForm payload >>= case _ of
+        o@{ result: Just password } →
+          response $ ConfirmationResponse $ ConfirmationSucceeded (Email email) password
+        o → do
+          response $ ConfirmationResponse $ PasswordValidationFailed o.layout
     HTTPure.Get → do
-      badRequest''
-      -- response $ PasswordValidationForm email Nothing
+      layout ← Forms.Plain.emptyLayout' passwordForm
+      response $ ConfirmationResponse $ InitialPasswordForm layout
     method → methodNotAllowed'
   where
     onInvalidSig err = response $ ConfirmationResponse $ InvalidEmailSignature
@@ -138,22 +146,17 @@ confirmation signedEmail = do
 -- -- checkIfEmailTaken ∷ ∀ eff. Email → Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) Boolean
 -- validateEmail email = do
 --   Run.lift _register (ValidateEmail email)
--- 
--- -- registerEmail
--- --   ∷ ∀ eff ctx res routes a
--- --   . Email
--- --   → Run (EffectRow ctx res routes eff) a
--- -- registerEmail email = do
--- --   checkIfEmailTaken email >>= flip when $
--- --     response (RegistrationFailure email)
--- -- 
--- --   signedEmail ← sign $ un Email email
--- --   text ← printFullRoute $ Confirmation { email: SignedEmail signedEmail, form: [] }
--- --   _ ← sendMail { to: email, text, subject: "Email verification" }
--- --   response $ EmailSent email
--- 
--- -- assertEmailNotTaken ∷
--- --   ∀ eff
--- --   . Email
--- --   → Run ( register ∷ REGISTER | eff ) Unit
--- -- assertEmailNotTaken email = Run.lift _register (AssertEmailNotTaken email unit)
+
+registerEmail
+  ∷ ∀ eff ctx res routes a
+  . Email
+  → Run (EffectRow ctx res routes eff) a
+registerEmail email = do
+  -- checkIfEmailTaken email >>= flip when $
+  --   response (RegisterEmailResponse $ EmailAlreadyRegistered email)
+  signedEmail ← sign $ un Email email
+  text ← printFullRoute $ Confirmation (SignedEmail signedEmail)
+  _ ← sendMail { to: email, text, subject: "Email verification" }
+  response $ RegisterEmailResponse $ EmailSent email
+
+
