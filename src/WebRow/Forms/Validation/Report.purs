@@ -3,13 +3,9 @@ module WebRow.Forms.Validation.Report where
 import Data.Either (Either)
 import Data.Maybe (Maybe)
 import Foreign.Object (Object) as Foreign
-import WebRow.Forms.Payload (Value)
 import WebRow.Utils.Foreign.Object.Builder (Builder) as Foreign.Object
 
-type Result result =
-  { result ∷ Maybe (Either (Array String) result)
-  , input ∷ Maybe Value
-  }
+type Result result = Either (Array String) result
 
 type Key = String
 

@@ -15,6 +15,8 @@ import WebRow.Response (RESPONSE, badRequest'')
 -- | Array String
 type Value = Polyform.Validators.UrlEncoded.Types.Value
 
+type Key = String
+
 -- | Map String (Array String)
 type UrlDecoded = Polyform.Validators.UrlEncoded.Types.Decoded
 

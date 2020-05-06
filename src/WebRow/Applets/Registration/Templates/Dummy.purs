@@ -1,4 +1,4 @@
-module WebRow.Applets.Registration.Render.Dummy where
+module WebRow.Applets.Registration.Templates.Dummy where
 
 import Prelude
 
@@ -19,8 +19,8 @@ import Text.Smolder.Markup (text) as M
 import Text.Smolder.Renderer.String (render) as S
 import WebRow.Applets.Registration (ConfirmationResponse(..), RegisterEmailResponse(..), _register)
 import WebRow.Applets.Registration (Response(..))
-import WebRow.Forms.Builders.Layout (Layout(..))
 import WebRow.Forms.Builders.Plain (Field(..)) as Forms.Builder
+import WebRow.Forms.Layout (Layout(..))
 import WebRow.Logging.Effect (LOGGER)
 
 -- | This is still dummy and unuseful approach
@@ -32,16 +32,16 @@ html body = S.render $ M.html ! A.lang "en" $ body
 
 formBody (Section { closed, layout, reports }) = do
   M.text $ unsafeStringify reports
-  case closed of
-    Just { title } → M.h2 $ M.text title
-    Nothing → pure unit
+  -- case closed of
+  --   Just { title } → M.h2 $ M.text title
+  --   Nothing → pure unit
   for_ layout formBody
 
-formBody (Field (Tuple (Forms.Builder.InputField { name, type_ }) { input: value, result })) = M.div $ do
+formBody (Field ({ field: Forms.Builder.InputField { name, type_ }, input: value, result })) = M.div $ do
   M.text $ unsafeStringify result
-  case result of
-    Just (Left r) → M.text (unsafeStringify r)
-    otherwise → pure unit
+  -- case result of
+  --   Just (Left r) → M.text (unsafeStringify r)
+  --   otherwise → pure unit
   M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (value >>= Array.head))
 
 form l = do

@@ -18,7 +18,8 @@ import Polyform.Validator (lmapValidator, runValidator)
 import Polyform.Validators.UrlEncoded (FieldValueValidator)
 import Type.Prelude (SProxy(..))
 import Unsafe.Coerce (unsafeCoerce)
-import WebRow.Forms.Builders.Layout (Layout(..), closeSection, sectionReporter) as Layout
+import WebRow.Forms.Layout (Layout(..), closeSection, sectionReporter) as Layout
+import WebRow.Forms.Payload (Key) as Payload
 import WebRow.Forms.Payload (Value, UrlDecoded)
 import WebRow.Forms.Plain (Form(..)) as Plain
 import WebRow.Forms.Validation.Report (Result, Key) as Report
@@ -41,15 +42,15 @@ type Reporter m i o = Polyform.Reporter.Reporter m Step i o
 data Field
   = InputField { name ∷ String, type_ ∷ String }
 
-type Layout = Layout.Layout Field Report.Key
+type Layout = Layout.Layout Field Payload.Key Report.Key
 
 type Form m i o = Plain.Form m Layout Repr i o
 
 hoistValidator name = Reporter.hoistValidatorWith
-  (toStep <<< Just <<< Left)
-  (toStep <<< Just <<< Right <<< (inj (SProxy ∷ SProxy "repr") <<< unsafeStringify))
+  (toStep <<< Left)
+  (toStep <<< Right <<< (inj (SProxy ∷ SProxy "repr") <<< unsafeStringify))
   where
-    toStep result = Foreign.Object.Builder.insert name { result, input: Nothing }
+    toStep result = Foreign.Object.Builder.insert name result
 
 field
   ∷ ∀ m o
@@ -60,15 +61,14 @@ field
 field l@{ name, type_ } fieldValidator = Plain.Form { layout, reporter }
   where
     -- | TODO: Replace `name` based `Key` with
-    -- | proper id generation based on name and
+    -- | a proper id generation based on name and
     -- | some internal sequence.
     key = name
-    toStep result = Foreign.Object.Builder.insert name { result, input: Nothing }
     reporter = hoistValidator
       key
       (Validator.hoistFn (Map.lookup key) >>> fieldValidator)
 
-    layout = Layout.Field (Tuple (InputField l) key)
+    layout = Layout.Field { input: key, field: InputField l, result: key }
 
 -- | TODO: Just for debugging
 passwordField ∷ ∀ o m. Monad m ⇒ String → FieldValueValidator m o → Form m UrlDecoded o

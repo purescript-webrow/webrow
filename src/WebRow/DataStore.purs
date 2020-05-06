@@ -1,4 +1,4 @@
-module WebRob.DataStore where
+module WebRow.DataStore where
 
 import Prelude
 

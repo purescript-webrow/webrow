@@ -21,7 +21,7 @@ import Type.Row (type (+))
 import WebRow.Applets.Registration (RouteRow) as Registration
 import WebRow.Applets.Registration (_register)
 import WebRow.Applets.Registration (duplexes, router) as Register
-import WebRow.Applets.Registration.Render.Dummy (onRegister) as Registration.Templates.Dummy
+import WebRow.Applets.Registration.Templates.Dummy (onRegister) as Registration.Templates.Dummy
 import WebRow.Crypto (Secret(..))
 import WebRow.Logging.Effect (LOGGER, runLoggerConsole)
 import WebRow.Mailer (MailerF(..), MAILER, _mailer)

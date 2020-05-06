@@ -3,6 +3,7 @@ module WebRow.Applets.Registration where
 import Prelude
 
 import Control.Monad.Reader.Class (asks)
+import Data.Bifunctor (rmap)
 import Data.Either (Either(..), either)
 import Data.Generic.Rep (class Generic)
 import Data.Identity (Identity(..))
@@ -25,10 +26,11 @@ import Run as Run
 import Run.Reader (READER, ask)
 import WebRow.Applets.Registration.Forms (passwordForm)
 import WebRow.Crypto (Secret, sign, unsign)
-import WebRow.Forms.Builders.Layout (Layout)
 import WebRow.Forms.Builders.Plain (Field, Repr) as Builder.Plain
+import WebRow.Forms.Layout (Layout)
+import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Payload (fromBody)
-import WebRow.Forms.Plain (emptyLayout, emptyLayout', run) as Forms.Plain
+import WebRow.Forms.Plain (prefill', run) as Forms.Plain
 import WebRow.Forms.Validation.Report (Result) as Forms.Validation.Report
 import WebRow.Logging.Effect (LOGGER, info)
 import WebRow.Logging.Effect as LogEff
@@ -50,9 +52,9 @@ namespace = inj _register
 data ConfirmationResponse
   = ConfirmationSucceeded Email Password
   | InvalidEmailSignature
-  | InitialPasswordForm (Layout Builder.Plain.Field (Forms.Validation.Report.Result Builder.Plain.Repr))
+  | InitialPasswordForm (Layout Builder.Plain.Field (Maybe Payload.Value) (Maybe (Forms.Validation.Report.Result Builder.Plain.Repr)))
   | EmailRegisteredInbetween Email
-  | PasswordValidationFailed (Layout Builder.Plain.Field (Forms.Validation.Report.Result Builder.Plain.Repr))
+  | PasswordValidationFailed (Layout Builder.Plain.Field (Maybe Payload.Value) (Maybe (Forms.Validation.Report.Result Builder.Plain.Repr)))
 
 data RegisterEmailResponse
   = EmailSent Email
@@ -133,10 +135,10 @@ confirmation signedEmail = do
       Forms.Plain.run passwordForm payload >>= case _ of
         o@{ result: Just password } →
           response $ ConfirmationResponse $ ConfirmationSucceeded (Email email) password
-        o → do
-          response $ ConfirmationResponse $ PasswordValidationFailed o.layout
+        o@{ layout } → do
+          response $ ConfirmationResponse $ PasswordValidationFailed layout
     HTTPure.Get → do
-      layout ← Forms.Plain.emptyLayout' passwordForm
+      layout ← rmap (const Nothing) <$> Forms.Plain.prefill' passwordForm mempty
       response $ ConfirmationResponse $ InitialPasswordForm layout
     method → methodNotAllowed'
   where

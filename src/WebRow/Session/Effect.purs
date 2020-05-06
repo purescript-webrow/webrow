@@ -11,8 +11,8 @@ import Run as Run
 import Run.Reader (ask)
 import Run.State (STATE)
 import Run.State as Run.State
-import ShopUtils.Logging.Effect as Log
-import WebRob.DataStore as DataStore
+import WebRow.Logging.Effect as Log
+import WebRow.DataStore as DataStore
 import WebRow.Session (sessionIdFromRequest, sessionIdKey)
 
 data SessionF session a
