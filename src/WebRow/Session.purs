@@ -2,49 +2,21 @@ module WebRow.Session where
 
 import Prelude
 
-import Control.Monad.Except (mapExceptT)
-import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
-import Control.Monad.Reader (class MonadAsk, withReaderT)
-import Control.Monad.State as State
-import Data.Either (hush)
-import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
-import Data.NonEmpty as NonEmpty
+import Data.Maybe (Maybe(..), maybe)
 import Data.Symbol (SProxy(..), reflectSymbol)
-import Data.Variant.Internal (FProxy(..))
-import Effect (Effect)
-import Effect.Class (class MonadEffect, liftEffect)
-import Foreign.Object (Object)
-import Foreign.Object as Object
-import HTTPure (Headers, Request, header, (!@))
-import HTTPure as HTTPure
-import HTTPure.Headers as Headers
-import Prim.Row as R
-import Record as Record
-import Run (Run(..), AFF)
-import Run as Run
+import Run (AFF, Run)
 import Run.Reader (ask)
-import Run.State (State(..))
-import Type.Row (type (+))
-import WebRow.Cookies (parseCookies)
-import WebRow.Crypto (unsign)
-import WebRow.Reader (READER)
+import WebRow.Cookies (getCookie')
+import WebRow.DataStore (STORE)
+import WebRow.DataStore as DataStore
+import WebRow.Reader (READER) as WebRow
 
 sessionIdFromRequest
   ∷ ∀ eff ctx
   . Run
-      ( aff ∷ AFF, reader ∷ READER ctx | eff )
+      ( aff ∷ AFF, reader ∷ WebRow.READER ctx | eff )
       (Maybe String)
-sessionIdFromRequest = ask <#> _.request <#> _.headers 
-  <#> (_ !@ "cookie")
-  <#> parseCookies
-  <#> hush
-  >>= sessionIdFromCookies
-  where
-    sessionIdFromCookies obj =
-      case obj >>= Object.lookup sessionIdKey <#> NonEmpty.head of
-        Just signed → hush <$> unsign signed
-        Nothing → pure Nothing
+sessionIdFromRequest = getCookie' sessionIdKey =<< (ask <#> _.request.headers)
 
 -- cookiesSessionMiddleware
 --   ∷ ∀ e a r
@@ -67,33 +39,37 @@ sessionIdFromRequest = ask <#> _.request <#> _.headers
 --     , resHeaders
 --     } ctx) $ router req
 
--- getSession
---   ∷ ∀ m r
---   . MonadAsk { | RStore + RSecret r } m
---   ⇒ MonadEffect m
---   ⇒ Headers
---   → m (Maybe Session)
--- getSession headers = do
---   { store, secret } ← ask
---   liftEffect $ headers !@ "cookie" # parseCookies # hush # sessionIdFromCookies secret
---     >>= case _ of
---       Nothing → pure Nothing
---       Just c → liftEffect $ store.get c.sessionId
+getSession
+  ∷ ∀ eff ctx session
+  . Run
+      ( aff ∷ AFF
+      , reader ∷ WebRow.READER ctx
+      , store ∷ SESSIONSTORE session
+      | eff
+      )
+      (Maybe session)
+getSession = sessionIdFromRequest >>= maybe (pure Nothing) DataStore.get
 
-sessionIdKey ∷ String
-sessionIdKey = reflectSymbol _sessionId
-
-_sessionId = SProxy ∷ SProxy "sessionId"
-
--- createSession ∷ MemoryStore Session → Effect Session
--- createSession store = do
---   id ← store.create
---   let session = { id }
---   store.set id session
---   pure session
+createSessionWith 
+  ∷ ∀ eff session
+  . ({ sessionId ∷ String } → session)
+  → Run
+      ( store ∷ SESSIONSTORE session
+      | eff
+      )
+      session
+createSessionWith mkSession = do
+  sessionId ← DataStore.createKey
+  DataStore.set sessionId $ mkSession { sessionId }
 
 -- setCookieHeaderSignedValue ∷ Name → Value → CookieAttributes → Secret → Effect String
 -- setCookieHeaderSignedValue k v attrs s = do
 --   signed ← sign s v
 --   pure $ setCookieHeaderValue k signed attrs
 
+type SESSIONSTORE session = STORE String session
+
+sessionIdKey ∷ String
+sessionIdKey = reflectSymbol _sessionId
+
+_sessionId = SProxy ∷ SProxy "sessionId"

@@ -35,15 +35,20 @@ modify
   → Run ( session ∷ SESSION session | eff ) Unit
 modify f = Run.lift _session (Modify f unit)
 
+set
+  ∷ ∀ session eff
+  . session
+  → Run ( session ∷ SESSION session | eff ) Unit
+set session = modify $ const session
 
-runSession emptySession m = do
+withSession onEmptySession m = do
   -- extract the session id from cookies, create new in case nothing is found
   sessionId ← sessionIdFromRequest >>= maybe DataStore.createKey pure
   
   -- try to retrieve session data
   sessionBefore ← DataStore.get sessionId >>= flip maybe pure do 
     Log.warning $ "session id key mismatch for " <> sessionId
-    pure emptySession
+    onEmptySession
 
   -- interpret session effect
   Tuple session a ← Run.State.runState sessionBefore

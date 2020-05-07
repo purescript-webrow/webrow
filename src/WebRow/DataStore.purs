@@ -12,7 +12,7 @@ data DataStoreF key val a
   = CreateKey (key → a)
   | Delete key a
   | Get key (Maybe val → a)
-  | Set key val a
+  | Set key val (val → a)
 derive instance functorDataStoreF ∷ Functor (DataStoreF key val)
 
 _store = SProxy ∷ SProxy "store"
@@ -40,5 +40,5 @@ set
   ∷ ∀ key val eff
   . key
   → val
-  → Run ( store ∷ STORE key val | eff ) Unit
-set key val = Run.lift _store (Set key val unit)
+  → Run ( store ∷ STORE key val | eff ) val
+set key val = Run.lift _store (Set key val identity)
