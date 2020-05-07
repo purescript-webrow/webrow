@@ -20,8 +20,8 @@ import Routing.Duplex.Types (RouteParams)
 params ∷ RouteDuplex' RouteParams
 params = RouteDuplex printer parser
   where
-  parser :: RouteParser RouteParams
-  parser = Chomp $ \state -> Success (state { params = [] }) state.params
+  parser ∷ RouteParser RouteParams
+  parser = Chomp $ \state → Success (state { params = [] }) state.params
 
   printer ∷ RouteParams → RoutePrinter
   printer p = RoutePrinter \state → state { params = p }

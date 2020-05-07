@@ -58,7 +58,7 @@ interpretBaseEffects request
   <<< interpretMailerStub
 
 -- interpret ∷ HTTPure.Request → Routes → Aff HTTPure.Response
-runApps :: Routes -> Run BaseEffects HTTPure.Response
+runApps ∷ Routes → Run BaseEffects HTTPure.Response
 runApps
   = httpResponse
   <<< interpretApps

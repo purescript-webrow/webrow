@@ -16,12 +16,12 @@ interpret
     | eff
     )
    ~> Run (effect ∷ EFFECT | eff)
-interpret = Run.interpret (Run.on _register interpreter Run.send)
+interpret = Run.interpret (Run.on _register handler Run.send)
 
-interpreter
+handler
   ∷ ∀ eff
   . RegisterF ~> Run (effect ∷ EFFECT | eff)
-interpreter (EmailTaken email next) = do
+handler (EmailTaken email next) = do
   v ← liftEffect random
   pure (next (v > 0.5))
 

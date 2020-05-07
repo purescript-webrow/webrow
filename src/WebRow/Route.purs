@@ -17,10 +17,10 @@ derive instance newtypeRelativeUrl ∷ Newtype RelativeUrl _
 newtype Url = Url String
 derive instance newtypeUrl ∷ Newtype Url _
 
-fromFullUrl :: FullUrl -> Url
+fromFullUrl ∷ FullUrl → Url
 fromFullUrl (FullUrl url) = Url url
 
-fromRelativeUrl :: RelativeUrl -> Url
+fromRelativeUrl ∷ RelativeUrl → Url
 fromRelativeUrl (RelativeUrl url) = Url url
 
 type RouteInfo v =
