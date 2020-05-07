@@ -199,8 +199,39 @@ let routing-duplex-variant =
       "master"
   }
 
-let polyform = ../purescript-polyform/spago.dhall as Location
-let polyform-validators = ../purescript-polyform-validators/spago.dhall as Location
+let polyform =
+  { dependencies =
+      [ "newtype"
+      , "ordered-collections"
+      , "variant"
+      , "profunctor"
+      , "invariant"
+      , "foreign-object"
+      , "run"
+      , "transformers"
+      , "generics-rep"
+      , "validation"
+      , "foreign"
+      ]
+  , repo = 
+      "https://github.com/paluh/purescript-polyform.git"
+  , version = 
+      "master"
+  }
+
+let polyform-validators = 
+  { dependencies =
+      [ "polyform"
+      , "argonaut"
+      , "prelude"
+      , "affjax"
+      , "numbers"
+      ]
+  , repo = 
+      "https://github.com/lambdaterms/purescript-polyform-validators.git"
+  , version = 
+      "master"
+  }
 
 let additions =
   { selda = selda
