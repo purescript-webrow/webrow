@@ -4,6 +4,7 @@ import Prelude
 
 import Data.Maybe (Maybe(..), maybe)
 import Data.Symbol (SProxy(..), reflectSymbol)
+import Data.UUID (UUID, parseUUID)
 import Run (AFF, Run)
 import Run.Reader (ask)
 import WebRow.Cookies (getCookie')
@@ -15,8 +16,9 @@ sessionIdFromRequest
   ∷ ∀ eff ctx
   . Run
       ( aff ∷ AFF, reader ∷ WebRow.READER ctx | eff )
-      (Maybe String)
-sessionIdFromRequest = getCookie' sessionIdKey =<< (ask <#> _.request.headers)
+      (Maybe UUID)
+sessionIdFromRequest = map (parseUUID =<< _)
+  $ getCookie' sessionIdKey =<< (ask <#> _.request.headers)
 
 -- cookiesSessionMiddleware
 --   ∷ ∀ e a r
@@ -39,35 +41,30 @@ sessionIdFromRequest = getCookie' sessionIdKey =<< (ask <#> _.request.headers)
 --     , resHeaders
 --     } ctx) $ router req
 
-getSession
-  ∷ ∀ eff ctx session
-  . Run
-      ( aff ∷ AFF
-      , reader ∷ WebRow.READER ctx
-      , store ∷ SESSIONSTORE session
-      | eff
-      )
-      (Maybe session)
-getSession = sessionIdFromRequest >>= maybe (pure Nothing) DataStore.get
+-- getSession
+--   ∷ ∀ eff ctx session
+--   . Run
+--       ( aff ∷ AFF
+--       , reader ∷ WebRow.READER ctx
+--       , store ∷ SESSIONSTORE session
+--       | eff
+--       )
+--       (Maybe session)
+-- getSession = sessionIdFromRequest >>= maybe (pure Nothing) DataStore.get
 
-createSessionWith 
-  ∷ ∀ eff session
-  . ({ sessionId ∷ String } → session)
-  → Run
-      ( store ∷ SESSIONSTORE session
-      | eff
-      )
-      session
-createSessionWith mkSession = do
-  sessionId ← DataStore.createKey
-  DataStore.set sessionId $ mkSession { sessionId }
+-- createSessionWith 
+--   ∷ ∀ eff session
+--   . ({ sessionId ∷ UUID } → session)
+--   → Run
+--       ( store ∷ SESSIONSTORE session
+--       | eff
+--       )
+--       session
+-- createSessionWith mkSession = do
+--   sessionId ← DataStore.create
+--   DataStore.set sessionId $ mkSession { sessionId }
 
--- setCookieHeaderSignedValue ∷ Name → Value → CookieAttributes → Secret → Effect String
--- setCookieHeaderSignedValue k v attrs s = do
---   signed ← sign s v
---   pure $ setCookieHeaderValue k signed attrs
-
-type SESSIONSTORE session = STORE String session
+type SESSIONSTORE session = STORE UUID session
 
 sessionIdKey ∷ String
 sessionIdKey = reflectSymbol _sessionId

@@ -15,7 +15,7 @@ import WebRow.Crypto (Secret)
 
 setCookie
   ∷ ∀ ctx eff
-  . { name ∷ Cookie.Name, value ∷ Cookie.Value, attributes ∷ Cookie.Attributes }
+  . { name ∷ String, value ∷ String, attributes ∷ Cookie.Attributes }
   → Run
       ( modifyResponse ∷ MODIFY
       , aff ∷ AFF
@@ -25,6 +25,18 @@ setCookie
       Unit
 setCookie = Cookie.setCookie >=> (modifyHeaders <<< const)
 
+deleteCookie
+  ∷ ∀ ctx eff
+  . Cookie.Name
+  → Run
+      ( modifyResponse ∷ MODIFY
+      , aff ∷ AFF
+      , reader ∷ READER { secret ∷ Secret | ctx }
+      | eff
+      )
+      Unit
+deleteCookie = modifyHeaders <<< const <<< Cookie.deleteCookie
+
 modifyHeadersM
   ∷ ∀ eff m
   . Monad m
@@ -32,7 +44,7 @@ modifyHeadersM
   → Run ( modifyResponse ∷ MODIFY_M m | eff ) Unit
 modifyHeadersM f = modifyM \res → do
   h ← f res
-  pure $ res { headers = h <> res.headers }
+  pure $ res { headers = res.headers <> h }
 
 modifyHeaders
   ∷ ∀ eff

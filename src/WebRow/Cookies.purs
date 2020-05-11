@@ -24,7 +24,7 @@ import WebRow.Utils.Data.JSDate (epoch)
 
 setCookie
   ∷ ∀ eff ctx
-  . { name ∷ Name, value ∷ Value, attributes ∷ Attributes }
+  . { name ∷ String, value ∷ String, attributes ∷ Attributes }
   → Run
       ( aff ∷ AFF
       , reader ∷ READER { secret ∷ Secret | ctx }

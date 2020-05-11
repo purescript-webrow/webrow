@@ -11,8 +11,8 @@ You can edit this file as you like.
     , "httpure"
     , "logging-journald"
     , "optparse"
-    , "postgresql-client"
     , "polyform-validators"
+    , "postgresql-client"
     , "profunctor-lenses"
     , "psci-support"
     , "record"
@@ -21,6 +21,7 @@ You can edit this file as you like.
     , "run"
     , "selda"
     , "smolder"
+    , "uuid"
     ]
 , packages =
     ./packages.dhall

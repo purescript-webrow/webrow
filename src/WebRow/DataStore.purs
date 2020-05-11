@@ -9,7 +9,7 @@ import Run (Run)
 import Run as Run
 
 data DataStoreF key val a
-  = CreateKey (key → a)
+  = Create (key → a)
   | Delete key a
   | Get key (Maybe val → a)
   | Set key val (val → a)
@@ -19,10 +19,10 @@ _store = SProxy ∷ SProxy "store"
 
 type STORE key val = FProxy (DataStoreF key val)
 
-createKey
+create
   ∷ ∀ key val eff
   . Run ( store ∷ STORE key val | eff ) key
-createKey = Run.lift _store (CreateKey identity)
+create = Run.lift _store (Create identity)
 
 delete
   ∷ ∀ key val eff
