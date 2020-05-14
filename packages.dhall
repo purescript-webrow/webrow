@@ -235,8 +235,8 @@ let polyform-validators =
 
 let additions =
   { selda = selda
-  , polyform = polyform
-  , polyform-validators = polyform-validators
+  , polyform = ../purescript-polyform/spago.dhall as Location
+  , polyform-validators = ../purescript-polyform-validators/spago.dhall as Location
   , postgresql-client = postgresql-client
   , prettyprinter = prettyprinter
   , routing-duplex-variant = routing-duplex-variant

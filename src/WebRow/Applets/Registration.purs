@@ -2,10 +2,10 @@ module WebRow.Applets.Registration where
 
 import Prelude
 
-import Data.Bifunctor (rmap)
-import Data.Either (Either(..), either)
+import Data.Either (either)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
+import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, on)
 import HTTPure (Method(..)) as HTTPure
 import Run (Run)
@@ -18,7 +18,7 @@ import WebRow.Applets.Registration.Routes (Route(..), RouteRow, printFullRoute) 
 import WebRow.Applets.Registration.Types (SignedEmail(..), _register)
 import WebRow.Crypto (sign, unsign)
 import WebRow.Forms.Payload (fromBody)
-import WebRow.Forms.Plain (prefill', run) as Forms.Plain
+import WebRow.Forms.Plain (default, defaultM, run) as Forms.Plain
 import WebRow.Logging.Effect (info)
 import WebRow.Mailer (Email(..), sendMail)
 import WebRow.Reader (request)
@@ -41,16 +41,17 @@ registerEmail
   . Run (Effects ctx res routes eff) a
 registerEmail = request >>= _.method >>> case _ of
   HTTPure.Post → fromBody >>= Forms.Plain.run emailForm >>= case _ of
-    Right { result: email@(Email e) } → do
+    Tuple form (Just email@(Email e)) → do
       signedEmail ← sign e
       fullUrl@(FullUrl url) ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
       void $ sendMail { to: email, text: "Verification link" <> url, subject: "Email verification" }
       response $ Responses.RegisterEmailResponse $ Responses.EmailSent email fullUrl
-    Left { layout } → do
-      response $ Responses.RegisterEmailResponse $ Responses.EmailValidationFailed layout
+    Tuple form _ → do
+      response $ Responses.RegisterEmailResponse $ Responses.EmailValidationFailed form
   HTTPure.Get → do
-    layout ← rmap (const Nothing) <$> Forms.Plain.prefill' emailForm mempty
-    response $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm layout
+    let
+      form = Forms.Plain.default emailForm
+    response $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm form
   method → methodNotAllowed'
 
 confirmation
@@ -66,13 +67,13 @@ confirmation signedEmail = do
     HTTPure.Post → do
       payload ← fromBody
       Forms.Plain.run passwordForm payload >>= case _ of
-        Right { result: password } →
+        Tuple _ (Just password) →
           response $ Responses.ConfirmationResponse $ Responses.ConfirmationSucceeded email password
-        Left { layout } → do
-          response $ Responses.ConfirmationResponse $ Responses.PasswordValidationFailed layout
+        Tuple form _ → do
+          response $ Responses.ConfirmationResponse $ Responses.PasswordValidationFailed form
     HTTPure.Get → do
-      layout ← Forms.Plain.prefill' passwordForm mempty
-      response $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm layout
+      form ← Forms.Plain.defaultM passwordForm
+      response $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm form
     method → methodNotAllowed'
   where
     onInvalidSig err = response $ Responses.ConfirmationResponse $ Responses.InvalidEmailSignature

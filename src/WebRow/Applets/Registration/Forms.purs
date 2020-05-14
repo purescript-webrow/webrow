@@ -17,8 +17,7 @@ import Polyform.Validators.UrlEncoded (string) as Validators
 import Type.Prelude (SProxy(..))
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Types (Password(..))
-import WebRow.Forms.Builders.Plain (field) as Forms.Builders.Plain
-import WebRow.Forms.Builders.Plain (passwordField, sectionValidator)
+import WebRow.Forms.Plain (input, passwordField, sectionValidator, textInput) as Forms.Plain
 import WebRow.Mailer (Email(..))
 
 -- | TODO: Move this to polyform validators
@@ -42,18 +41,20 @@ emailTaken = Validator.hoistFnMV \email → do
     then pure $ invalid [ "Email already taken:" <> show email ]
     else pure $ valid email
 
-emailForm = Forms.Builders.Plain.field { name: "email", type_: "email" } validator
+_email = SProxy ∷ SProxy "email"
+
+emailForm = Forms.Plain.input "" _email validator
   where
     validator = nonEmptyString >>> emailFormat >>> emailTaken
 
-passwordForm = passwordsForm >>> sectionValidator "no-match" validator
+passwordForm = passwordsForm >>> Forms.Plain.sectionValidator validator
   where
     validator = Validator.hoistFnEither \{ password1, password2 } → if password1 /= password2
       then
-        Left ["Passwords don't match"]
+        Left "Passwords don't match"
       else
         Right (Password password1)
 
     passwordsForm = { password1: _, password2: _ }
-      <$> passwordField "password1" nonEmptyString
-      <*> passwordField "password2" nonEmptyString
+      <$> Forms.Plain.passwordField
+      <*> Forms.Plain.passwordField

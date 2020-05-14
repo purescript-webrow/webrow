@@ -7,7 +7,7 @@ import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..))
-import Data.Variant (on)
+import Data.Variant (case_, on)
 import Global.Unsafe (unsafeStringify)
 import HTTPure (headers, ok') as HTTPure
 import Text.Smolder.HTML (Html)
@@ -16,10 +16,11 @@ import Text.Smolder.HTML.Attributes (href, lang, method, name, type', value) as 
 import Text.Smolder.Markup (safe, (!))
 import Text.Smolder.Markup (text) as M
 import Text.Smolder.Renderer.String (render) as S
+import WebRow.Applets.Registration.Forms (_email)
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), FormLayout)
 import WebRow.Applets.Registration.Types (_register)
-import WebRow.Forms.Builders.Plain (Field(..)) as Forms.Builder
 import WebRow.Forms.Layout (Layout(..))
+import WebRow.Forms.Plain (_textInput)
 import WebRow.Route (FullUrl(..))
 
 -- | This is still dummy and unuseful approach
@@ -31,20 +32,26 @@ html ∷ Html Unit → String
 html body = S.render $ M.html ! A.lang "en" $ body
 
 formBody ∷ FormLayout → Html Unit
-formBody (Section { closed, layout, reports }) = do
-  for_ reports case _ of
-    Just (Left r) → M.p $ M.text (unsafeStringify r)
-    otherwise → pure unit
+formBody (Section { closed, errors, layout }) = do
+  for_ errors \err →
+    M.p $ M.text (unsafeStringify err)
   case closed of
     Just { title } → M.h2 $ M.text title
     Nothing → pure unit
   for_ layout formBody
+formBody (Field field) = c field
+  where
+    c = case_
+      # on _textInput formField
+      # on _email formField
 
-formBody (Field ({ field: Forms.Builder.InputField { name, type_ }, input: value, result })) = M.div $ do
+-- ( "textInput" ∷ { name ∷ String, input ∷ Maybe Payload.Value, result ∷ Maybe (Either (Array msg) String), type_ ∷ String }
+
+formField { input, name, result, type_ } = M.div $ do
   case result of
     Just (Left r) → M.text (unsafeStringify r)
     otherwise → pure unit
-  M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (value >>= Array.head))
+  M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (input >>= Array.head))
 
 form ∷ FormLayout → Html Unit
 form l = do
