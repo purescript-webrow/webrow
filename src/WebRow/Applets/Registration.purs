@@ -8,6 +8,7 @@ import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, on)
 import HTTPure (Method(..)) as HTTPure
+import Polyform.Dual (dual)
 import Run (Run)
 import WebRow.Applets.Registration.Effects (Effects)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
@@ -78,4 +79,21 @@ confirmation signedEmail = do
   where
     onInvalidSig err = response $ Responses.ConfirmationResponse $ Responses.InvalidEmailSignature
 
-
+changeEmail
+  ∷ ∀ a eff ctx res routes
+  . Run (Effects ctx res routes eff) a
+changeEmail = request >>= _.method >>> case _ of
+    -- HTTPure.Post → fromBody >>= Forms.Dual.run updateEmailForm >>= case _ of
+    --   Tuple form (Just email@(Email e)) → do
+    --     signedEmail ← sign e
+    --     fullUrl@(FullUrl url) ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
+    --     void $ sendMail { to: email, text: "Verification link" <> url, subject: "Email verification" }
+    --     response $ Responses.RegisterEmailResponse $ Responses.EmailSent email fullUrl
+    --   Tuple form _ → do
+    --     response $ Responses.RegisterEmailResponse $ Responses.EmailValidationFailed form
+    HTTPure.Get → do
+      email ← Effects.userEmail
+      let
+        form = Forms.Dual.build emailForm email
+      response $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm form
+    method → methodNotAllowed'

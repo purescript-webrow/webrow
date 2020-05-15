@@ -19,8 +19,8 @@ import Text.Smolder.Renderer.String (render) as S
 import WebRow.Applets.Registration.Forms (_email)
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), FormLayout)
 import WebRow.Applets.Registration.Types (_register)
+import WebRow.Forms.Fields (_textInput)
 import WebRow.Forms.Layout (Layout(..))
-import WebRow.Forms.Plain (_textInput)
 import WebRow.Route (FullUrl(..))
 
 -- | This is still dummy and unuseful approach

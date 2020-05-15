@@ -23,6 +23,8 @@ emailTaken ∷ ∀ eff. Email → Run ( aff ∷ AFF, register ∷ REGISTER | eff
 emailTaken email = do
   Run.lift _register (EmailTaken email identity)
 
+userEmail ∷ ∀ eff. Run (aff ∷ AFF, register ∷ REGISTER | eff) Email
+
 type Effects ctx res routes eff =
   ( aff ∷ AFF
   , logger ∷ LOGGER

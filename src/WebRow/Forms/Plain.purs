@@ -2,17 +2,15 @@ module WebRow.Forms.Plain where
 
 import Prelude
 
-import Control.Monad.State (evalState)
-import Control.Monad.State (modify) as State
-import Control.Monad.State.Trans (StateT)
 import Data.Either (Either(..))
-import Data.Identity (Identity)
+import Data.Exists (mkExists)
+import Data.Identity (Identity(..))
 import Data.Map (lookup) as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
-import Data.Variant (Variant, inj)
+import Data.Variant (inj)
 import Polyform.Reporter (R(..), hoistFn, hoistValidatorWith, lmapReporter, runReporter) as Reporter
 import Polyform.Reporter (Reporter) as Polyform.Reporter
 import Polyform.Validator (Validator) as Polyform.Validator
@@ -21,31 +19,13 @@ import Polyform.Validators.UrlEncoded (string)
 import Record (insert) as Record
 import Type.Prelude (SProxy(..))
 import Type.Prelude (reflectSymbol) as Symbol
+import WebRow.Forms.Fields (_textInput, _type)
 import WebRow.Forms.Layout (Layout(..), closeSection, sectionError) as Layout
-import WebRow.Forms.Payload (Value) as Payload
+import WebRow.Forms.Layout (Layout)
 import WebRow.Forms.Payload (UrlDecoded)
-
-type Message msg = Variant ( | msg)
-
-type Layout field msg = Layout.Layout field msg
-
-newtype Sequence a = Sequence (StateT Int Identity a)
-derive newtype instance functorSequence ∷ Functor Sequence
-derive newtype instance applySequence ∷ Apply Sequence
-derive newtype instance applicativeSequence ∷ Applicative Sequence
-derive newtype instance bindSequence ∷ Bind Sequence
-derive newtype instance monadSequence ∷ Monad Sequence
-
-next ∷ Sequence Int
-next = Sequence $ State.modify (_ + 1)
-
-evalSequence ∷ ∀ a. Sequence a → a
-evalSequence (Sequence a) = evalState a 0
-
-name ∷ Sequence String
-name = do
-  id ← next
-  pure $ "field-" <> show id
+import WebRow.Forms.Payload (Value) as Payload
+import WebRow.Forms.Sequence (Sequence)
+import WebRow.Forms.Sequence (eval, id) as Sequence
 
 -- | `default` should probably differ from result layout because
 -- | it should be able to represent "unvalidated" input.
@@ -61,7 +41,7 @@ newtype Form m field msg i o = Form
 derive instance newtypeForm ∷ Newtype (Form m l e i o) _
 derive instance functorForm ∷ (Applicative m) ⇒ Functor (Form m field msg i)
 
-instance applicativeForm ∷ (Applicative m) ⇒ Apply (Form m field msg i) where
+instance applyForm ∷ (Applicative m) ⇒ Apply (Form m field msg i) where
   apply (Form sw1) (Form sw2) = Form $ do
     w1 ← sw1
     w2 ← sw2
@@ -85,15 +65,6 @@ instance categoryForm ∷ (Monad m) ⇒ Category (Form m field msg) where
     , reporter: identity
     }
 
-type InputFieldRecord msg result =
-  { name ∷ String, input ∷ Maybe Payload.Value, result ∷ Maybe (Either (Array msg) result), type_ ∷ String }
-
-type FieldRow msg extra =
-  ( "textInput" ∷ InputFieldRecord msg String
-  -- , "numberInput" ∷ { name ∷ String, input ∷ Maybe (Array String), result ∷ Maybe (Either msg Number) }
-  | extra
-  )
-
 -- | TODO: For convenience we can provide a version which is `o` agnostic
 -- | in case of the constructor. In such a case we can (Maybe msg) as an result
 -- | representation.
@@ -106,7 +77,7 @@ field
     }
   → Form m field msg UrlDecoded o
 field build { defaults, validator } = Form $ do
-  n ← name
+  n ← Sequence.id
   let
     build' = Layout.Field <<< build <<< Record.insert (SProxy ∷ SProxy "name") n
 
@@ -120,12 +91,16 @@ field build { defaults, validator } = Form $ do
     default = build' defaults
   pure { default, reporter }
 
-_textInput = SProxy ∷ SProxy "textInput"
-_type = SProxy ∷ SProxy "type_"
 
 textInput default type_ validator = field build { defaults: { input: Just [ default ], result: Nothing }, validator }
   where
-    build r = inj _textInput (Record.insert _type type_ r)
+    build { input, name, result } = inj
+      _textInput
+      { type_: type_
+      , input
+      , name
+      , result: map (mkExists <<< Identity) <$> result
+      }
 
 input default label validator = field build { defaults: { input: Just [ default ], result: Nothing }, validator }
   where
@@ -155,12 +130,12 @@ run
   ⇒ Form m field msg UrlDecoded o
   → UrlDecoded
   → m (Tuple (Layout msg field) (Maybe o))
-run (Form form) input = case evalSequence form of
+run (Form form) input = case Sequence.eval form of
   { reporter } → Reporter.runReporter reporter input >>= case _ of
     Reporter.Success r o → pure $ Tuple r (Just o)
     Reporter.Failure r → pure $ Tuple r Nothing
 
-default (Form form) = _.default <<< evalSequence $ form
+default (Form form) = _.default <<< Sequence.eval $ form
 
 defaultM ∷ ∀ m t185 t186 t187 t188 t189 t193. Applicative m ⇒ Form m t188 t187 t186 t185 → m (Layout t187 t188)
-defaultM (Form form) = pure <<<_.default <<<  evalSequence $ form
+defaultM (Form form) = pure <<<_.default <<<  Sequence.eval $ form
