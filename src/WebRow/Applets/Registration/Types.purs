@@ -16,6 +16,7 @@ derive newtype instance showPassword ∷ Show Password
 
 _register = SProxy ∷ SProxy "register"
 
+-- IMO these type parameters should be flipped to allow easy namespace appending
 type Namespace r t = (register ∷ t | r)
 
 namespace ∷ ∀ a r. a → Variant (Namespace r a)
