@@ -50,24 +50,23 @@ type Effects session ctx eff =
 withSession
   ∷ ∀ session ctx eff a
   . Row.Union eff ( state ∷ STATE session ) ( state ∷ STATE session | eff )
-  ⇒ Discard session
   ⇒ Run (                           | Effects session ctx eff ) session
   → Run ( session ∷ SESSION session | Effects session ctx eff ) a
   → Run (                           | Effects session ctx eff ) a
-withSession onEmptySession m = do
+withSession onMissingSession m = do
   -- extract the session id from cookies, create new in case nothing is found
   sessionId ← sessionIdFromRequest >>= maybe DataStore.create pure
 
   -- try to retrieve session data
   sessionBefore ← DataStore.get sessionId >>= flip maybe pure do 
     Log.warning $ "session id key mismatch for " <> UUID.toString sessionId
-    onEmptySession
+    onMissingSession
 
   -- interpret session effect
   Tuple session a ← Run.State.runState sessionBefore $ interpretSessionToState m
 
   -- save session
-  DataStore.set sessionId session
+  _ ← DataStore.set sessionId session
   Response.Modify.setCookie
     { name: sessionIdKey
     , value: UUID.toString sessionId
