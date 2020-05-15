@@ -10,6 +10,7 @@ import Routing.Duplex.Generic as DG
 import WebRow.Applets.Auth.Types (Namespace)
 import WebRow.Applets.Registration.Types (Password)
 import WebRow.Mailer (Email)
+import WebRow.Route (printRoute)
 
 data Route
   = Login
@@ -34,3 +35,4 @@ duplexes =
     --     }
     }
   }
+

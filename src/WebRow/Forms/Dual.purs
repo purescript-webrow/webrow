@@ -137,7 +137,7 @@ run (Form (FormD form)) input = case Sequence.eval form of
     Reporter.Success r o → pure $ Tuple r (Just o)
     Reporter.Failure r → pure $ Tuple r Nothing
 
-build :: forall field o m msg. Form m field msg Payload.UrlDecoded o -> o -> Layout msg field
+build :: forall field o m msg. Form Identity field msg Payload.UrlDecoded o -> o -> Layout msg field
 build (Form (FormD form)) value
   = Tuple.fst
   <<< flip Dual.serializer value

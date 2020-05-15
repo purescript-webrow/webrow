@@ -3,19 +3,35 @@ module WebRow.Applets.Auth where
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Variant (on)
-import HTTPure as HTTPure
-import WebRow.Applets.Auth.Forms (emailPassordForm)
+import Data.Newtype (un)
+import Data.Variant (on) as Variant
+import Run (Run)
+import WebRow.Applets.Auth.Effects (AUTH, User)
+import WebRow.Applets.Auth.Effects (currentUser) as Effects
 import WebRow.Applets.Auth.Routes as Routes
-import WebRow.Applets.Auth.Types (_auth)
-import WebRow.Applets.Registration.Types (Password(..))
-import WebRow.Forms.Payload (fromBody)
-import WebRow.Forms.Plain as Forms.Plain
-import WebRow.Mailer (Email(..))
-import WebRow.Reader (request)
+import WebRow.Applets.Auth.Types (_auth, namespace)
+import WebRow.Response (RESPONSE, badRequest')
+import WebRow.Response (redirect) as Response
+import WebRow.Route (ROUTE)
+import WebRow.Route (RelativeUrl(..), printRoute) as Route
 
--- router = on _auth case _ of
---   Routes.Login → onLoginRoute
+userRequired
+  ∷ ∀ eff res route user
+  . Run
+      (auth ∷ AUTH user, response ∷ RESPONSE res, route ∷ ROUTE (Routes.RouteRow route) | eff)
+      (User user)
+userRequired = Effects.currentUser >>= case _ of
+  Just user → pure user
+  Nothing → do
+    Route.printRoute (namespace Routes.Login) >>= un Route.RelativeUrl >>> Response.redirect
+
+-- router
+--   ∷ ∀ a eff ctx res routes user
+--   . (Variant routes → Run (Effects ctx res routes user eff) a)
+--   → Variant (Auth.Routes.RouteRow + routes)
+--   → Run (Effects ctx res routes user eff) a
+router = Variant.on _auth case _ of
+  Routes.Login → badRequest' "Auth.login not implemented yet"
 
 -- onLoginRoute = request >>= _.method >>> case _ of
 --   HTTPure.Post → do

@@ -17,7 +17,7 @@ import Text.Smolder.Markup (safe, (!))
 import Text.Smolder.Markup (text) as M
 import Text.Smolder.Renderer.String (render) as S
 import WebRow.Applets.Registration.Forms (_email)
-import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), FormLayout)
+import WebRow.Applets.Registration.Responses (ChangeEmailResponse(..), ConfirmationResponse(..), FormLayout, RegisterEmailResponse(..), Response(..))
 import WebRow.Applets.Registration.Types (_register)
 import WebRow.Forms.Fields (_textInput)
 import WebRow.Forms.Layout (Layout(..))
@@ -78,3 +78,5 @@ render = case _ of
     InvalidEmailSignature → "InvalidEmailSignature"
     PasswordValidationFailed formLayout → html $ form formLayout
 
+  ChangeEmailResponse r → case r of
+    ChangeEmailInitialForm formLayout → html $ form formLayout

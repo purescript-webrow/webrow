@@ -4,6 +4,9 @@ import Prelude
 
 import Run (AFF, FProxy, Run)
 import Run (lift) as Run
+import Type.Row (type (+))
+import WebRow.Applets.Auth.Effects (AUTH)
+import WebRow.Applets.Auth.Routes (RouteRow) as Auth.Routes
 import WebRow.Applets.Registration.Responses (ResponseRow)
 import WebRow.Applets.Registration.Routes (RouteRow) as Routes
 import WebRow.Applets.Registration.Types (_register)
@@ -23,16 +26,15 @@ emailTaken ∷ ∀ eff. Email → Run ( aff ∷ AFF, register ∷ REGISTER | eff
 emailTaken email = do
   Run.lift _register (EmailTaken email identity)
 
-userEmail ∷ ∀ eff. Run (aff ∷ AFF, register ∷ REGISTER | eff) Email
-
-type Effects ctx res routes eff =
+type Effects ctx res routes user eff =
   ( aff ∷ AFF
+  , auth ∷ AUTH user
   , logger ∷ LOGGER
   , mailer ∷ MAILER
   , reader ∷ WebRow.Reader.READER ctx
   , register ∷ REGISTER
   , response ∷ RESPONSE (ResponseRow res)
-  , route ∷ ROUTE (Routes.RouteRow routes)
+  , route ∷ ROUTE (Routes.RouteRow + Auth.Routes.RouteRow + routes)
   | eff
   )
 

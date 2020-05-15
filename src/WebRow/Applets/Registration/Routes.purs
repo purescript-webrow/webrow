@@ -17,15 +17,17 @@ import WebRow.Route (printFullRoute) as Route
 data Route
   = RegisterEmail
   | Confirmation SignedEmail
+  | ChangeEmail
 derive instance genericRoute ∷ Generic Route _
 
-type RouteRow r = Namespace r Route
+type RouteRow r = (Namespace r Route)
 
 duplexes ∷ { | Namespace () (D.RouteDuplex' Route) }
 duplexes =
   { "register": DG.sum
     { "RegisterEmail": noArgs
     , "Confirmation": "confirmation" / (_Newtype $ D.param "email" ∷ RouteDuplex' SignedEmail)
+    , "ChangeEmail": "change-email" / noArgs
     }
   }
 

@@ -5,7 +5,7 @@ import Prelude
 import Data.Newtype (class Newtype, un)
 import Data.Variant (SProxy(..), Variant, inj, on)
 import Data.Variant.Internal (FProxy)
-import HTTPure (Headers, Response, badGateway', badRequest', forbidden', internalServerError', methodNotAllowed', notFound', notImplemented', serviceUnavailable', unauthorized') as HTTPure
+import HTTPure (Headers, Response, badGateway', badRequest', forbidden', header, internalServerError', methodNotAllowed', notFound', notImplemented', serviceUnavailable', temporaryRedirect', unauthorized') as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Headers (empty) as Headers
 import Run (AFF, EFFECT, Run)
@@ -26,9 +26,19 @@ data ServerError
   | BadGateway HTTPure.Headers
   | ServiceUnavailable HTTPure.Headers
 
+-- | Handling typed `route` and `printRoute`
+-- | inside redirect was to heavy for inference.
+-- | Let's leave it as a plain String
+-- | on this level ;-)
+-- |
+-- | Handle all redirects types by
+-- | providing type...
+-- | https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections
+
 type Response res = Variant
   ( clientError ∷ ClientError
   , serverError ∷ ServerError
+  , redirect ∷ String
   | res
   )
 
@@ -42,14 +52,14 @@ _response = SProxy ∷ SProxy "response"
 
 -- | Fully interpret the Response effect returning the Response variant
 runResponse
-  ∷ ∀ res eff
+  ∷ ∀ eff res
   . Run ( response ∷ RESPONSE res | eff ) (Response res)
   → Run eff (Response res)
 runResponse = runResponseWith (pure <<< pure)
 
 -- | Fully interpret the Response effect with a handler
 runResponseWith
-  ∷ ∀ a res eff
+  ∷ ∀ a eff res
   . ( Response res
     → Run eff (Run ( response ∷ RESPONSE res | eff ) a)
     )
@@ -58,10 +68,15 @@ runResponseWith
 runResponseWith f = Run.run (Run.on _response (f <<< un ResponseF) Run.send)
 
 response ∷
-  ∀ res eff a
+  ∀ a eff res
   . Response res
   → Run ( response ∷ RESPONSE res | eff ) a
 response v = Run.lift _response (ResponseF v)
+
+_redirect = SProxy ∷ SProxy "redirect"
+
+redirect ∷ ∀ a eff res. String → Run (response ∷ RESPONSE res | eff) a
+redirect = response <<< inj _redirect
 
 _clientError = SProxy ∷ SProxy "clientError"
 
@@ -122,7 +137,11 @@ onHttpError case'
   = case'
   # on _clientError handleClientError
   # on _serverError handleServerError
+  # on _redirect handleRedirect
   where
+    handleRedirect url = do
+      HTTPure.temporaryRedirect' (HTTPure.header "Location" url) ""
+
     handleClientError (BadRequest headers body) = HTTPure.badRequest' headers body
     handleClientError (Unauthorized headers) = HTTPure.unauthorized' headers
     handleClientError (Forbidden headers) = HTTPure.forbidden' headers
