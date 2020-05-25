@@ -15,6 +15,8 @@ import Run (AFF, EFFECT, Run, runBaseAff')
 import Run as Run
 import Run.Reader (READER, runReader)
 import Type.Row (type (+))
+import WebRow.Applets.Auth as Auth
+import WebRow.Applets.Auth.Routes as Auth.Routes
 import WebRow.Applets.Registration (router) as Register
 import WebRow.Applets.Registration.Routes (duplexes, RouteRow) as Registration.Routes
 import WebRow.Applets.Registration.Templates.Dummy (onRegister) as Registration.Templates.Dummy
@@ -26,10 +28,16 @@ import WebRow.Response (onHttpError)
 import WebRow.Response (runResponse) as Response
 import WebRow.Route (interpret) as Route
 
-type Routes = Variant (Registration.Routes.RouteRow + ())
+type Routes = Variant
+  ( Registration.Routes.RouteRow
+  -- + Auth.Routes.RouteRow
+  + ())
 
 route ∷ D.RouteDuplex' Routes
-route = D.root $ variant' $ {} `Record.merge` Registration.Routes.duplexes
+route = D.root $ variant'
+  $ {}
+  `Record.merge` Registration.Routes.duplexes
+  -- `Record.merge` Auth.Routes.duplexes
 
 type BaseEffects =
   ( aff ∷ AFF
@@ -67,9 +75,12 @@ runApps
   where
     router = case_
       # Register.router
+      -- # Auth.router
 
     -- | Run app effects
-    interpretApps = Registration.Interpret.Dummy.interpret
+    interpretApps
+      = Registration.Interpret.Dummy.interpret
+      -- >>> Auth.Interpret.interpret
 
     -- | Collect responses from row and
     -- | turn them into HTTPure responses.

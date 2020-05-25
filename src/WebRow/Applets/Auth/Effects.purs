@@ -9,15 +9,15 @@ import WebRow.Applets.Auth.Types (_auth)
 import WebRow.Applets.Registration.Types (Password)
 import WebRow.Mailer (Email)
 
-data AuthF user a = Authenticate Email Password (Maybe user → a)
+data AuthF a = Authenticate Email Password (Maybe Unit → a)
 
-derive instance functorAuthF ∷ Functor (AuthF user)
+derive instance functorAuthF ∷ Functor (AuthF)
 
-type AUTH user = FProxy (AuthF user)
+type AUTH = FProxy (AuthF)
 
 authenticate
-  ∷ ∀ user eff
+  ∷ ∀ eff
   . Email
   → Password
-  → Run ( auth ∷ AUTH user | eff ) (Maybe user)
+  → Run ( auth ∷ AUTH | eff ) (Maybe Unit)
 authenticate email password = Run.lift _auth (Authenticate email password identity)
