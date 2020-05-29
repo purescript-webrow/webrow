@@ -4,7 +4,8 @@ import Prelude
 
 import Data.Maybe (Maybe(..), maybe)
 import Effect.Class (liftEffect)
-import Run (Run(..))
+import Run (Run)
+import Run as Run
 import Selda (Col, lit, restrict, selectFrom, (.==))
 import Selda as Selda
 import Selda.PG.Class (class MonadSeldaPG, BackendPGClass, query1)
@@ -12,26 +13,20 @@ import Selda.Query (class FromTable)
 import Selda.Query.Class (class GenericQuery)
 import SeldaUtils (exec)
 import SeldaUtils.Effect (SELDA, liftSelda)
-import WebRow.Applets.Auth.Types (Password(..))
+import WebRow.Applets.Auth.Effects (AuthF(..), AUTH)
+import WebRow.Applets.Auth.Types (Password(..), _auth)
 import WebRow.Crypto as Crypto
 import WebRow.Mailer (Email(..))
 
--- interpret
---   ∷ ∀ eff
---   . Run
---     ( register ∷ REGISTER
---     | eff
---     )
---    ~> Run (effect ∷ EFFECT | eff)
--- interpret = Run.interpret (Run.on _register handler Run.send)
+interpret
+  ∷ ∀ eff
+  .  Run ( auth ∷ AUTH, selda ∷ SELDA | eff )
+  ~> Run (              selda ∷ SELDA | eff )
+interpret = Run.interpret (Run.on _auth handler Run.send)
 
--- handler
-  -- ∷ ∀ eff
-  -- . RegisterF ~> Run (effect ∷ EFFECT | eff)
--- handler (Authenticate email password k) = do
---   selectFrom usersTable
---   v ← liftEffect random
---   pure (next (v > 0.5))
+handler ∷ ∀ eff. AuthF ~> Run ( selda ∷ SELDA | eff )
+handler (Authenticate email password k) = 
+  k <$> liftSelda (authenticate email password)
 
 type UserRow r = ( email ∷ String, password ∷ String, salt ∷ String | r )
 

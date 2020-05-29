@@ -19,9 +19,9 @@ data Route
   | Confirmation SignedEmail
 derive instance genericRoute ∷ Generic Route _
 
-type RouteRow r = Namespace r Route
+type RouteRow r = Namespace Route r
 
-duplexes ∷ { | Namespace () (D.RouteDuplex' Route) }
+duplexes ∷ { | Namespace (D.RouteDuplex' Route) () }
 duplexes =
   { "register": DG.sum
     { "RegisterEmail": noArgs

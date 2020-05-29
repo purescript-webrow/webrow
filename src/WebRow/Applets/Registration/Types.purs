@@ -12,8 +12,7 @@ derive newtype instance showSignedEmail ∷ Show SignedEmail
 
 _register = SProxy ∷ SProxy "register"
 
--- IMO these type parameters should be flipped to allow easy namespace appending
-type Namespace r t = (register ∷ t | r)
+type Namespace t r = (register ∷ t | r)
 
-namespace ∷ ∀ a r. a → Variant (Namespace r a)
+namespace ∷ ∀ a r. a → Variant (Namespace a r)
 namespace = inj _register
