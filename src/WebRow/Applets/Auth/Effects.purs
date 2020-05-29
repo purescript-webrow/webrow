@@ -5,8 +5,7 @@ import Prelude
 import Data.Maybe (Maybe)
 import Run (FProxy, Run)
 import Run (lift) as Run
-import WebRow.Applets.Auth.Types (_auth)
-import WebRow.Applets.Registration.Types (Password)
+import WebRow.Applets.Auth.Types (_auth, Password)
 import WebRow.Mailer (Email)
 
 data AuthF a = Authenticate Email Password (Maybe Unit → a)

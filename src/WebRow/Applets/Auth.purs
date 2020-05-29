@@ -12,11 +12,10 @@ import WebRow.Applets.Auth.Effects as Effects
 import WebRow.Applets.Auth.Forms (emailPassordForm)
 import WebRow.Applets.Auth.Responses as Responses
 import WebRow.Applets.Auth.Routes as Routes
-import WebRow.Applets.Auth.Types (_auth)
-import WebRow.Applets.Registration.Types (Password(..))
+import WebRow.Applets.Auth.Types (_auth, Password(..))
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Plain as Forms.Plain
-import WebRow.Mailer (Email(..))
+import WebRow.Mailer (Email)
 import WebRow.Reader (request)
 import WebRow.Reader as WebRow.Reader
 import WebRow.Response (RESPONSE, methodNotAllowed')

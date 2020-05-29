@@ -7,8 +7,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Maybe (Maybe)
 import Routing.Duplex as D
 import Routing.Duplex.Generic as DG
-import WebRow.Applets.Auth.Types (Namespace)
-import WebRow.Applets.Registration.Types (Password)
+import WebRow.Applets.Auth.Types (Namespace, Password)
 import WebRow.Mailer (Email)
 
 data Route

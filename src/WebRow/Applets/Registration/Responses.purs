@@ -4,7 +4,8 @@ import Prelude
 
 import Data.Maybe (Maybe)
 import Run (Run)
-import WebRow.Applets.Registration.Types (Namespace, Password, namespace)
+import WebRow.Applets.Auth.Types (Password)
+import WebRow.Applets.Registration.Types (Namespace, namespace)
 import WebRow.Forms.Builders.Plain (Field, Repr) as Builder.Plain
 import WebRow.Forms.Layout (Layout)
 import WebRow.Forms.Payload (Value) as Payload

@@ -3,20 +3,13 @@ module WebRow.Applets.Registration.Forms where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Identity (Identity)
-import Data.Map (lookup) as Map
-import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), contains) as String
 import Data.Validation.Semigroup (invalid)
-import Data.Variant (inj)
-import Polyform.Reporter (hoistFnEither)
 import Polyform.Validator (hoistFnEither, hoistFnMV, hoistFnV) as Validator
 import Polyform.Validator (valid)
 import Polyform.Validators.UrlEncoded (string)
-import Polyform.Validators.UrlEncoded (string) as Validators
-import Type.Prelude (SProxy(..))
+import WebRow.Applets.Auth.Types (Password(..))
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
-import WebRow.Applets.Registration.Types (Password(..))
 import WebRow.Forms.Builders.Plain (field) as Forms.Builders.Plain
 import WebRow.Forms.Builders.Plain (passwordField, sectionValidator)
 import WebRow.Mailer (Email(..))
