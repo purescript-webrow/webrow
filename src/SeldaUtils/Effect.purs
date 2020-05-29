@@ -25,8 +25,8 @@ type SeldaEff eff = ( selda ∷ SELDA | eff )
 
 _selda = SProxy ∷ SProxy "selda"
 
-lift ∷ ∀ eff. SeldaPG ~> Run ( selda ∷ SELDA | eff )
-lift m = Run.lift _selda m
+liftSelda ∷ ∀ eff. SeldaPG ~> Run ( selda ∷ SELDA | eff )
+liftSelda m = Run.lift _selda m
 
 interpretPG
   ∷ ∀ e r eff a
