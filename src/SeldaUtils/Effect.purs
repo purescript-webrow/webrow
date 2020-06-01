@@ -28,11 +28,11 @@ _selda = SProxy ∷ SProxy "selda"
 liftSelda ∷ ∀ eff. SeldaPG ~> Run ( selda ∷ SELDA | eff )
 liftSelda m = Run.lift _selda m
 
-interpretPG
+interpretSeldaPG
   ∷ ∀ e r eff a
   . Run ( selda ∷ SELDA | Effects PGError Connection e r eff ) a
   → Run (               | Effects PGError Connection e r eff ) a
-interpretPG = Run.interpret (Run.on _selda hoistSelda Run.send)
+interpretSeldaPG = Run.interpret (Run.on _selda hoistSelda Run.send)
 
 hoistSelda
   ∷ ∀ dbErr dbConn e r eff

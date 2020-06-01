@@ -3,11 +3,12 @@ module WebRow.Response where
 import Prelude
 
 import Data.Newtype (class Newtype, un)
-import Data.Variant (SProxy(..), Variant, inj, on)
+import Data.Variant (SProxy(..), Variant, case_, inj, on)
 import Data.Variant.Internal (FProxy)
 import HTTPure (Headers, Response, badGateway', badRequest', forbidden', internalServerError', methodNotAllowed', notFound', notImplemented', serviceUnavailable', unauthorized') as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Headers (empty) as Headers
+import Prim.Row as Row
 import Run (AFF, EFFECT, Run)
 import Run as Run
 
@@ -43,19 +44,36 @@ _response = SProxy ∷ SProxy "response"
 -- | Fully interpret the Response effect returning the Response variant
 runResponse
   ∷ ∀ res eff
-  . Run ( response ∷ RESPONSE res | eff ) (Response res)
+  . Row.Union eff () eff
+  ⇒ Run ( response ∷ RESPONSE res | eff ) (Response res)
   → Run eff (Response res)
 runResponse = runResponseWith (pure <<< pure)
 
+mapResponse
+  ∷ ∀ a res res' eff
+  . Row.Union eff (response ∷ RESPONSE res') ( response ∷ RESPONSE res' | eff )
+  ⇒ (Response res → Response res')
+  → Run ( response ∷ RESPONSE res  | eff ) a
+  → Run ( response ∷ RESPONSE res' | eff ) a
+mapResponse f = interpretResponseWith \res → response $ f res
+
 -- | Fully interpret the Response effect with a handler
-runResponseWith
-  ∷ ∀ a res eff
-  . ( Response res
-    → Run eff (Run ( response ∷ RESPONSE res | eff ) a)
-    )
+interpretResponseWith
+  ∷ ∀ a res eff eff' _eff
+  . Row.Union eff _eff eff'
+  ⇒ (Response res → Run eff' a)
   → Run ( response ∷ RESPONSE res | eff ) a
-  → Run eff a
-runResponseWith f = Run.run (Run.on _response (f <<< un ResponseF) Run.send)
+  → Run eff' a
+interpretResponseWith f = runResponseWith (map pure <<< f)
+
+-- | Less restrictive version of `interpretResponseWith`
+runResponseWith
+  ∷ ∀ a res eff eff' _eff
+  . Row.Union eff _eff eff'
+  ⇒ (Response res → Run eff' (Run ( response ∷ RESPONSE res | eff ) a))
+  → Run ( response ∷ RESPONSE res | eff ) a
+  → Run eff' a
+runResponseWith f = Run.run (Run.on _response (f <<< un ResponseF) (Run.send >>> Run.expand))
 
 response ∷
   ∀ res eff a
@@ -133,3 +151,16 @@ onHttpError case'
     handleServerError (NotImplemented headers) = HTTPure.notImplemented' headers
     handleServerError (BadGateway headers) = HTTPure.badGateway' headers
     handleServerError (ServiceUnavailable headers) = HTTPure.serviceUnavailable' headers
+
+onHttpErrorBase
+  ∷ ∀ eff
+  . Response ()
+  → Run (aff ∷ AFF, effect ∷ EFFECT | eff) HTTPure.Response
+onHttpErrorBase = onHttpError case_
+
+runResponseBase
+  ∷ ∀ eff
+  . Row.Union eff () eff
+  ⇒ Run ( response ∷ RESPONSE (), aff ∷ AFF, effect ∷ EFFECT | eff) HTTPure.Response
+  → Run (                         aff ∷ AFF, effect ∷ EFFECT | eff) HTTPure.Response
+runResponseBase = runResponseWith (onHttpErrorBase >>> pure)
