@@ -4,13 +4,13 @@ import Prelude
 
 import Data.Either (Either(..))
 import Database.PostgreSQL as PG
-import Effect (Effect)
 import Effect.Aff (Aff, throwError)
 import Effect.Aff as Aff
+import Effect.Class (liftEffect)
 import SeldaUtils.CLI (getOptions)
 
-setupDB ∷ ∀ a. Effect ((PG.Connection → Aff a) → Aff a)
-setupDB = do
+setupDB ∷ ∀ a. (PG.Connection → Aff a) → Aff a
+setupDB k = (\k' → k' k) =<< liftEffect do
   opts ← getOptions
   pool ← PG.newPool opts.database
   pure $ withConn pool

@@ -1,45 +1,103 @@
 module WebRow.Applets.Auth where
 
-import Prelude
+-- import Prelude
 
-import Data.Maybe (Maybe(..))
-import Data.Newtype (un)
-import Data.Variant (on) as Variant
-import Run (Run)
-import WebRow.Applets.Auth.Effects (AUTH, User)
-import WebRow.Applets.Auth.Effects (currentUser) as Effects
-import WebRow.Applets.Auth.Routes as Routes
-import WebRow.Applets.Auth.Types (_auth, namespace)
-import WebRow.Response (RESPONSE, badRequest')
-import WebRow.Response (redirect) as Response
-import WebRow.Route (ROUTE)
-import WebRow.Route (RelativeUrl(..), printRoute) as Route
-
-userRequired
-  ∷ ∀ eff res route user
-  . Run
-      (auth ∷ AUTH user, response ∷ RESPONSE res, route ∷ ROUTE (Routes.RouteRow route) | eff)
-      (User user)
-userRequired = Effects.currentUser >>= case _ of
-  Just user → pure user
-  Nothing → do
-    Route.printRoute (namespace Routes.Login) >>= un Route.RelativeUrl >>> Response.redirect
-
+-- <<<<<<< HEAD
+-- import Data.Maybe (Maybe(..))
+-- import Data.Newtype (un)
+-- import Data.Variant (on) as Variant
+-- import Run (Run)
+-- import WebRow.Applets.Auth.Effects (AUTH, User)
+-- import WebRow.Applets.Auth.Effects (currentUser) as Effects
+-- import WebRow.Applets.Auth.Routes as Routes
+-- import WebRow.Applets.Auth.Types (_auth, namespace)
+-- import WebRow.Response (RESPONSE, badRequest')
+-- import WebRow.Response (redirect) as Response
+-- import WebRow.Route (ROUTE)
+-- import WebRow.Route (RelativeUrl(..), printRoute) as Route
+-- 
+-- userRequired
+--   ∷ ∀ eff res route user
+--   . Run
+--       (auth ∷ AUTH user, response ∷ RESPONSE res, route ∷ ROUTE (Routes.RouteRow route) | eff)
+--       (User user)
+-- userRequired = Effects.currentUser >>= case _ of
+--   Just user → pure user
+--   Nothing → do
+--     Route.printRoute (namespace Routes.Login) >>= un Route.RelativeUrl >>> Response.redirect
+-- 
+-- -- router
+-- --   ∷ ∀ a eff ctx res routes user
+-- --   . (Variant routes → Run (Effects ctx res routes user eff) a)
+-- --   → Variant (Auth.Routes.RouteRow + routes)
+-- --   → Run (Effects ctx res routes user eff) a
+-- router = Variant.on _auth case _ of
+--   Routes.Login → badRequest' "Auth.login not implemented yet"
+-- 
+-- -- onLoginRoute = request >>= _.method >>> case _ of
+-- --   HTTPure.Post → do
+-- --     body ← fromBody
+-- --     Forms.Plain.run emailPassordForm body >>= case _ of
+-- --       Left { layout } → do
+-- --         Responses.loginFormValidationFailed layout
+-- --       Right { result: { email, password }, layout } → do
+-- --         Effects.authenticate (Email email) (Password password) >>= case _ of
+-- --           Nothing → Responses.emailPasswordMismatch layout
+-- --           Just user → 
+-- =======
+-- import Data.Either (Either(..))
+-- import Data.Maybe (Maybe(..))
+-- import Data.Variant (Variant, on)
+-- import HTTPure as HTTPure
+-- import Run (Run)
+-- import WebRow.Applets.Auth.Effects (AUTH)
+-- import WebRow.Applets.Auth.Effects as Effects
+-- import WebRow.Applets.Auth.Forms (emailPassordForm)
+-- import WebRow.Applets.Auth.Responses as Responses
+-- import WebRow.Applets.Auth.Routes as Routes
+-- import WebRow.Applets.Auth.Types (_auth, Password(..))
+-- import WebRow.Forms.Payload (fromBody)
+-- import WebRow.Forms.Plain as Forms.Plain
+-- import WebRow.Mailer (Email)
+-- import WebRow.Reader (request)
+-- import WebRow.Reader as WebRow.Reader
+-- import WebRow.Response (RESPONSE, methodNotAllowed')
+-- import WebRow.Session.Effect (SESSION)
+-- import WebRow.Session.Effect as Session
+-- 
 -- router
---   ∷ ∀ a eff ctx res routes user
---   . (Variant routes → Run (Effects ctx res routes user eff) a)
---   → Variant (Auth.Routes.RouteRow + routes)
---   → Run (Effects ctx res routes user eff) a
-router = Variant.on _auth case _ of
-  Routes.Login → badRequest' "Auth.login not implemented yet"
-
+--   ∷ ∀ a res ctx session eff routes
+--   . (Variant routes → Run (Effects session ctx res eff) a)
+--   → Variant ( auth ∷ Routes.Route | routes )
+--   → Run (Effects session ctx res eff) a
+-- router = on _auth case _ of
+--   Routes.Login → onLoginRoute
+-- 
+-- onLoginRoute
+--   ∷ ∀ a res ctx session eff
+--   . Run (Effects session ctx res eff) a
 -- onLoginRoute = request >>= _.method >>> case _ of
 --   HTTPure.Post → do
 --     body ← fromBody
 --     Forms.Plain.run emailPassordForm body >>= case _ of
---       Left { layout } → do
---         Responses.loginFormValidationFailed layout
+--       Left { layout } → Responses.loginFormValidationFailed layout
 --       Right { result: { email, password }, layout } → do
---         Effects.authenticate (Email email) (Password password) >>= case _ of
+--         -- move to form validation
+--         Effects.authenticate email (Password password) >>= case _ of
 --           Nothing → Responses.emailPasswordMismatch layout
---           Just user → 
+--           Just _ → do
+--             Session.modify \s → s { user = Just email }
+--             Responses.loginSuccess
+--   HTTPure.Get → do
+--     layout ← Forms.Plain.prefill' emailPassordForm mempty
+--     Responses.initialEmailPassordForm layout
+--   method → methodNotAllowed'
+-- 
+-- type Effects session ctx res eff =
+--   ( auth ∷ AUTH
+--   , reader ∷ WebRow.Reader.READER ctx
+--   , response ∷ RESPONSE ( auth ∷ Responses.Response | res )
+--   , session ∷ SESSION { user ∷ Maybe Email | session }
+--   | eff
+--   )
+-- >>>>>>> origin/auth-applet

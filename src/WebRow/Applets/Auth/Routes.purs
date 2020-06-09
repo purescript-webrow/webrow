@@ -7,9 +7,14 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Maybe (Maybe)
 import Routing.Duplex as D
 import Routing.Duplex.Generic as DG
+<<<<<<< HEAD
 import WebRow.Applets.Auth.Types (Namespace)
 import WebRow.Mailer (Email)
 import WebRow.Route (printRoute)
+=======
+import WebRow.Applets.Auth.Types (Namespace, Password)
+import WebRow.Mailer (Email)
+>>>>>>> origin/auth-applet
 
 data Route
   = Login
@@ -34,4 +39,7 @@ duplexes =
     --     }
     }
   }
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/auth-applet
