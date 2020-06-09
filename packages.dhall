@@ -207,6 +207,7 @@ let polyform =
       , "profunctor"
       , "invariant"
       , "foreign-object"
+      , "record"
       , "run"
       , "transformers"
       , "generics-rep"
@@ -219,7 +220,7 @@ let polyform =
       "master"
   }
 
-let polyform-validators = 
+let polyform-batteries = 
   { dependencies =
       [ "polyform"
       , "argonaut"
@@ -227,19 +228,91 @@ let polyform-validators =
       , "affjax"
       , "numbers"
       ]
-  , repo = 
-      "https://github.com/lambdaterms/purescript-polyform-validators.git"
+  , repo =
+      "https://github.com/lambdaterms/purescript-polyform-batteries.git"
   , version = 
       "master"
   }
 
+let typelevel-eval =
+  { dependencies =
+      [ "prelude"
+      , "typelevel-prelude"
+      , "tuples"
+      , "unsafe-coerce"
+      , "leibniz"
+      ]
+  , repo =
+      "https://github.com/natefaubion/purescript-typelevel-eval.git"
+  , version =
+      "master"
+  }
+
+let literal =
+    { dependencies =
+      [ "assert"
+      , "effect"
+      , "console"
+      , "integers"
+      , "numbers"
+      , "partial"
+      , "psci-support"
+      , "unsafe-coerce"
+      , "typelevel-prelude"
+      ]
+    , repo =
+      "https://github.com/jvliwanag/purescript-literal.git"
+    , version =
+      "master"
+   }
+
+let oneof =
+  { dependencies =
+     [ "assert"
+     , "console"
+     , "effect"
+     , "foreign"
+     , "foreign-object"
+     , "literal"
+     , "maybe"
+     , "newtype"
+     , "proxy"
+     , "psci-support"
+     , "tuples"
+     , "unsafe-coerce"
+     ]
+  , repo =
+      "https://github.com/jvliwanag/purescript-oneof.git"
+  , version =
+      "master"
+  }
+let undefined-is-not-a-problem = ../purescript-undefined-is-not-a-problem/spago.dhall as Location
+--   { dependencies =
+--     [ "effect"
+--     , "foreign"
+--     , "prelude"
+--     , "typelevel-prelude"
+--     , "unsafe-coerce"
+--     ]
+--   , repo =
+--       "https://github.com/paluh/purescript-undefined-is-not-a-problem.git"
+--   , version =
+--       "master"
+--   }
+
 let additions =
   { selda = selda
+  -- , polyform = polyform
+  -- , polyform-batteries = polyform-batteries
+  , literal = literal
+  , oneof = oneof
   , polyform = ../purescript-polyform/spago.dhall as Location
-  , polyform-validators = ../purescript-polyform-validators/spago.dhall as Location
+  , polyform-batteries = ../purescript-polyform-batteries/spago.dhall as Location
   , postgresql-client = postgresql-client
   , prettyprinter = prettyprinter
   , routing-duplex-variant = routing-duplex-variant
+  , typelevel-eval = typelevel-eval
+  , undefined-is-not-a-problem = undefined-is-not-a-problem
   }
 
 let overrides =

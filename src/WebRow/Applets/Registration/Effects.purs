@@ -26,14 +26,14 @@ emailTaken ∷ ∀ eff. Email → Run ( aff ∷ AFF, register ∷ REGISTER | eff
 emailTaken email = do
   Run.lift _register (EmailTaken email identity)
 
-type Effects ctx res routes user eff =
+type Effects ctx res routes user eff widgets =
   ( aff ∷ AFF
   , auth ∷ AUTH user
   , logger ∷ LOGGER
   , mailer ∷ MAILER
   , reader ∷ WebRow.Reader.READER ctx
   , register ∷ REGISTER
-  , response ∷ RESPONSE (ResponseRow res)
+  , response ∷ RESPONSE (ResponseRow widgets res)
   , route ∷ ROUTE (Routes.RouteRow + Auth.Routes.RouteRow + routes)
   | eff
   )

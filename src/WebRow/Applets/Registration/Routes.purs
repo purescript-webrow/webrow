@@ -4,11 +4,11 @@ import Prelude hiding ((/))
 
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Iso.Newtype (_Newtype)
-import Routing.Duplex (RouteDuplex')
+import Routing.Duplex (RouteDuplex', string)
 import Routing.Duplex as D
 import Routing.Duplex.Generic (noArgs)
 import Routing.Duplex.Generic as DG
-import Routing.Duplex.Generic.Syntax ((/))
+import Routing.Duplex.Generic.Syntax ((/), (?))
 import Run (Run)
 import WebRow.Applets.Registration.Types (Namespace, SignedEmail, namespace)
 import WebRow.Route (FullUrl, ROUTE)
@@ -18,6 +18,7 @@ data Route
   = RegisterEmail
   | Confirmation SignedEmail
   | ChangeEmail
+  | ChangeEmailConfirmation { payload ∷ String }
 derive instance genericRoute ∷ Generic Route _
 
 type RouteRow r = (Namespace r Route)
@@ -28,6 +29,7 @@ duplexes =
     { "RegisterEmail": noArgs
     , "Confirmation": "confirmation" / (_Newtype $ D.param "email" ∷ RouteDuplex' SignedEmail)
     , "ChangeEmail": "change-email" / noArgs
+    , "ChangeEmailConfirmation": "change-email" / "confirmation" ? { payload: string }
     }
   }
 

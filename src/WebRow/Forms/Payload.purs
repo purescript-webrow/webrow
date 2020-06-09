@@ -2,31 +2,31 @@ module WebRow.Forms.Payload where
 
 import Prelude
 
-import Data.Either (Either(..), either)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (Pattern(..)) as String
 import Data.String (split) as Data.String
-import Polyform.Validators.UrlEncoded.Parser (parse) as UrlEncoded.Parser
-import Polyform.Validators.UrlEncoded.Types (Value, Decoded) as Polyform.Validators.UrlEncoded.Types
+import Polyform.Batteries.UrlEncoded.Query (Key, lookup) as UrlDecoded.Query
+import Polyform.Batteries.UrlEncoded.Query (parse, Value, Decoded) as UrlEncoded.Query
 import Run (Run)
 import WebRow.Reader (READER, request)
 import WebRow.Response (RESPONSE, badRequest'')
 
+-- | TODO: Use proper reexport here
 -- | Array String
-type Value = Polyform.Validators.UrlEncoded.Types.Value
-
-type Key = String
-
+type Value = UrlEncoded.Query.Value
+type Key = UrlDecoded.Query.Key
 -- | Map String (Array String)
-type UrlDecoded = Polyform.Validators.UrlEncoded.Types.Decoded
+type UrlDecoded = UrlEncoded.Query.Decoded
+lookup ∷ String → UrlDecoded → Maybe (Array String)
+lookup = UrlDecoded.Query.lookup
 
 -- | TODO: Where should we handle logging of errors like urldata decoding problems?
 
 fromQuery ∷ ∀ ctx eff res. Run (reader ∷ READER ctx, response ∷ RESPONSE res | eff) UrlDecoded
 fromQuery
-  = either (const $ badRequest'') pure
-  <<< fromMaybe (Right mempty)
-  <<< map (UrlEncoded.Parser.parse { replacePlus: true })
+  = maybe badRequest'' pure
+  <<< join
+  <<< map (UrlEncoded.Query.parse { replacePlus: true })
   <<< queryString
   <<< _.url
   =<< request
@@ -37,5 +37,5 @@ fromQuery
 
 fromBody ∷ ∀ ctx eff res. Run (reader ∷ READER ctx, response ∷ RESPONSE res | eff) UrlDecoded
 fromBody = do
-  possiblyDecoded ← request <#> (UrlEncoded.Parser.parse { replacePlus: true } <<< _.body)
-  either (const $ badRequest'') pure possiblyDecoded
+  possiblyDecoded ← request <#> (UrlEncoded.Query.parse { replacePlus: true } <<< _.body)
+  maybe badRequest'' pure possiblyDecoded

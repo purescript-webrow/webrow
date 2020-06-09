@@ -2,47 +2,45 @@ module WebRow.Applets.Registration.Responses where
 
 import Prelude
 
-import Data.Variant (Variant)
 import Run (Run)
-import WebRow.Applets.Registration.Types (Namespace, Password, namespace)
-import WebRow.Forms.Fields (FieldRow, TextInputBase) as Forms.Fields
-import WebRow.Forms.Layout (Layout)
+import WebRow.Applets.Auth.Types (Password)
+import WebRow.Applets.Registration.Types (Namespace, namespace)
+import WebRow.Forms (Layout) as Forms
 import WebRow.Mailer (Email)
 import WebRow.Response (RESPONSE)
 import WebRow.Response (response) as Response
 import WebRow.Route (FullUrl)
 
-type FieldRow msg =
- (Forms.Fields.FieldRow String ( email :: Forms.Fields.TextInputBase () String Email ))
-
--- | Move to Forms package
-type FormLayout = Layout
-  String
-  (Variant (FieldRow String))
-
-data ConfirmationResponse
+data ConfirmationResponse widgets
   = ConfirmationSucceeded Email Password
   | InvalidEmailSignature
-  | InitialPasswordForm FormLayout
+  | InitialPasswordForm (Forms.Layout widgets)
   | EmailRegisteredInbetween Email
-  -- | TODO: expect whole form result
-  | PasswordValidationFailed FormLayout
+  | PasswordValidationFailed (Forms.Layout widgets)
 
-data RegisterEmailResponse
+data RegisterEmailResponse widgets
   = EmailSent Email FullUrl
-  | EmailValidationFailed FormLayout
-  | InitialEmailForm FormLayout
+  | EmailValidationFailed (Forms.Layout widgets)
+  | InitialEmailForm (Forms.Layout widgets)
 
-data ChangeEmailResponse
-  = ChangeEmailInitialForm FormLayout
+data ChangeEmailResponse widgets
+  = ChangeEmailInitialForm (Forms.Layout widgets)
 
-data Response
-  = ConfirmationResponse ConfirmationResponse
-  | RegisterEmailResponse RegisterEmailResponse
-  | ChangeEmailResponse ChangeEmailResponse
+data Response widgets
+  = ConfirmationResponse (ConfirmationResponse widgets)
+  | RegisterEmailResponse (RegisterEmailResponse widgets)
+  | ChangeEmailResponse (ChangeEmailResponse widgets)
 
-type ResponseRow r = Namespace r Response
+type ResponseRow widgets r = Namespace r (Response widgets)
 
-response ∷ ∀ a eff res. Response → Run (response ∷ RESPONSE (ResponseRow res) | eff) a
+response ∷ ∀ a eff res widgets. Response widgets → Run (response ∷ RESPONSE (ResponseRow widgets res) | eff) a
 response = Response.response <<< namespace
 
+-- type FieldRow msg =
+--  (Forms.Fields.FieldRow String ( email :: Forms.Fields.TextInputBase () String Email ))
+-- 
+-- -- | Move to Forms package
+-- type FormLayout = Layout
+--   String
+--   (FieldRow String)
+-- 

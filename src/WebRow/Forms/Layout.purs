@@ -6,6 +6,13 @@ import Data.Bifunctor (class Bifunctor, bimap)
 import Data.List (List(..), singleton, snoc) as List
 import Data.List (List, (:))
 import Data.Maybe (Maybe(..))
+import WebRow.Forms.Widget (Widget)
+
+-- | Because widegts has a row kind (# Type) I'm not able to
+-- | use this type directly. I would not be able
+-- | to provide instances for such a `Layout` type...
+-- | This should be fixed with the next purs release!
+type Layout msg widgets = LayoutBase msg (Widget widgets)
 
 -- | `Layout` is a proposition for the form UI representation.
 -- | Provided DSLs in `Forms.Builders` depend on this structure
@@ -22,27 +29,27 @@ import Data.Maybe (Maybe(..))
 -- | These references are filled out when validation process is finished.
 -- | Please check `Forms.Plain.run` or `Forms.Dual.run`.
 -- |
-data Layout message field
+data LayoutBase message widgets
   = Section
     { closed ∷ Maybe { title ∷ message }
-    , errors ∷ List message
-    , layout ∷ List (Layout message field)
+    , errors ∷ Array message
+    , layout ∷ List (LayoutBase message widgets)
     }
-  | Field field
+  | Widget widgets
 
-derive instance functorLayout ∷ Functor (Layout message)
-instance bifunctorLayout ∷ Bifunctor Layout where
+derive instance functorLayoutBase ∷ Functor (LayoutBase message)
+instance bifunctorLayoutBase ∷ Bifunctor LayoutBase where
   bimap f g (Section { closed, errors, layout }) = Section $
     { closed: (\r → { title: f r.title }) <$> closed
     , errors: map f errors
     , layout: bimap f g <$> layout
     }
-  bimap f g (Field field) = Field (g field)
+  bimap f g (Widget widgets) = Widget (g widgets)
 
-instance monoidLayout ∷ Monoid (Layout message field) where
+instance monoidLayoutBase ∷ Monoid (LayoutBase message widgets) where
   mempty = Section { closed: Nothing, errors: mempty, layout: mempty }
 
-instance semigroupLayout ∷ Semigroup (Layout message field) where
+instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
   append s1@(Section s1r) s2@(Section s2r) = case s1r.closed, s2r.closed of
       Nothing, Nothing → Section
         { closed: Nothing
@@ -65,40 +72,40 @@ instance semigroupLayout ∷ Semigroup (Layout message field) where
         , layout: List.snoc s1r.layout s2
         }
 
-  append s@(Section sr) field = case sr.closed of
+  append s@(Section sr) widgets = case sr.closed of
     Nothing → Section
       { closed: Nothing
       , errors: sr.errors
-      , layout: field : sr.layout
+      , layout: widgets : sr.layout
       }
     Just _ → Section
       { closed: Nothing
       , errors: mempty
-      , layout: s : field : List.Nil
+      , layout: s : widgets : List.Nil
       }
 
-  append field s@(Section sr) = case sr.closed of
+  append widgets s@(Section sr) = case sr.closed of
     Nothing → Section
       { closed: Nothing
       , errors: sr.errors
-      , layout: List.snoc sr.layout field
+      , layout: List.snoc sr.layout widgets
       }
     Just _ → Section
       { closed: Nothing
       , errors: mempty
-      , layout: field : s : List.Nil
+      , layout: widgets : s : List.Nil
       }
 
-  append field1 field2 = Section
+  append widgets1 widgets2 = Section
     { closed: Nothing
     , errors: mempty
-    , layout: field1 : field2 : List.Nil
+    , layout: widgets1 : widgets2 : List.Nil
     }
 
-closeSection ∷ ∀ message field. message → Layout message field → Layout message field
-closeSection title field@(Field _) = Section { closed: Just { title }, layout: List.singleton field, errors: mempty }
-closeSection title field@(Section { layout, errors }) = Section { closed: Just { title }, layout, errors }
+closeSection ∷ ∀ message widgets. message → LayoutBase message widgets → LayoutBase message widgets
+closeSection title widgets@(Widget _) = Section { closed: Just { title }, layout: List.singleton widgets, errors: mempty }
+closeSection title widgets@(Section { layout, errors }) = Section { closed: Just { title }, layout, errors }
 
-sectionError ∷ ∀ message field. message → Layout message field
-sectionError error = Section { closed: Nothing, layout: mempty, errors: List.singleton error }
+sectionErrors ∷ ∀ message widgets. Array message → LayoutBase message widgets
+sectionErrors errors = Section { closed: Nothing, layout: mempty, errors }
 
