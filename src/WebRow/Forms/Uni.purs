@@ -11,6 +11,7 @@ module WebRow.Forms.Uni
   , Uni
   , closeSection
   , fieldBuilder
+  , emailInputBuilder
   , passwordInputBuilder
   , sectionValidator
   , textInputBuilder
@@ -28,7 +29,7 @@ import Data.Newtype (un)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
-import Data.Undefined.NoProblem (Opt, (!))
+import Data.Undefined.NoProblem (Opt, (!), (?))
 import Data.Undefined.NoProblem (toMaybe) as NoProblem
 import Data.Undefined.NoProblem.Mono (class Coerce, coerce) as NoProblem.Mono
 import Data.Undefined.NoProblem.Poly (class Coerce, coerce) as NoProblem.Poly
@@ -49,9 +50,12 @@ import WebRow.Forms.Payload (UrlDecoded)
 import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Uni.Builder (Builder(..)) as B
 import WebRow.Forms.Uni.Form (Form(..), default, validate) as Form
+import WebRow.Forms.Validators (InvalidEmailFormat)
+import WebRow.Forms.Validators (email) as Validators
 import WebRow.Forms.Widget (Constructor, Payload, names, payload) as Widget
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Forms.Widgets (textInput) as Widgets
+import WebRow.Mailer (Email(..))
 import WebRow.Message (MESSAGE, message)
 
 type Layout widgets = Layout.Layout String widgets
@@ -171,6 +175,37 @@ passwordInputBuilder args = textInputBuilder
   }
   where
     i@{ helpText, label, placeholder } = NoProblem.Mono.coerce args ∷ PasswordInputInitials
+
+type EmailMessages r = InvalidEmailFormat + SingleValueExpected + r
+
+type EmailInputInitials eff info =
+  { label ∷ Opt String
+  , placeholder ∷ Opt String
+  , helpText ∷ Opt String
+  , policy ∷ Opt (Polyform.Validator (MessageM (EmailMessages + info) eff) (Errors (EmailMessages + info)) Email Email)
+  }
+
+emailInputBuilder
+  ∷ ∀ args eff info r
+  . NoProblem.Poly.Coerce
+      args
+      (EmailInputInitials eff info)
+      (EmailInputInitials eff info)
+  ⇒ args
+  → Builder
+      eff
+      (EmailMessages info)
+      (TextInput + r)
+      UrlDecoded
+      Email
+emailInputBuilder args = textInputBuilder
+  { placeholder
+  , helpText
+  , label
+  , validator: Batteries.singleValue >>> Validators.email >>> (i.policy ! identity)
+  }
+  where
+    i@{ helpText, label, placeholder } = NoProblem.Poly.coerce (Proxy ∷ Proxy (EmailInputInitials eff info)) args
 
 sectionValidator
   ∷ ∀ eff i info o widgets

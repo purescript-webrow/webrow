@@ -5,12 +5,28 @@ import Prelude
 import Data.Maybe (Maybe)
 import Run (FProxy, Run)
 import Run (lift) as Run
--- <<<<<<< HEAD
--- import WebRow.Applets.Auth.Types (Password, _auth)
--- import WebRow.Mailer (Email)
--- 
--- type User user = { email ∷ Email | user }
--- 
+import WebRow.Applets.Auth.Types (Password, _auth)
+import WebRow.Mailer (Email)
+
+data AuthF user a
+  = Authenticate Email Password (Maybe (User user) → a)
+
+derive instance functorAuthF ∷ Functor (AuthF user)
+
+type AUTH user = FProxy (AuthF user)
+
+type Auth user r = (auth ∷ AUTH user | r)
+
+type User user = { email ∷ Email | user }
+
+authenticate
+  ∷ ∀ eff user
+  . Email
+  → Password
+  → Run ( auth ∷ AUTH user | eff ) (Maybe (User user))
+authenticate email password = Run.lift _auth (Authenticate email password identity)
+
+
 -- data AuthF user a
 --   = CurrentUser (Maybe (User user) → a)
 --   | CheckPassword Email Password (Boolean → a)
@@ -24,20 +40,4 @@ import Run (lift) as Run
 -- 
 -- checkPassword ∷ ∀ eff user. Email → Password → Run ( auth ∷ AUTH user | eff ) Boolean
 -- checkPassword email password = Run.lift _auth (CheckPassword email password identity)
--- =======
--- import WebRow.Applets.Auth.Types (_auth, Password)
--- import WebRow.Mailer (Email)
--- 
--- data AuthF a = Authenticate Email Password (Maybe Unit → a)
--- 
--- derive instance functorAuthF ∷ Functor (AuthF)
--- 
--- type AUTH = FProxy (AuthF)
--- 
--- authenticate
---   ∷ ∀ eff
---   . Email
---   → Password
---   → Run ( auth ∷ AUTH | eff ) (Maybe Unit)
--- authenticate email password = Run.lift _auth (Authenticate email password identity)
--- >>>>>>> origin/auth-applet
+

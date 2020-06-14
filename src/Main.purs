@@ -1,5 +1,5 @@
 module Main where
-
+-- 
 -- import Prelude
 -- 
 -- import Data.Either (either)
@@ -65,6 +65,13 @@ module Main where
 --   <<< runReader { request, secret: Secret "g6f7s8r328h0ej906291d" }
 --   <<< interpretMailerStub
 -- 
+-- httpResponse = Response.runResponse >=> toHTTPResponse
+--   where
+--     toHTTPResponse = case_
+--       # onHttpError
+--       # Registration.Templates.Dummy.onRegister
+-- 
+-- 
 -- -- interpret ∷ HTTPure.Request → Routes → Aff HTTPure.Response
 -- runApps ∷ Routes → Run BaseEffects HTTPure.Response
 -- runApps
@@ -93,13 +100,13 @@ module Main where
 --           # onHttpError
 --           # Registration.Templates.Dummy.onRegister
 -- 
--- app ∷ HTTPure.Request → Aff HTTPure.Response
--- app req = do
---   let
---     url = HTTPure.fullPath req
---   D.parse route url # either (HTTPure.badRequest <<< show) (interpretBaseEffects req <<< runApps)
--- 
--- 
--- main ∷ Effect Unit
--- main = do
---   void $ HTTPure.serve 8080 app $ log "Server now up on port 8080"
+-- -- app ∷ HTTPure.Request → Aff HTTPure.Response
+-- -- app req = do
+-- --   let
+-- --     url = HTTPure.fullPath req
+-- --   D.parse route url # either (HTTPure.badRequest <<< show) (interpretBaseEffects req <<< runApps)
+-- -- 
+-- -- 
+-- -- main ∷ Effect Unit
+-- -- main = do
+-- --   void $ HTTPure.serve 8080 app $ log "Server now up on port 8080"

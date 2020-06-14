@@ -6,9 +6,11 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.String (Pattern(..), contains) as String
 import Data.Symbol (SProxy(..))
+import Data.Variant (Variant)
 import Data.Variant.Internal (FProxy)
 import Run (Run)
 import Run as Run
+import Type.Row (type (+))
 
 newtype Email = Email String
 derive instance newtypeEmail ∷ Newtype Email _
@@ -22,27 +24,21 @@ email e = if String.contains (String.Pattern "@") e
   then Just (Email e)
   else Nothing
 
-data MailerF a
-  = SendMail
-      { to ∷ Email
-      , subject ∷ String
-      , text ∷ String
-      }
-      (String → a)
+type Mail mail = { to ∷ Email, context ∷ Variant mail }
 
-derive instance functorMailerF ∷ Functor MailerF
+data MailerF mails a = Send (Mail mails)
 
-type MAILER = FProxy MailerF
+derive instance functorMailerF ∷ Functor (MailerF mails)
 
-type MailerEff eff = ( mailer ∷ MAILER | eff )
+type MAILER mails = FProxy (MailerF mails)
+
+type Mailer mails eff = (mailer ∷ MAILER mails | eff)
 
 _mailer = SProxy ∷ SProxy "mailer"
 
-sendMail ∷
-  ∀ eff
-  . { to ∷ Email
-    , subject ∷ String
-    , text ∷ String
-    }
-  → Run ( mailer ∷ MAILER | eff ) String
-sendMail msg = Run.lift _mailer (SendMail msg identity)
+send ∷
+  ∀ a eff mails
+  . Mail mails
+  → Run (Mailer mails + eff) a
+send mail = Run.lift _mailer (Send mail)
+

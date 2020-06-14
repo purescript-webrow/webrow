@@ -199,6 +199,23 @@ let routing-duplex-variant =
       "master"
   }
 
+let homogeneous =
+  { dependencies =
+      [ "assert"
+      , "console"
+      , "effect"
+      , "foreign-object"
+      , "psci-support"
+      , "record-extra"
+      , "typelevel-eval"
+      , "variant"
+      ]
+  , repo =
+      "https://github.com/paluh/purescript-homogeneous.git"
+  , version =
+      "master"
+  }
+
 let polyform =
   { dependencies =
       [ "newtype"
@@ -214,13 +231,13 @@ let polyform =
       , "validation"
       , "foreign"
       ]
-  , repo = 
+  , repo =
       "https://github.com/paluh/purescript-polyform.git"
-  , version = 
+  , version =
       "master"
   }
 
-let polyform-batteries = 
+let polyform-batteries =
   { dependencies =
       [ "polyform"
       , "argonaut"
@@ -230,7 +247,7 @@ let polyform-batteries =
       ]
   , repo =
       "https://github.com/lambdaterms/purescript-polyform-batteries.git"
-  , version = 
+  , version =
       "master"
   }
 
@@ -304,6 +321,7 @@ let additions =
   { selda = selda
   -- , polyform = polyform
   -- , polyform-batteries = polyform-batteries
+  , homogeneous = homogeneous
   , literal = literal
   , oneof = oneof
   , polyform = ../purescript-polyform/spago.dhall as Location

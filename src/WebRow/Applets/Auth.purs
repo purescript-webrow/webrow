@@ -1,14 +1,80 @@
 module WebRow.Applets.Auth where
 
--- import Prelude
 
--- <<<<<<< HEAD
+import Prelude
+
+import Data.Maybe (Maybe(..))
+import Data.Tuple (Tuple(..))
+import Data.Variant (on)
+import HTTPure as HTTPure
+import Run (Run)
+import Type.Row (type (+))
+import WebRow.Applets.Auth.Effects (Auth, User)
+import WebRow.Applets.Auth.Forms (loginForm)
+import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(LoginResponse))
+import WebRow.Applets.Auth.Routes as Routes
+import WebRow.Applets.Auth.Types (Password, _auth)
+import WebRow.Forms.Payload (fromBody)
+import WebRow.Forms.Uni (default, validate) as Forms.Uni
+import WebRow.Forms.Widgets (TextInputProps)
+import WebRow.HTTPError (HttpError, methodNotAllowed')
+import WebRow.Mailer (Email)
+import WebRow.Message (Message)
+import WebRow.Request (Request)
+import WebRow.Request (method) as Request
+import WebRow.Session (Session)
+import WebRow.Session (modify) as Session
+
+-- router
+--   ∷ ∀ a res ctx session eff routes
+--   . (Variant routes → Run (Effects session ctx res eff) a)
+--   → Variant ( auth ∷ Routes.Route | routes )
+--   → Run (Effects session ctx res eff) a
+router = on _auth case _ of
+  Routes.Login → onLoginRoute
+
+onLoginRoute ∷ ∀ eff messages session user widgets.
+   Run
+    ( Auth user
+    + HttpError
+    + Message
+      ( authFailed ∷ { email ∷ Email, password ∷ Password }
+      , invalidEmailFormat ∷ String
+      , singleValueExpected ∷ Maybe (Array String)
+      | messages
+      )
+    + Request
+    + Session { user ∷ Maybe (User user) | session }
+    + eff
+    )
+    (Response (textInput ∷ TextInputProps | widgets))
+onLoginRoute = Request.method >>= case _ of
+  HTTPure.Post → do
+    body ← fromBody
+    Forms.Uni.validate loginForm body >>= case _ of
+      Tuple formLayout Nothing →
+        pure $ LoginResponse (LoginFormValidationFailed formLayout)
+      Tuple formLayout (Just user) → do
+        Session.modify \s → s { user = Just user }
+        pure $ LoginResponse LoginSuccess
+  HTTPure.Get → do
+    form ← Forms.Uni.default loginForm
+    pure $ LoginResponse (InitialEmailPassordForm form)
+  method → methodNotAllowed'
+
+-- type Effects session ctx res eff user widgets =
+--   ( auth ∷ AUTH user
+--   -- , session ∷ SESSION { user ∷ Maybe Email | session }
+--   | eff
+--   )
+-- import Prelude
+-- 
 -- import Data.Maybe (Maybe(..))
 -- import Data.Newtype (un)
 -- import Data.Variant (on) as Variant
 -- import Run (Run)
--- import WebRow.Applets.Auth.Effects (AUTH, User)
--- import WebRow.Applets.Auth.Effects (currentUser) as Effects
+-- -- import WebRow.Applets.Auth.Effects (AUTH, User)
+-- -- import WebRow.Applets.Auth.Effects (currentUser) as Effects
 -- import WebRow.Applets.Auth.Routes as Routes
 -- import WebRow.Applets.Auth.Types (_auth, namespace)
 -- import WebRow.Response (RESPONSE, badRequest')
@@ -44,60 +110,3 @@ module WebRow.Applets.Auth where
 -- --         Effects.authenticate (Email email) (Password password) >>= case _ of
 -- --           Nothing → Responses.emailPasswordMismatch layout
 -- --           Just user → 
--- =======
--- import Data.Either (Either(..))
--- import Data.Maybe (Maybe(..))
--- import Data.Variant (Variant, on)
--- import HTTPure as HTTPure
--- import Run (Run)
--- import WebRow.Applets.Auth.Effects (AUTH)
--- import WebRow.Applets.Auth.Effects as Effects
--- import WebRow.Applets.Auth.Forms (emailPassordForm)
--- import WebRow.Applets.Auth.Responses as Responses
--- import WebRow.Applets.Auth.Routes as Routes
--- import WebRow.Applets.Auth.Types (_auth, Password(..))
--- import WebRow.Forms.Payload (fromBody)
--- import WebRow.Forms.Plain as Forms.Plain
--- import WebRow.Mailer (Email)
--- import WebRow.Reader (request)
--- import WebRow.Reader as WebRow.Reader
--- import WebRow.Response (RESPONSE, methodNotAllowed')
--- import WebRow.Session.Effect (SESSION)
--- import WebRow.Session.Effect as Session
--- 
--- router
---   ∷ ∀ a res ctx session eff routes
---   . (Variant routes → Run (Effects session ctx res eff) a)
---   → Variant ( auth ∷ Routes.Route | routes )
---   → Run (Effects session ctx res eff) a
--- router = on _auth case _ of
---   Routes.Login → onLoginRoute
--- 
--- onLoginRoute
---   ∷ ∀ a res ctx session eff
---   . Run (Effects session ctx res eff) a
--- onLoginRoute = request >>= _.method >>> case _ of
---   HTTPure.Post → do
---     body ← fromBody
---     Forms.Plain.run emailPassordForm body >>= case _ of
---       Left { layout } → Responses.loginFormValidationFailed layout
---       Right { result: { email, password }, layout } → do
---         -- move to form validation
---         Effects.authenticate email (Password password) >>= case _ of
---           Nothing → Responses.emailPasswordMismatch layout
---           Just _ → do
---             Session.modify \s → s { user = Just email }
---             Responses.loginSuccess
---   HTTPure.Get → do
---     layout ← Forms.Plain.prefill' emailPassordForm mempty
---     Responses.initialEmailPassordForm layout
---   method → methodNotAllowed'
--- 
--- type Effects session ctx res eff =
---   ( auth ∷ AUTH
---   , reader ∷ WebRow.Reader.READER ctx
---   , response ∷ RESPONSE ( auth ∷ Responses.Response | res )
---   , session ∷ SESSION { user ∷ Maybe Email | session }
---   | eff
---   )
--- >>>>>>> origin/auth-applet

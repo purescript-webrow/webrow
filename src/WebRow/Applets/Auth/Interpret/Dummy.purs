@@ -8,7 +8,6 @@ import Run (EFFECT, Run, liftEffect)
 import Run (interpret, on, send) as Run
 import WebRow.Applets.Auth.Effects (AUTH, AuthF(..))
 import WebRow.Applets.Auth.Types (_auth)
-import WebRow.Mailer (Email(..))
 
 interpret
   ∷ ∀ eff
@@ -23,12 +22,7 @@ interpret = Run.interpret (Run.on _auth handler Run.send)
 handler
   ∷ ∀ eff
   . AuthF () ~> Run (effect ∷ EFFECT | eff)
-handler = case _ of
-  CurrentUser next → do
-    pure $ next (Just { email: Email "user@example.com" })
-  CheckPassword email user next → do
-    v ← liftEffect random
-    pure (next (v > 0.5))
-
-
+handler (Authenticate email password next) = do
+  v ← liftEffect random
+  pure $ next (Just { email })
 

@@ -1,35 +1,20 @@
 module WebRow.Applets.Auth.Types where
 
--- <<<<<<< HEAD
--- import Data.Newtype (class Newtype)
--- import Data.Variant (Variant, inj)
--- import Prelude (class Show)
--- =======
--- import Prelude
--- 
--- import Data.Newtype (class Newtype)
--- import Data.Variant (Variant, inj)
--- >>>>>>> origin/auth-applet
--- import Type.Prelude (SProxy(..))
--- 
--- _auth = SProxy ∷ SProxy "auth"
--- 
--- <<<<<<< HEAD
--- type Namespace t r = ( auth ∷ t | r )
--- 
--- namespace ∷ ∀ a r. a → Variant (Namespace a r)
--- namespace = inj _auth
--- 
--- =======
--- >>>>>>> origin/auth-applet
--- newtype Password = Password String
--- derive instance newtypePassword ∷ Newtype Password _
--- derive newtype instance showPassword ∷ Show Password
--- 
--- <<<<<<< HEAD
--- =======
--- type Namespace t r = ( auth ∷ t | r )
--- 
--- namespace ∷ ∀ a r. a → Variant (Namespace a r)
--- namespace = inj _auth
--- >>>>>>> origin/auth-applet
+import Prelude
+
+import Data.Newtype (class Newtype)
+import Data.Variant (Variant, inj)
+import Type.Prelude (SProxy(..))
+
+_auth = SProxy ∷ SProxy "auth"
+
+
+type Namespace t r = ( auth ∷ t | r )
+
+namespace ∷ ∀ a r. a → Variant (Namespace a r)
+namespace = inj _auth
+
+newtype Password = Password String
+derive instance newtypePassword ∷ Newtype Password _
+derive newtype instance showPassword ∷ Show Password
+

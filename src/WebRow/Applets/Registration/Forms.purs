@@ -1,52 +1,52 @@
 module WebRow.Applets.Registration.Forms where
 
--- <<<<<<< HEAD
--- import Prelude
--- 
--- import Data.Maybe (Maybe(..))
--- import Data.Newtype (un)
--- import Data.String (Pattern(..), contains) as String
--- import Data.Validation.Semigroup (invalid)
--- import Polyform.Batteries (error) as Batteries
--- import Polyform.Batteries.UrlEncoded.Duals (singleValue) as UrlEncoded.Validators.Duals
--- import Polyform.Batteries.UrlEncoded.Validators (singleValue) as UrlEncoded.Validators
--- import Polyform.Dual (dual, dual') as Dual
--- import Polyform.Validator (check, checkM, liftFn, liftFnV) as Validator
--- import Polyform.Validator.Dual (check) as Validator.Dual
--- import Type.Prelude (SProxy(..))
--- import WebRow.Applets.Auth.Forms (checkPassword) as Auth.Forms
--- import WebRow.Applets.Auth.Types (Password(..))
--- import WebRow.Applets.Registration.Effects (emailTaken) as Effects
+import Prelude
+
+import Data.Maybe (Maybe(..))
+import Data.Newtype (un)
+import Data.String (Pattern(..), contains) as String
+import Data.Validation.Semigroup (invalid)
+import Polyform.Batteries (error) as Batteries
+import Polyform.Validator (check, checkM, liftFn, liftFnV) as Validator
+import Polyform.Validator.Dual (check) as Validator.Dual
+import Type.Prelude (SProxy(..))
+import WebRow.Applets.Auth.Types (Password(..))
+import WebRow.Applets.Registration.Effects (emailTaken) as Effects
+import WebRow.Forms.Uni (build) as Uni
+import WebRow.Forms.Uni (build, emailInputBuilder, passwordInputBuilder, sectionValidator, textInputBuilder) as Forms.Uni
+import WebRow.Mailer (Email(..))
 -- import WebRow.Forms.Dual ((~))
 -- import WebRow.Forms.Dual (Form(..), textInput) as Forms.Dual
 -- import WebRow.Forms.Fields.Duals (email) as Fields.Duals
 -- import WebRow.Forms.Fields.Validators (email) as Fields.Validators
 -- import WebRow.Forms.Plain (input, passwordField, sectionValidator) as Forms.Plain
--- 
--- _emailTaken = SProxy ∷ SProxy "emailTaken"
--- 
--- emailTakenValidator = Validator.checkM
---   (Batteries.error _emailTaken)
---   Effects.emailTaken
--- 
--- _email = SProxy ∷ SProxy "email"
--- 
--- emailForm = Forms.Plain.input "" _email validator
---   where
---     validator = UrlEncoded.Validators.singleValue >>> Fields.Validators.email >>> emailTakenValidator
--- 
--- _passwordsDontMatch = SProxy ∷ SProxy "passwordsDontMatch"
--- 
--- passwordForm = passwordsForm >>> Forms.Plain.sectionValidator validator
---   where
---     validator = Validator.liftFn (Password <<< _.password1) <<< Validator.check
---       (Batteries.error _passwordsDontMatch)
---       (\r → r.password1 /= r.password2)
--- 
---     passwordsForm = { password1: _, password2: _ }
---       <$> Forms.Plain.passwordField
---       <*> Forms.Plain.passwordField
--- 
+
+_emailTaken = SProxy ∷ SProxy "emailTaken"
+
+type EmailTaken r = (emailTaken ∷ Email | r)
+
+emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { policy: validator }
+  where
+    validator = Validator.checkM
+      (Batteries.error _emailTaken)
+      Effects.emailTaken
+
+_passwordsMismatch = SProxy ∷ SProxy "passwordsMismatch"
+
+type PasswordsInput = { password1 ∷ String, password2 ∷ String }
+
+type PasswordsMismatch r = (passwordsMismatch ∷ PasswordsInput | r)
+
+passwordForm = Forms.Uni.build $ Forms.Uni.sectionValidator validator <<< passwordsForm
+  where
+    validator = Validator.liftFn (Password <<< _.password1) <<< Validator.check
+      (Batteries.error _passwordsMismatch)
+      (\r → r.password1 /= r.password2)
+
+    passwordsForm = { password1: _, password2: _ }
+      <$> Forms.Uni.passwordInputBuilder {}
+      <*> Forms.Uni.passwordInputBuilder {}
+
 -- _sameEmail = SProxy ∷ SProxy "sameEmail"
 -- 
 -- -- | This an example of "Forms.Dual.Form"

@@ -2,117 +2,82 @@ module WebRow.Crypto where
 
 import Prelude
 
-import Control.Monad.Except (ExceptT(..), runExceptT, throwError)
-import Data.Either (Either, note)
-import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype, unwrap)
-import Data.String (Pattern(..), Replacement(..), lastIndexOf, replaceAll, splitAt, stripPrefix, stripSuffix)
-import Effect (Effect)
-import Effect.Class (liftEffect)
-import Node.Buffer (Buffer, fromString, toString)
-import Node.Crypto (randomBytes)
-import Node.Crypto.Hash (Algorithm(SHA512), createHash)
-import Node.Crypto.Hash as Hash
-import Node.Crypto.Hmac (createHmac, digest, update)
-import Node.Encoding (Encoding(..))
-import Run (AFF, Run, liftAff)
-import Run.Reader (READER, ask)
+import Control.Bind (bindFlipped)
+import Data.Argonaut (Json)
+import Data.Argonaut (fromString, jsonParser, stringify, toString) as Argonaut
+import Data.Either (Either(..), note)
+import Node.Simple.Jwt (Algorithm(..), decode, encode, fromString, toString) as Jwt
+import Node.Simple.Jwt (JwtError)
+import Run (EFFECT, Run, SProxy(..), liftEffect)
+import Run.Reader (READER, askAt)
 
 newtype Secret = Secret String
-derive instance newtypeSecret ∷ Newtype Secret _
+
+_crypto = SProxy ∷ SProxy "crypto"
+
+type Crypto r = (crypto ∷ READER Secret | r)
+
+newtype Signed = Signed String
+newtype Unsigned = Unsigned String
+
+signJson
+  ∷ ∀ eff
+  . Json
+  → Run
+    ( crypto ∷ READER Secret
+    , effect ∷ EFFECT
+    | eff
+    )
+    String
+signJson json = do
+  Secret secret ← askAt _crypto
+  liftEffect $ Jwt.toString <$> (Jwt.encode secret Jwt.HS512 (Argonaut.stringify json))
 
 sign
-  ∷ ∀ ctx eff
+  ∷ ∀ eff
   . String
   → Run
-      ( aff ∷ AFF
-      , reader ∷ READER { secret ∷ Secret | ctx }
-      | eff
-      )
-      String
-sign plain = do
-  ctx ← ask
-  liftAff $ liftEffect $ sign' ctx.secret plain
+    ( crypto ∷ READER Secret
+    , effect ∷ EFFECT
+    | eff
+    )
+    String
+sign = signJson <<< Argonaut.fromString
+
+
+data UnsignError
+  = JwtError JwtError
+  | JsonParserError String
+
+unsignJson
+  ∷ ∀ eff
+  . String
+  → Run
+    ( crypto ∷ READER Secret
+    , effect ∷ EFFECT
+    | eff
+    )
+    (Either UnsignError Json)
+unsignJson str = do
+  Secret secret ← askAt _crypto
+  liftEffect (Jwt.decode secret (Jwt.fromString str)) >>= case _ of
+    Left err → pure $ Left $ JwtError err
+    Right payload → case Argonaut.jsonParser payload of
+      Left e → pure $ Left (JsonParserError e)
+      Right json → pure $ Right json
+      -- | TODO: add support for expiration date
+      -- exp  toObject >=> Object.lookup "exp"
 
 unsign
-  ∷ ∀ ctx eff
+  ∷ ∀ eff
   . String
   → Run
-      ( aff ∷ AFF
-      , reader ∷ READER { secret ∷ Secret | ctx }
-      | eff
-      )
-      (Either String String)
-unsign signed = do
-  secret ← ask <#> _.secret
-  liftAff $ liftEffect $ runExceptT $ unsign' secret signed
-
-urisafeBase64
-  ∷ { encode ∷ Buffer → Effect String
-    , decode ∷ String → Effect Buffer
-    }
-urisafeBase64 = { encode , decode }
-  where
-  stripEqualSuffix s =
-    case stripSuffix (Pattern "==") s of
-      Just s' → s'
-      Nothing → s
-  encode s =
-    ( stripEqualSuffix
-    <<< replaceAll (Pattern "/") (Replacement "_")
-    <<< replaceAll (Pattern "+") (Replacement "-")
+    ( crypto ∷ READER Secret
+    , effect ∷ EFFECT
+    | eff
     )
-    <$> toString Base64 s
-  decode =
-    flip fromString Base64
-    <<< (_ <> "==")
-    <<< replaceAll (Pattern "_") (Replacement "/")
-    <<< replaceAll (Pattern "-") (Replacement "+")
-
-hmac
-  ∷ Secret
-  → String
-  → Effect String
-hmac secret plain = do
-  buf <- fromString plain UTF8
-  urisafeBase64.encode
-    =<< digest
-    =<< flip update buf
-    =<< createHmac SHA512 (unwrap secret)
-
-hash ∷ String → Effect String
-hash plain = do
-  buf <- fromString plain UTF8
-  urisafeBase64.encode
-    =<< Hash.digest
-    =<< flip Hash.update buf
-    =<< createHash SHA512
-
-randomSalt ∷ Effect String
-randomSalt = randomBytes 8 >>= toString Hex
-
-separator ∷ String
-separator = "."
-
-sign'
-  ∷ Secret
-  → String
-  → Effect String
-sign' secret plain = (\h → plain <> separator <> h) <$> hmac secret plain
-
-unsign'
-  ∷ Secret
-  → String
-  → ExceptT String Effect String
-unsign' secret signed = do
-  parts ← ExceptT $ pure $ note "Incorrect format" $ do
-    index ← lastIndexOf (Pattern separator) signed
-    let parts = splitAt index signed
-    signature ← stripPrefix (Pattern separator) parts.after
-    pure { plain: parts.before, signature }
-  signature' ← liftEffect $ hmac secret parts.plain
-  if parts.signature /= signature'
-    then
-      throwError "Bad signature"
-    else
-      pure parts.plain
+    (Either UnsignError String)
+unsign = unsignJson >=> bindFlipped toString' >>> pure
+  where
+    err = JsonParserError "String extraction error"
+    toString' = note err <$> Argonaut.toString
