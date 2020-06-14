@@ -2,27 +2,32 @@
 
 Let's build a highly opinionated but fully-featured web framework in PureScript. For the backend. And the frontend.
 
-## Objectives
+<!--
 
-* Routing integration (with _routing-duplex_)
+## Goals
 
-* PostgreSQL handling with _selda_
+[ ] Provide effects for basic HTTP workflow (`Request`, `cookies`, `JWT signature` etc.)
 
-* Session handling with different backends
+[ ] Session effects and interpreter for different backends
 
-* Basic customizable applets for registration and auth
+[ ] Routing integration (with _routing-duplex_)
 
-* Form DSL
+[ ] PostgreSQL handling with _selda_
 
-* I18N and L10N opt-in
+[ ] Basic customizable applets for registration and auth
 
-* Example app:
+[ ] Form DSL
 
-  * react-basic-mui rendering
+[ ] I18N and L10N opt-in
 
-  * SSR + hydration
+[ ] Example app:
 
-  * Form rendering integration
+  [ ] react-basic-mui rendering
 
-  * i18next integration
+  [ ] SSR + hydration
 
+  [ ] Form rendering integration
+
+  [ ] i18next integration
+
+-->
