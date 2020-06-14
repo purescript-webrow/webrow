@@ -2,38 +2,34 @@ module WebRow.Applets.Registration where
 
 import Prelude
 
-import Ansi.Codes (EscapeCode(..))
-import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either, hush)
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Either (Either(..))
+import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
-import Data.Variant (Variant, inj, on)
-import Global.Unsafe (unsafeStringify)
+import Data.Variant (inj, on)
 import HTTPure (Method(..)) as HTTPure
-import Polyform.Dual (dual)
 import Run (Run)
-import Simple.JSON (readJSON, writeJSON)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
-import WebRow.Applets.Auth.Effects (AUTH)
-import WebRow.Applets.Auth.Effects (AUTH) as Auth.Effects
-import WebRow.Applets.Auth.Routes (RouteRow) as Auth
-import WebRow.Applets.Auth.Routes (RouteRow) as Auth.Routes
+import WebRow.Applets.Registration.Effects (Registration)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
-import WebRow.Applets.Registration.Responses (ChangeEmailResponse(..), ConfirmationResponse(..), RegisterEmailResponse(..), Response(..)) as Responses
-import WebRow.Applets.Registration.Routes (Route(..), RouteRow, printFullRoute) as Routes
+import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..))
+import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
+import WebRow.Applets.Registration.Routes (Route) as Registration
 import WebRow.Applets.Registration.Types (SignedEmail(..), _register)
-import WebRow.Crypto (sign, unsign)
+import WebRow.Crypto (Crypto, sign, unsign)
+import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
-import WebRow.HTTPError (methodNotAllowed')
-import WebRow.Logging.Effect (info)
-import WebRow.Mailer (Email(..), send)
+import WebRow.Forms.Widgets (TextInputProps)
+import WebRow.HTTPError (HttpError, methodNotAllowed')
+import WebRow.Mailer (Email(..), Mailer)
 import WebRow.Mailer (send) as Mailer
-import WebRow.Request (method)
-import WebRow.Route (FullUrl(..))
+import WebRow.Message (Message)
+import WebRow.Request (Request, method)
+import WebRow.Route (FullUrl, Route)
+import WebRow.Types (Effect)
 
 -- -- | I'm not sure about this response polymorphism here
 -- -- | Is it good or bad? Or doesn't matter at all?
@@ -50,48 +46,77 @@ router = on _register $ case _ of
 
 _emailVerification = SProxy ∷ SProxy "emailVerification"
 
--- registerEmail
---   ∷ ∀ a eff ctx res routes user widgets
---   . Run (Effects ctx res routes user widgets eff) a
+registerEmail
+  :: ∀ eff mails messages widgets
+  . Run
+    ( Crypto
+    + HttpError
+    + Effect
+    + Mailer (emailVerification ∷ FullUrl | mails)
+    + Message
+       ( emailTaken :: Email
+       , invalidEmailFormat :: String
+       , singleValueExpected :: Maybe (Array String)
+       | messages
+       )
+    + Registration
+    + Request
+    + Route (register :: Registration.Route)
+    + eff
+    )
+    (Response (textInput :: TextInputProps | widgets))
 registerEmail = method >>= case _ of
   HTTPure.Post → fromBody >>= Forms.Uni.validate emailTakenForm >>= case _ of
     Tuple form (Just email@(Email e)) → do
       signedEmail ← sign e
       confirmationLink ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
       void $ Mailer.send ({ to: email, context: inj _emailVerification confirmationLink })
-      pure $ Responses.RegisterEmailResponse $ Responses.EmailSent email confirmationLink
+      pure $ RegisterEmailResponse $ EmailSent email confirmationLink
     Tuple form _ → do
-      pure $ Responses.RegisterEmailResponse $ Responses.EmailValidationFailed form
+      pure $ RegisterEmailResponse $ EmailValidationFailed form
   HTTPure.Get → do
     form ← Forms.Uni.default emailTakenForm
-    pure $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm form
+    pure $ ConfirmationResponse $ InitialPasswordForm form
   method → methodNotAllowed'
 
--- confirmation
---   ∷ ∀ a eff ctx res routes user
---   . SignedEmail
---   → Run (Effects ctx res routes user eff) a
+confirmation
+  :: ∀ eff messages widgets
+  . SignedEmail
+  → Run
+    ( Crypto
+    + HttpError
+    + Effect
+    + Message
+       ( singleValueExpected :: Maybe Payload.Value
+       , passwordsMismatch :: { password1 ∷ String, password2 ∷ String }
+       | messages
+       )
+    + Registration
+    + Request
+    + eff
+    )
+    (Response (textInput :: TextInputProps | widgets))
 confirmation signedEmail = do
   validateEmail signedEmail >>= case _ of
     Left err → pure err
     Right email → method >>= case _ of
       HTTPure.Post → fromBody >>= Forms.Uni.validate passwordForm >>= case _ of
         Tuple _ (Just password) →
-          pure $ Responses.ConfirmationResponse $ Responses.ConfirmationSucceeded email password
+          pure $ ConfirmationResponse $ ConfirmationSucceeded email password
         Tuple form _ → do
-          pure $ Responses.ConfirmationResponse $ Responses.PasswordValidationFailed form
+          pure $ ConfirmationResponse $ PasswordValidationFailed form
       HTTPure.Get → do
         form ← Forms.Uni.default passwordForm
-        pure $ Responses.ConfirmationResponse $ Responses.InitialPasswordForm form
+        pure $ ConfirmationResponse $ InitialPasswordForm form
       _ → methodNotAllowed'
   where
     validateEmail = un SignedEmail >>> unsign >=> case _ of
-      Left _ → pure $ Left (Responses.ConfirmationResponse $ Responses.InvalidEmailSignature)
+      Left _ → pure $ Left (ConfirmationResponse InvalidEmailSignature)
       Right emailStr → do
         let
           email = Email emailStr
         Effects.emailTaken email >>= if _
-          then pure $ Left (Responses.ConfirmationResponse $ Responses.EmailRegisteredInbetween email)
+          then pure $ Left (ConfirmationResponse $ EmailRegisteredInbetween email)
           else pure $ Right email
 
 -- -- type ChangeEmailPayload = { current ∷ String, new ∷ String }

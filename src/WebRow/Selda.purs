@@ -1,4 +1,4 @@
-module SeldaUtils where
+module WebRow.Selda where
 
 import Prelude
 

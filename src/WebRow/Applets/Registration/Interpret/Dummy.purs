@@ -3,24 +3,25 @@ module WebRow.Registration.Interpret.Dummy where
 import Prelude
 
 import Effect.Random (random)
-import Run (EFFECT, Run, liftEffect)
+import Run (Run, liftEffect)
 import Run (interpret, on, send) as Run
-import WebRow.Applets.Registration.Effects (RegisterF(..), REGISTER)
-import WebRow.Applets.Registration.Types (_register)
+import Type.Row (type (+))
+import WebRow.Applets.Registration.Effects (Registration, RegistrationF(..), _registration)
+import WebRow.Types (Effect)
 
 interpret
   ∷ ∀ eff
   . Run
-    ( effect ∷ EFFECT
-    , register ∷ REGISTER
-    | eff
+    ( Registration
+    + Effect
+    + eff
     )
-   ~> Run (effect ∷ EFFECT | eff)
-interpret = Run.interpret (Run.on _register handler Run.send)
+   ~> Run (Effect + eff)
+interpret = Run.interpret (Run.on _registration handler Run.send)
 
 handler
   ∷ ∀ eff
-  . RegisterF ~> Run (effect ∷ EFFECT | eff)
+  . RegistrationF ~> Run (Effect + eff)
 handler (EmailTaken email next) = do
   v ← liftEffect random
   pure (next (v > 0.5))

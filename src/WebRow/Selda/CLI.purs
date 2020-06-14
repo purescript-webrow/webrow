@@ -1,4 +1,4 @@
-module SeldaUtils.CLI where
+module WebRow.Selda.CLI where
 
 import Prelude
 
