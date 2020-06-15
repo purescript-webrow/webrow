@@ -10,16 +10,22 @@ import Polyform.Batteries (error) as Batteries
 import Polyform.Validator (check, checkM, liftFn, liftFnV) as Validator
 import Polyform.Validator.Dual (check) as Validator.Dual
 import Type.Prelude (SProxy(..))
+import Type.Row (type (+))
 import WebRow.Applets.Auth.Types (Password(..))
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
+import WebRow.Forms.Uni (Layout) as Forms
 import WebRow.Forms.Uni (build) as Uni
 import WebRow.Forms.Uni (build, emailInputBuilder, passwordInputBuilder, sectionValidator, textInputBuilder) as Forms.Uni
+import WebRow.Forms.Widgets (TextInput)
 import WebRow.Mailer (Email(..))
 -- import WebRow.Forms.Dual ((~))
 -- import WebRow.Forms.Dual (Form(..), textInput) as Forms.Dual
 -- import WebRow.Forms.Fields.Duals (email) as Fields.Duals
 -- import WebRow.Forms.Fields.Validators (email) as Fields.Validators
 -- import WebRow.Forms.Plain (input, passwordField, sectionValidator) as Forms.Plain
+
+type Widgets = (TextInput + ())
+type FormLayout = Forms.Layout Widgets
 
 _emailTaken = SProxy ∷ SProxy "emailTaken"
 

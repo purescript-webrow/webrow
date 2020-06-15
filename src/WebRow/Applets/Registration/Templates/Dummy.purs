@@ -18,7 +18,6 @@ import Text.Smolder.Markup (text) as M
 import Text.Smolder.Renderer.String (render) as S
 import Type.Row (type (+))
 import WebRow.Applets.Registration.Responses (ChangeEmailResponse(..), ConfirmationResponse(..), RegisterEmailResponse(..), Response(..))
-import WebRow.Applets.Registration.Responses (Response)
 import WebRow.Applets.Registration.Types (_register)
 import WebRow.Forms (Layout) as Forms
 import WebRow.Forms.Layout (LayoutBase(..))
@@ -59,7 +58,7 @@ form l = do
     formBody l
     M.input ! A.type' "submit" ! A.value "submit"
 
-render ∷ Response (TextInput + ()) → String
+render ∷ Response → String
 render = case _ of
   RegisterEmailResponse r → case r of
     EmailValidationFailed formLayout → html $ form formLayout

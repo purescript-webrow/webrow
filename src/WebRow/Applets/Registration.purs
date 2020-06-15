@@ -18,18 +18,17 @@ import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), Register
 import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
 import WebRow.Applets.Registration.Routes (Route) as Registration
 import WebRow.Applets.Registration.Types (SignedEmail(..), _register)
+import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto, sign, unsign)
 import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
-import WebRow.Forms.Widgets (TextInputProps)
-import WebRow.HTTPError (HttpError, methodNotAllowed')
+import WebRow.HTTP (methodNotAllowed')
 import WebRow.Mailer (Email(..), Mailer)
 import WebRow.Mailer (send) as Mailer
-import WebRow.Message (Message)
-import WebRow.Request (Request, method)
-import WebRow.Route (FullUrl, Route)
-import WebRow.Types (Effect)
+import WebRow.Request (method)
+import WebRow.Route (FullUrl)
+import WebRow.Types (WebRow)
 
 -- -- | I'm not sure about this response polymorphism here
 -- -- | Is it good or bad? Or doesn't matter at all?
@@ -47,24 +46,23 @@ router = on _register $ case _ of
 _emailVerification = SProxy ∷ SProxy "emailVerification"
 
 registerEmail
-  :: ∀ eff mails messages widgets
+  :: ∀ eff mails messages routes session
   . Run
     ( Crypto
-    + HttpError
-    + Effect
+    + EffRow
     + Mailer (emailVerification ∷ FullUrl | mails)
-    + Message
-       ( emailTaken :: Email
-       , invalidEmailFormat :: String
-       , singleValueExpected :: Maybe (Array String)
-       | messages
-       )
     + Registration
-    + Request
-    + Route (register :: Registration.Route)
+    + WebRow
+      ( emailTaken :: Email
+      , invalidEmailFormat :: String
+      , singleValueExpected :: Maybe (Array String)
+      | messages
+      )
+      session
+      (register :: Registration.Route | routes)
     + eff
     )
-    (Response (textInput :: TextInputProps | widgets))
+    Response
 registerEmail = method >>= case _ of
   HTTPure.Post → fromBody >>= Forms.Uni.validate emailTakenForm >>= case _ of
     Tuple form (Just email@(Email e)) → do
@@ -80,22 +78,22 @@ registerEmail = method >>= case _ of
   method → methodNotAllowed'
 
 confirmation
-  :: ∀ eff messages widgets
+  :: ∀ eff messages routes session
   . SignedEmail
   → Run
     ( Crypto
-    + HttpError
-    + Effect
-    + Message
-       ( singleValueExpected :: Maybe Payload.Value
-       , passwordsMismatch :: { password1 ∷ String, password2 ∷ String }
-       | messages
-       )
+    + EffRow
     + Registration
-    + Request
+    + WebRow
+      ( singleValueExpected :: Maybe Payload.Value
+      , passwordsMismatch :: { password1 ∷ String, password2 ∷ String }
+      | messages
+      )
+      session
+      routes
     + eff
     )
-    (Response (textInput :: TextInputProps | widgets))
+    Response
 confirmation signedEmail = do
   validateEmail signedEmail >>= case _ of
     Left err → pure err

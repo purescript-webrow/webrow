@@ -7,21 +7,21 @@ import Run (Run, liftEffect)
 import Run (interpret, on, send) as Run
 import Type.Row (type (+))
 import WebRow.Applets.Registration.Effects (Registration, RegistrationF(..), _registration)
-import WebRow.Types (Effect)
+import WebRow.Contrib.Run (EffRow)
 
 interpret
   ∷ ∀ eff
   . Run
     ( Registration
-    + Effect
+    + EffRow
     + eff
     )
-   ~> Run (Effect + eff)
+   ~> Run (EffRow + eff)
 interpret = Run.interpret (Run.on _registration handler Run.send)
 
 handler
   ∷ ∀ eff
-  . RegistrationF ~> Run (Effect + eff)
+  . RegistrationF ~> Run (EffRow + eff)
 handler (EmailTaken email next) = do
   v ← liftEffect random
   pure (next (v > 0.5))

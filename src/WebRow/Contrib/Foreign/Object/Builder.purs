@@ -1,4 +1,4 @@
-module WebRow.Utils.Foreign.Object.Builder where
+module WebRow.Contrib.Foreign.Object.Builder where
 
 import Prelude
 

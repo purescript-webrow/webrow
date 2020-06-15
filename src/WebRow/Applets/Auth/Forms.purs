@@ -13,7 +13,7 @@ import Type.Row (type (+))
 import WebRow.Applets.Auth.Effects (Auth, authenticate) as Effects
 import WebRow.Applets.Auth.Effects (User)
 import WebRow.Applets.Auth.Types (Password(..))
-import WebRow.Forms (Uni) as Forms
+import WebRow.Forms (Uni, Layout) as Forms
 import WebRow.Forms.Uni (Builder, build, passwordInputBuilder, sectionValidator, textInputBuilder) as Uni
 import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.Forms.Validators (email) as Validators
@@ -22,14 +22,17 @@ import WebRow.Mailer (Email)
 
 _authFailed = SProxy ∷ SProxy "authFailed"
 
-type AuthInput = { email ∷ Email, password ∷ Password }
-type AuthFailed r = (authFailed ∷ AuthInput | r)
+type Widgets = (TextInput + ())
+type LoginLayout = Forms.Layout Widgets
 
-loginForm :: forall eff errs user widgets.
+type AuthPayload = { email ∷ Email, password ∷ Password }
+type AuthFailed r = (authFailed ∷ AuthPayload | r)
+
+loginForm :: forall eff errs user.
   Forms.Uni
-    ( Effects.Auth user + eff)
-    ( AuthFailed + InvalidEmailFormat + SingleValueExpected + errs)
-    ( TextInput + widgets)
+    (Effects.Auth user + eff)
+    (AuthFailed + InvalidEmailFormat + SingleValueExpected + errs)
+    (TextInput + ())
     (User user)
 loginForm = Uni.build
   $ autheticateBuilder
@@ -39,9 +42,9 @@ loginForm = Uni.build
       ∷ ∀ errs' widgets'
       . Uni.Builder
           (Effects.Auth user + eff)
-          ( AuthFailed + errs' )
+          (AuthFailed + errs')
           widgets'
-          AuthInput
+          AuthPayload
           (User user)
     autheticateBuilder = Uni.sectionValidator $ Validator.liftFnMV \r → ado
       res ← Effects.authenticate r.email r.password

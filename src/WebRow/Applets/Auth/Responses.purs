@@ -1,19 +1,16 @@
 module WebRow.Applets.Auth.Responses where
 
-import Prelude
+import WebRow.Applets.Auth.Forms (LoginLayout) as Forms
 
-import Run (Run)
-import WebRow.Applets.Auth.Types (namespace)
-import WebRow.Forms (Layout) as Forms
-
-data LoginResponse (widgets ∷ # Type)
-  = LoginFormValidationFailed (Forms.Layout widgets)
-  | EmailPasswordMismatch (Forms.Layout widgets)
-  | InitialEmailPassordForm (Forms.Layout widgets)
+data LoginResponse
+  = LoginFormValidationFailed Forms.LoginLayout
+  | EmailPasswordMismatch Forms.LoginLayout
+  | InitialEmailPassordForm Forms.LoginLayout
   | LoginSuccess
 
-data Response (widgets ∷ # Type)
-  = LoginResponse (LoginResponse widgets)
+data Response
+  = LoginResponse LoginResponse
+  | LogoutResponse
 
 -- response
 --   ∷ ∀ a eff res widgets

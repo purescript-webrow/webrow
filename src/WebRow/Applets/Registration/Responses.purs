@@ -1,27 +1,26 @@
 module WebRow.Applets.Registration.Responses where
 
 import WebRow.Applets.Auth.Types (Password)
-import WebRow.Forms (Layout) as Forms
+import WebRow.Applets.Registration.Forms (FormLayout)
 import WebRow.Mailer (Email)
 import WebRow.Route (FullUrl)
 
-data ConfirmationResponse (widgets ∷ # Type)
+data ConfirmationResponse
   = ConfirmationSucceeded Email Password
   | InvalidEmailSignature
-  | InitialPasswordForm (Forms.Layout widgets)
+  | InitialPasswordForm FormLayout
   | EmailRegisteredInbetween Email
-  | PasswordValidationFailed (Forms.Layout widgets)
+  | PasswordValidationFailed FormLayout
 
-data RegisterEmailResponse (widgets ∷ # Type)
+data RegisterEmailResponse
   = EmailSent Email FullUrl
-  | EmailValidationFailed (Forms.Layout widgets)
-  | InitialEmailForm (Forms.Layout widgets)
+  | EmailValidationFailed FormLayout
+  | InitialEmailForm FormLayout
 
-data ChangeEmailResponse (widgets ∷ # Type)
-  = ChangeEmailInitialForm (Forms.Layout widgets)
+data ChangeEmailResponse = ChangeEmailInitialForm FormLayout
 
-data Response (widgets ∷ # Type)
-  = ConfirmationResponse (ConfirmationResponse widgets)
-  | RegisterEmailResponse (RegisterEmailResponse widgets)
-  | ChangeEmailResponse (ChangeEmailResponse widgets)
+data Response
+  = ConfirmationResponse ConfirmationResponse
+  | RegisterEmailResponse RegisterEmailResponse
+  | ChangeEmailResponse ChangeEmailResponse
 

@@ -1,4 +1,4 @@
-module WebRow.Routing.Duplex where
+module WebRow.Contrib.Routing.Duplex where
 
 import Prelude
 
@@ -25,6 +25,4 @@ params = RouteDuplex printer parser
 
   printer ∷ RouteParams → RoutePrinter
   printer p = RoutePrinter \state → state { params = p }
-
-
 

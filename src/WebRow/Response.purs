@@ -1,6 +1,17 @@
 module WebRow.Response where
 
--- import Prelude
+import Effect.Aff (Aff)
+import HTTPure (Response, header, temporaryRedirect') as HTTPure
+import Run (Run, liftAff)
+import Type.Row (type (+))
+import WebRow.Contrib.Run (AffRow)
+
+liftHTTPure ∷ ∀ eff. Aff HTTPure.Response → Run (AffRow + eff) HTTPure.Response
+liftHTTPure = liftAff
+
+redirect ∷ ∀ eff. String → Run (AffRow + eff) HTTPure.Response
+redirect url  = liftHTTPure (HTTPure.temporaryRedirect' (HTTPure.header "Location" url) "")
+
 -- 
 -- import Data.Newtype (class Newtype, un)
 -- import Data.Variant (SProxy(..), Variant, case_, inj, on)
@@ -97,9 +108,6 @@ module WebRow.Response where
 -- throwHttp = throw <<< inj _http
 -- 
 -- x = 8
--- 
--- redirect ∷ ∀ a eff errs. String → Run (except ∷ EXCEPT (Variant (HTTP + errs)) | eff) a
--- redirect = throwHttp <<< Redirect
 -- 
 -- -- clientError ∷ ∀ a eff res.  ClientError → Run ( response ∷ EXCEPT res | eff) a
 -- clientError = throwHttp <<< ClientError

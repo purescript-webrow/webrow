@@ -29,7 +29,7 @@ import Data.Newtype (un)
 import Data.Traversable (class Traversable, traverse)
 import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
-import Data.Undefined.NoProblem (Opt, (!), (?))
+import Data.Undefined.NoProblem (Opt, (!))
 import Data.Undefined.NoProblem (toMaybe) as NoProblem
 import Data.Undefined.NoProblem.Mono (class Coerce, coerce) as NoProblem.Mono
 import Data.Undefined.NoProblem.Poly (class Coerce, coerce) as NoProblem.Poly
@@ -55,7 +55,7 @@ import WebRow.Forms.Validators (email) as Validators
 import WebRow.Forms.Widget (Constructor, Payload, names, payload) as Widget
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Forms.Widgets (textInput) as Widgets
-import WebRow.Mailer (Email(..))
+import WebRow.Mailer (Email)
 import WebRow.Message (MESSAGE, message)
 
 type Layout widgets = Layout.Layout String widgets
@@ -65,12 +65,7 @@ type FieldValidator eff info i o = Polyform.Validator (MessageM info eff) (Error
 type MessageM info eff = Run (message ∷ MESSAGE info | eff)
 
 newtype Builder eff info widgets i o = Builder
-  ( B.Builder
-      (MessageM info eff)
-      (Layout widgets)
-      i
-      o
-  )
+  (B.Builder (MessageM info eff) (Layout widgets) i o)
 
 newtype Uni eff info widgets o = Uni (Form.Form (MessageM info eff) (Layout widgets) o)
 

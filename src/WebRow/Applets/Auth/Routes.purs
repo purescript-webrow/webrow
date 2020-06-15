@@ -9,6 +9,7 @@ import WebRow.Applets.Auth.Types (Namespace)
 
 data Route
   = Login
+  | Logout
   -- | PasswordChange
   --     (Maybe
   --       { oldPassword ∷ Password
@@ -17,12 +18,14 @@ data Route
   --       })
 derive instance genericRoute ∷ Generic Route _
 
-type RouteRow r = Namespace Route r
+-- | (route ∷ ( auth ∷ Route | routes) | eff)
+type RouteRow routes = (Namespace Route routes)
 
 duplexes ∷ { | Namespace (D.RouteDuplex' Route) () }
 duplexes =
   { "auth": DG.sum
     { "Login": DG.noArgs
+    , "Logout": DG.noArgs
     -- , "PasswordChange": D.optional $ D.params
     --     { oldPassword: _Newtype <<< D.string
     --     , password1: _Newtype <<< D.string

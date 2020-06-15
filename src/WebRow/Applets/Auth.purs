@@ -1,6 +1,5 @@
 module WebRow.Applets.Auth where
 
-
 import Prelude
 
 import Data.Maybe (Maybe(..))
@@ -11,56 +10,92 @@ import Run (Run)
 import Type.Row (type (+))
 import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Forms (loginForm)
-import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(LoginResponse))
+import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..))
+import WebRow.Applets.Auth.Routes (RouteRow)
 import WebRow.Applets.Auth.Routes as Routes
-import WebRow.Applets.Auth.Types (Password, _auth)
+import WebRow.Applets.Auth.Types (Password, _auth, namespace)
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
-import WebRow.Forms.Widgets (TextInputProps)
-import WebRow.HTTPError (HttpError, methodNotAllowed')
+import WebRow.HTTP (methodNotAllowed', redirect)
 import WebRow.Mailer (Email)
-import WebRow.Message (Message)
-import WebRow.Request (Request)
 import WebRow.Request (method) as Request
-import WebRow.Session (Session)
-import WebRow.Session (modify) as Session
+import WebRow.Route (printRoute) as Route
+import WebRow.Route (fromRelativeUrl)
+import WebRow.Session (fetch, modify) as Session
+import WebRow.Types (WebRow)
+
+type AuthRow messages routes session user eff =
+  ( WebRow
+    ( authFailed ∷ { email ∷ Email, password ∷ Password }
+    , invalidEmailFormat ∷ String
+    , singleValueExpected ∷ Maybe (Array String)
+    | messages
+    )
+    { user ∷ Maybe (User user) | session }
+    (RouteRow routes)
+  + Auth user
+  + eff
+  )
 
 -- router
---   ∷ ∀ a res ctx session eff routes
---   . (Variant routes → Run (Effects session ctx res eff) a)
+--   ∷ ∀ eff messages routes session user
+--   . (Variant routes → Run (AuthRow messages session user eff) Response)
 --   → Variant ( auth ∷ Routes.Route | routes )
---   → Run (Effects session ctx res eff) a
+--   → Run (AuthRow messages session user eff) Response
 router = on _auth case _ of
-  Routes.Login → onLoginRoute
+  Routes.Login → login
+  Routes.Logout → logout
 
-onLoginRoute ∷ ∀ eff messages session user widgets.
-   Run
-    ( Auth user
-    + HttpError
-    + Message
-      ( authFailed ∷ { email ∷ Email, password ∷ Password }
-      , invalidEmailFormat ∷ String
-      , singleValueExpected ∷ Maybe (Array String)
-      | messages
-      )
-    + Request
-    + Session { user ∷ Maybe (User user) | session }
+login
+  ∷ ∀ eff messages routes session user
+  . Run
+    ( AuthRow
+      messages
+      routes
+      session
+      user
     + eff
     )
-    (Response (textInput ∷ TextInputProps | widgets))
-onLoginRoute = Request.method >>= case _ of
+    Response
+login = Request.method >>= case _ of
   HTTPure.Post → do
     body ← fromBody
     Forms.Uni.validate loginForm body >>= case _ of
       Tuple formLayout Nothing →
         pure $ LoginResponse (LoginFormValidationFailed formLayout)
       Tuple formLayout (Just user) → do
-        Session.modify \s → s { user = Just user }
+        Session.modify _{ user = Just user }
         pure $ LoginResponse LoginSuccess
   HTTPure.Get → do
     form ← Forms.Uni.default loginForm
     pure $ LoginResponse (InitialEmailPassordForm form)
   method → methodNotAllowed'
+
+logout
+  ∷ ∀ eff messages routes session user
+  . Run
+    ( AuthRow
+      messages
+      routes
+      session
+      user
+    + eff
+    )
+    Response
+logout = do
+  Session.modify _{ user = Nothing }
+  pure $ LogoutResponse
+
+withUserRequired ∷ ∀ a eff messages routes session user
+  . (User user → Run (AuthRow messages routes session user + eff) a)
+  -> Run (AuthRow messages routes session user + eff) a
+withUserRequired f = Session.fetch >>= _.user >>> case _ of
+  Just user → f user
+  Nothing → do
+    relativeUrl ← Route.printRoute (namespace Routes.Login)
+    redirect (fromRelativeUrl relativeUrl)
+
+
 
 -- type Effects session ctx res eff user widgets =
 --   ( auth ∷ AUTH user
@@ -81,16 +116,6 @@ onLoginRoute = Request.method >>= case _ of
 -- import WebRow.Response (redirect) as Response
 -- import WebRow.Route (ROUTE)
 -- import WebRow.Route (RelativeUrl(..), printRoute) as Route
--- 
--- userRequired
---   ∷ ∀ eff res route user
---   . Run
---       (auth ∷ AUTH user, response ∷ RESPONSE res, route ∷ ROUTE (Routes.RouteRow route) | eff)
---       (User user)
--- userRequired = Effects.currentUser >>= case _ of
---   Just user → pure user
---   Nothing → do
---     Route.printRoute (namespace Routes.Login) >>= un Route.RelativeUrl >>> Response.redirect
 -- 
 -- -- router
 -- --   ∷ ∀ a eff ctx res routes user
