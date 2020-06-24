@@ -31,8 +31,7 @@ import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
 import Data.Undefined.NoProblem (Opt, (!))
 import Data.Undefined.NoProblem (toMaybe) as NoProblem
-import Data.Undefined.NoProblem.Mono (class Coerce, coerce) as NoProblem.Mono
-import Data.Undefined.NoProblem.Poly (class Coerce, coerce) as NoProblem.Poly
+import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Closed
 import Data.Variant (Variant)
 import Polyform (Reporter, Validator) as Polyform
 import Polyform.Batteries (Errors)
@@ -41,7 +40,6 @@ import Polyform.Batteries.UrlEncoded.Validators (singleValue) as Batteries
 import Polyform.Reporter (liftFn, liftValidatorWith, liftValidatorWithM, lmapM) as Reporter
 import Polyform.Validator (liftFn, lmapM) as Validator
 import Run (Run)
-import Type.Proxy (Proxy(..))
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
 import WebRow.Forms.BuilderM (eval) as BuilderM
@@ -128,12 +126,12 @@ type TextInputInitials info eff o =
 
 textInputBuilder
   ∷ ∀ args eff info o widgets
-  . NoProblem.Poly.Coerce args (TextInputInitials info eff o) (TextInputInitials info eff o)
+  . NoProblem.Closed.Coerce args (TextInputInitials info eff o)
   ⇒ args
   → Builder eff info (TextInput + widgets) UrlDecoded o
 textInputBuilder args = fieldBuilder { constructor, defaults: Identity (Just [ default ! "" ]), validator: validator' }
   where
-    i@{ default, validator } = NoProblem.Poly.coerce (Proxy ∷ Proxy (TextInputInitials info eff o)) args
+    i@{ default, validator } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
     validator' = validator <<< Validator.liftFn (un Identity)
 
     constructor { payload: Identity payload, names: Identity name, result } = pure $ Widgets.textInput
@@ -154,7 +152,7 @@ type PasswordInputInitials =
 
 passwordInputBuilder
   ∷ ∀ args eff info r
-  . NoProblem.Mono.Coerce args PasswordInputInitials
+  . NoProblem.Closed.Coerce args PasswordInputInitials
   ⇒ args
   → Builder
     eff
@@ -169,7 +167,7 @@ passwordInputBuilder args = textInputBuilder
   , validator: Batteries.singleValue
   }
   where
-    i@{ helpText, label, placeholder } = NoProblem.Mono.coerce args ∷ PasswordInputInitials
+    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials
 
 type EmailMessages r = InvalidEmailFormat + SingleValueExpected + r
 
@@ -182,10 +180,10 @@ type EmailInputInitials eff info =
 
 emailInputBuilder
   ∷ ∀ args eff info r
-  . NoProblem.Poly.Coerce
+  . NoProblem.Closed.Coerce
       args
       (EmailInputInitials eff info)
-      (EmailInputInitials eff info)
+      -- (EmailInputInitials eff info)
   ⇒ args
   → Builder
       eff
@@ -200,7 +198,7 @@ emailInputBuilder args = textInputBuilder
   , validator: Batteries.singleValue >>> Validators.email >>> (i.policy ! identity)
   }
   where
-    i@{ helpText, label, placeholder } = NoProblem.Poly.coerce (Proxy ∷ Proxy (EmailInputInitials eff info)) args
+    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff info
 
 sectionValidator
   ∷ ∀ eff i info o widgets

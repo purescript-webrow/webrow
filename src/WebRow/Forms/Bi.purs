@@ -35,9 +35,8 @@ import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
 import Data.Undefined.NoProblem (Opt, (!))
 import Data.Undefined.NoProblem (toMaybe) as NoProblem
-import Data.Undefined.NoProblem.Mono (class Coerce) as Mono
-import Data.Undefined.NoProblem.Mono (coerce) as NoProblem.Mono
-import Data.Undefined.NoProblem.Poly (class Coerce, coerce) as NoProblem.Poly
+import Data.Undefined.NoProblem.Closed (class Coerce) as Closed
+import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Closed
 import Data.Variant (Variant)
 import Polyform (Dual(..)) as Polyform
 import Polyform.Batteries (Errors)
@@ -50,7 +49,6 @@ import Polyform.Reporter.Dual (Dual, DualD) as Reporter
 import Polyform.Reporter.Dual (liftValidatorDualWith, liftValidatorDualWithM, lmapM) as Reporter.Dual
 import Polyform.Validator.Dual (Dual) as Validator
 import Polyform.Validator.Dual (iso, lmapM) as Validator.Dual
-import Type.Proxy (Proxy(..))
 import Type.Row (type (+))
 import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..)) as B
 import WebRow.Forms.Bi.Form (Form, default, serialize, validate) as Form
@@ -185,14 +183,14 @@ type TextInputInitials info eff o =
 
 textInputBuilder
   ∷ ∀ args eff info o r
-  . NoProblem.Poly.Coerce args (TextInputInitials info eff o) (TextInputInitials info eff o)
+  . NoProblem.Closed.Coerce args (TextInputInitials info eff o)
   ⇒ args
   → Builder eff info (TextInput + r) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
     { constructor,  defaults: Identity (Just [ default ! "" ]), dual: dual' }
   where
-    i@{ default, dual } = NoProblem.Poly.coerce (Proxy ∷ Proxy (TextInputInitials info eff o)) args
+    i@{ default, dual } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
     dual' = dual <<< Validator.Dual.iso (un Identity) Identity
 
     constructor { payload: Identity payload, names: Identity name, result } = pure $ Widgets.textInput
@@ -207,7 +205,7 @@ textInputBuilder args =
 
 passwordInputBuilder
   ∷ ∀ args eff info r
-  . Mono.Coerce args PasswordInputInitials
+  . Closed.Coerce args PasswordInputInitials
   ⇒ args
   → Builder
     eff
@@ -223,7 +221,7 @@ passwordInputBuilder args = textInputBuilder
   , type_: "password"
   }
   where
-    i@{ helpText, label, placeholder } = NoProblem.Mono.coerce args ∷ PasswordInputInitials
+    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials
 
 closeSection ∷ ∀ eff i info o widgets. Variant info → Builder eff info widgets i o → Builder eff info widgets i o
 closeSection title (Builder (B.BuilderD bd)) = builder do
