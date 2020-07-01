@@ -9,8 +9,7 @@ import Polyform.Batteries.UrlEncoded.Query (Key, lookup) as UrlDecoded.Query
 import Polyform.Batteries.UrlEncoded.Query (parse, Value, Decoded) as UrlEncoded.Query
 import Run (Run)
 import Type.Row (type (+))
-import WebRow.HTTP (HTTPExcept, badRequest'')
-import WebRow.Request (Request, body, fullPath)
+import WebRow.HTTP (HTTPExcept, badRequest'', Request, body, fullPath)
 
 type Value = UrlEncoded.Query.Value
 type Key = UrlDecoded.Query.Key

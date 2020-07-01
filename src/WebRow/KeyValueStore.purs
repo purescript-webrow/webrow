@@ -1,0 +1,81 @@
+module WebRow.KeyValueStore where
+
+-- import Prelude
+-- 
+-- import Backend.Utils.Redis (del')
+-- import Data.ByteString (fromUTF8, toUTF8)
+-- import Data.Either (hush)
+-- import Data.Map as Map
+-- import Data.Maybe (Maybe(..))
+-- import Data.UUID (genUUID)
+-- import Database.Redis as Redis
+-- import Effect (Effect)
+-- import Effect.Aff (Aff)
+-- import Effect.Class (liftEffect)
+-- import Effect.Ref (Ref)
+-- import Effect.Ref as Ref
+-- import Simple.JSON (class ReadForeign, class WriteForeign, readJSON, writeJSON)
+-- 
+-- type Key = String
+-- 
+-- -- | You can always use ceated keys to set values - here is the law:
+-- -- | delete key >>= get key = pure Nothing
+-- -- | XXX: Consider migration to type safe schema approach
+-- type Store m a =
+--   { create ∷ m Key
+--   , delete ∷ Key → m Unit
+--   , get ∷ Key → m (Maybe a)
+--   , set ∷ Key → a → m Unit
+--   }
+-- 
+-- hoist ∷ ∀ a m m'. (m ~> m') → Store m a → Store m' a
+-- hoist h s = { create, delete, get, set }
+--   where
+--   create = h s.create
+--   delete = h <$> s.delete
+--   get = h <$> s.get
+--   set k = h <$> s.set k
+-- 
+-- type MemoryStore a = Store Effect a
+-- 
+-- memoryStore ∷ ∀ a. Ref (Map.Map String a) → MemoryStore a
+-- memoryStore ref = { create, delete, get, set }
+--   where
+--   create = show <$> genUUID
+--   delete key = void $ Ref.modify (Map.delete key) ref
+--   get key = Ref.read ref >>= (Map.lookup key >>> pure)
+--   set key a = void $ Ref.modify (Map.insert key a) ref
+-- 
+-- type RedisStore a = Store Aff a
+-- 
+-- type RedisStoreConfig =
+--   { connection ∷ Redis.Connection
+--   , namespace ∷ String
+--   , expiration ∷ Maybe Int
+--   }
+-- 
+-- -- | XXX:
+-- -- | * Replace ReadForeign / WriteForeign with EncodeJson / DecodeJson
+-- redisStore
+--   ∷ ∀ a
+--   . ReadForeign a
+--   ⇒ WriteForeign a
+--   ⇒ RedisStoreConfig
+--   → RedisStore a
+-- redisStore config = { create, delete, get, set }
+--   where
+--   toKey k = toUTF8 $ config.namespace <> "." <> k
+--   toValue a = toUTF8 <<< writeJSON $ a
+-- 
+--   create = show <$> liftEffect genUUID
+--   delete key = del' config.connection [toKey key]
+--   get key = do
+--     v ← Redis.get config.connection (toKey key)
+--     pure $ v >>= (fromUTF8 >>> readJSON >>> hush)
+--   set key a =
+--     Redis.set
+--       config.connection
+--       (toKey key)
+--       (toValue a)
+--       (Redis.EX <$> config.expiration)
+--       Nothing

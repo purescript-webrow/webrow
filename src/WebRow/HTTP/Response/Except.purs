@@ -1,4 +1,4 @@
-module WebRow.HTTP.Except where
+module WebRow.HTTP.Response.Except where
 
 import Prelude
 
@@ -65,11 +65,17 @@ badGateway headers = httpExcept (HTTPException { body: "", headers, status: Stat
 serviceUnavailable ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
 serviceUnavailable headers = httpExcept (HTTPException { body: "", headers, status: Status.serviceUnavailable })
 
-catchHTTPException
+runHTTPExceptWith
+  ∷ ∀ a eff
+  . (HTTPException → Run eff a)
+  → Run (HTTPExcept + eff) a
+  → Run eff a
+runHTTPExceptWith toResponse = catchAt _httpExcept \e → toResponse e
+
+runHTTPExcept
   ∷ ∀ eff
   . Run (AffRow + EffRow + HTTPExcept + eff) HTTPure.Response
   → Run (AffRow + EffRow + eff) HTTPure.Response
-catchHTTPException
-  = catchAt _httpExcept \(HTTPException { body, headers, status }) →
-      HTTPure.response' status headers body
+runHTTPExcept
+  = runHTTPExceptWith \(HTTPException { body, headers, status }) → HTTPure.response' status headers body
 

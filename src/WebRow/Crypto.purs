@@ -10,6 +10,8 @@ import Node.Simple.Jwt (Algorithm(..), decode, encode, fromString, toString) as 
 import Node.Simple.Jwt (JwtError)
 import Run (EFFECT, Run, SProxy(..), liftEffect)
 import Run.Reader (READER, askAt)
+import Type.Row (type (+))
+import WebRow.Contrib.Run (EffRow)
 
 newtype Secret = Secret String
 
@@ -23,12 +25,7 @@ newtype Unsigned = Unsigned String
 signJson
   ∷ ∀ eff
   . Json
-  → Run
-    ( crypto ∷ READER Secret
-    , effect ∷ EFFECT
-    | eff
-    )
-    String
+  → Run ( Crypto + EffRow + eff ) String
 signJson json = do
   Secret secret ← askAt _crypto
   liftEffect $ Jwt.toString <$> (Jwt.encode secret Jwt.HS512 (Argonaut.stringify json))
