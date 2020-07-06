@@ -2,13 +2,15 @@ module WebRow.HTTP.Response.Except where
 
 import Prelude
 
+import Data.Either (Either(..))
 import Data.Variant (SProxy(..))
 import HTTPure (Headers, Response, Status, header, response') as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Headers (empty) as Headers
 import HTTPure.Status (badGateway, badRequest, forbidden, internalServerError, methodNotAllowed, notFound, notImplemented, serviceUnavailable, temporaryRedirect, unauthorized) as Status
 import Run (Run)
-import Run.Except (EXCEPT, catchAt, throwAt)
+import Run (expand) as Run
+import Run.Except (EXCEPT, catchAt, runExceptAt, throwAt)
 import Type.Row (type (+))
 import WebRow.Contrib.Run (AffRow, EffRow)
 import WebRow.HTTP.Types (Body)
@@ -64,18 +66,4 @@ badGateway headers = httpExcept (HTTPException { body: "", headers, status: Stat
 
 serviceUnavailable ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
 serviceUnavailable headers = httpExcept (HTTPException { body: "", headers, status: Status.serviceUnavailable })
-
-runHTTPExceptWith
-  ∷ ∀ a eff
-  . (HTTPException → Run eff a)
-  → Run (HTTPExcept + eff) a
-  → Run eff a
-runHTTPExceptWith toResponse = catchAt _httpExcept \e → toResponse e
-
-runHTTPExcept
-  ∷ ∀ eff
-  . Run (AffRow + EffRow + HTTPExcept + eff) HTTPure.Response
-  → Run (AffRow + EffRow + eff) HTTPure.Response
-runHTTPExcept
-  = runHTTPExceptWith \(HTTPException { body, headers, status }) → HTTPure.response' status headers body
 

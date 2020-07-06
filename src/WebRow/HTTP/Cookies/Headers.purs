@@ -42,6 +42,11 @@ cookieHeaderKey = "cookie"
 setCookieHeaderKey ∷ String
 setCookieHeaderKey = "Set-Cookie"
 
+setCookieHeader ∷ Name → Value → Attributes → Tuple String String
+setCookieHeader n v attrs =
+  Tuple setCookieHeaderKey (setCookieHeaderValue n v attrs)
+
+-- | XXX: Add cookie size check here
 setCookieHeaderValue ∷ Name → Value → Attributes → String
 setCookieHeaderValue key value { comment, expires, path, maxAge, domain, secure, httpOnly, sameSite } =
   [ Just $ assign (unsafeEncodeURIComponent key) (unsafeEncodeURIComponent value)

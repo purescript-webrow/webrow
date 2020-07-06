@@ -7,35 +7,43 @@ import Data.Either (hush)
 import Data.Lazy (Lazy, defer)
 import Data.Lazy (force) as Lazy
 import Data.Map (Map)
-import Data.Map (insert, lookup) as Map
+import Data.Map (insert, lookup, toUnfoldable) as Map
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..))
 import Foreign.Object as Object
 import HTTPure as HTTPure
 import Node.Simple.Jwt (Secret)
 import WebRow.Contrib.Data.JSDate (epoch)
 import WebRow.Crypto.String (sign, unsign) as Crypto.String
-import WebRow.HTTP.Cookies.Headers (clientCookies)
+import WebRow.HTTP.Cookies.Headers (clientCookies, setCookieHeader)
 import WebRow.HTTP.Cookies.Types (ClientCookies, Name, SetValue, Value, Values)
 
 newtype CookieStore = CookieStore
   { clientCookies ∷ Lazy ClientCookies
+  , secret ∷ Secret
   , setCookies ∷ Map
       Name
       SetValue
   }
 
-cookieStore ∷ HTTPure.Request → CookieStore
-cookieStore req = CookieStore
-  { clientCookies: defer \_ → clientCookies req.headers
+cookieStore ∷ Secret → HTTPure.Headers → CookieStore
+cookieStore secret headers = CookieStore
+  { clientCookies: defer \_ → clientCookies headers
+  , secret
   , setCookies: mempty
   }
 
-lookup ∷ Secret → Name → CookieStore → Lazy (Maybe Value)
-lookup secret name = map (map Array.NonEmpty.head) <<< lookup' secret name
+toSetCookieHeaders ∷ CookieStore → Array (Tuple String String)
+toSetCookieHeaders (CookieStore { setCookies }) =
+  setCookies # Map.toUnfoldable >>> map \(Tuple name { attributes, value }) →
+      setCookieHeader name value attributes
 
-lookup' ∷ Secret → Name → CookieStore → Lazy (Maybe Values)
-lookup' secret name (CookieStore { clientCookies, setCookies }) =
+lookup ∷ Name → CookieStore → Lazy (Maybe Value)
+lookup name = map (map Array.NonEmpty.head) <<< lookup' name
+
+lookup' ∷ Name → CookieStore → Lazy (Maybe Values)
+lookup' name (CookieStore { clientCookies, secret, setCookies }) =
   defer \_ → signed >>= traverse unsign
   where
     unsign v = hush (Crypto.String.unsign secret v)
@@ -44,11 +52,12 @@ lookup' secret name (CookieStore { clientCookies, setCookies }) =
       Just _ → Nothing
       Nothing → name `Object.lookup` (Lazy.force clientCookies)
 
-set ∷ Secret → Name → SetValue → CookieStore → Maybe CookieStore
-set secret name { value, attributes } (CookieStore { clientCookies, setCookies }) = ado
+set ∷ Name → SetValue → CookieStore → Maybe CookieStore
+set name { value, attributes } (CookieStore { clientCookies, secret, setCookies }) = ado
   value' ← hush (Crypto.String.sign secret value)
   in CookieStore
     { clientCookies
+    , secret
     , setCookies: Map.insert name { attributes, value: value' } setCookies
     }
 

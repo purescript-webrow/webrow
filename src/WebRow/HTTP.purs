@@ -11,4 +11,3 @@ import WebRow.HTTP.Response.Except (badGateway, badRequest, badRequest', badRequ
 import WebRow.HTTP.Request (Request, headers, method, body, fullPath) as Request
 import WebRow.HTTP.Response (HTTPResponse) as Response
 import WebRow.HTTP.Response.SetHeader (setHeader, SetHeader) as Response
-

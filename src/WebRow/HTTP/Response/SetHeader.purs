@@ -1,3 +1,4 @@
+-- | TODO: Rename to `Response.Headers`
 module WebRow.HTTP.Response.SetHeader where
 
 import Prelude
@@ -12,6 +13,7 @@ import HTTPure.Headers (Headers(..))
 import Run (Run)
 import Run (lift, on, run, send) as Run
 
+-- | TODO: Change to `SetHeaders (Tuple String String)`
 data SetHeaderF a = SetHeader CaseInsensitiveString String a
 derive instance functorModifyF ∷ Functor SetHeaderF
 
