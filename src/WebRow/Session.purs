@@ -2,14 +2,19 @@ module WebRow.Session where
 
 import Prelude
 
-import Data.Symbol (SProxy(..))
-import Run (FProxy, Run)
+import HTTPure (empty) as Headers
+import Prim.Row (class Union) as Row
+import Run (FProxy, Run, SProxy(..))
 import Run (lift) as Run
 import Type.Row (type (+))
+import WebRow.HTTP (HTTPExcept, internalServerError)
+import WebRow.Session.SessionStore.Run (SessionStoreRow)
+import WebRow.Session.SessionStore.Run (delete, fetch, save) as SessionStore.Run
 
 data SessionF session a
-  = Fetch (session → a)
-  | Save session
+  = DeleteF (Boolean → a)
+  | FetchF (session → a)
+  | SaveF session (Boolean → a)
 
 derive instance functorSessionF ∷ Functor (SessionF session)
 
@@ -19,80 +24,36 @@ _session = SProxy ∷ SProxy "session"
 
 type Session session r = (session ∷ SESSION session | r)
 
-fetch
+delete
   ∷ ∀ eff session
-  . Run (Session session + eff) session
-fetch = Run.lift _session (Fetch identity)
-
-save
-  ∷ ∀ a eff session
-  . session
-  → Run (Session session + eff) a
-save session = Run.lift _session (Save session)
+  . Run (Session session + eff) Boolean
+delete = Run.lift _session (DeleteF identity)
 
 modify
   ∷ ∀ eff session
-  . (session → session)
-  → Run (Session session + eff) Unit
-modify m =
-  fetch >>= m >>> save
+  . (session → session) → Run (HTTPExcept + Session session + eff) Unit
+modify f = fetch >>= f >>> save
 
+fetch
+  ∷ ∀ eff session
+  . Run (Session session + eff) session
+fetch = Run.lift _session (FetchF identity)
 
--- sessionIdFromRequest
---   ∷ ∀ eff ctx
---   . Run
---       ( aff ∷ AFF, reader ∷ WebRow.READER ctx | eff )
---       (Maybe UUID)
--- sessionIdFromRequest = map (parseUUID =<< _)
---   $ getCookie' sessionIdKey =<< (ask <#> _.request.headers)
--- 
--- -- cookiesSessionMiddleware
--- --   ∷ ∀ e a r
--- --   . R.Nub ( | SessionAppR r ) ( | SessionAppR r )
--- --   ⇒ (Request → AppMonad_ e (SessionAppR r) a)
--- --   → (Request → AppMonad_ e (BaseAppR r) a)
--- -- cookiesSessionMiddleware router req@{ headers } = do
--- --   -- get session, in case of failure (no valid cookie or sessionId expired) create and Set-Cookie
--- --   { session, resHeaders } ← getSession headers >>= case _ of
--- --     Just session → 
--- --       pure { session, resHeaders: Headers.empty }
--- --     Nothing → do
--- --       { store, secret } ← ask
--- --       session ← liftEffect $ createSession store 
--- --       hv ← liftEffect $ setCookieHeaderSignedValue sessionIdKey session.id defaultCookieAttributes secret
--- --       pure { session, resHeaders: header "Set-Cookie" hv }
--- --   mapExceptT (withReaderT \ctx → Record.disjointUnion
--- --     { session
--- --     , cookies: { sessionId: session.id } 
--- --     , resHeaders
--- --     } ctx) $ router req
--- 
--- -- getSession
--- --   ∷ ∀ eff ctx session
--- --   . Run
--- --       ( aff ∷ AFF
--- --       , reader ∷ WebRow.READER ctx
--- --       , store ∷ SESSIONSTORE session
--- --       | eff
--- --       )
--- --       (Maybe session)
--- -- getSession = sessionIdFromRequest >>= maybe (pure Nothing) DataStore.get
--- 
--- -- createSessionWith 
--- --   ∷ ∀ eff session
--- --   . ({ sessionId ∷ UUID } → session)
--- --   → Run
--- --       ( store ∷ SESSIONSTORE session
--- --       | eff
--- --       )
--- --       session
--- -- createSessionWith mkSession = do
--- --   sessionId ← DataStore.create
--- --   DataStore.set sessionId $ mkSession { sessionId }
--- 
--- type SESSIONSTORE session = STORE UUID session
--- 
--- sessionIdKey ∷ String
--- sessionIdKey = reflectSymbol _sessionId
--- 
--- _sessionId = SProxy ∷ SProxy "sessionId"
+save
+  ∷ ∀ eff session
+  . session → Run (HTTPExcept + Session session + eff) Unit
+save session = Run.lift _session (SaveF session identity) >>= not >>> if _
+  then
+    -- | Collect more request info etc.
+    internalServerError Headers.empty "Serious problem on our side..."
+  else
+    pure unit
+
+-- | To use clean API we provide effect layer
+handleSession
+  ∷ ∀ eff sEff sEff_ session
+  . Row.Union sEff sEff_ (SessionStoreRow sEff session + eff)
+  ⇒ SessionF session ~> Run (SessionStoreRow sEff session + eff)
+handleSession (DeleteF next) = SessionStore.Run.delete >>= next >>> pure
+handleSession (FetchF next) = SessionStore.Run.fetch >>= next >>> pure
+handleSession (SaveF v next) = SessionStore.Run.save v >>= next >>> pure

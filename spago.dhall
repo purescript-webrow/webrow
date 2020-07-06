@@ -2,8 +2,7 @@
 Welcome to a Spago project!
 You can edit this file as you like.
 -}
-{ name =
-    "audiocarrier"
+{ name = "audiocarrier"
 , dependencies =
     [ "console"
     , "crypto"
@@ -23,16 +22,16 @@ You can edit this file as you like.
     , "routing-duplex"
     , "routing-duplex-variant"
     , "run"
+    , "run-streaming"
     , "selda"
     , "simple-jwt"
     , "smolder"
+    , "spec"
     , "strings"
     , "typelevel-eval"
     , "undefined-is-not-a-problem"
     , "uuid"
     ]
-, packages =
-    ./packages.dhall
-, sources =
-    [ "src/**/*.purs", "test/**/*.purs" ]
+, packages = ./packages.dhall
+, sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }

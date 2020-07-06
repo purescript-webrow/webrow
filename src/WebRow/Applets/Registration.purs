@@ -19,15 +19,16 @@ import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
 import WebRow.Applets.Registration.Routes (Route) as Registration
 import WebRow.Applets.Registration.Types (SignedEmail(..), _register)
 import WebRow.Contrib.Run (EffRow)
-import WebRow.Crypto (Crypto, sign, unsign)
+import WebRow.Crypto (Crypto)
+import WebRow.Crypto (sign, unsign) as Crypto
+import WebRow.Crypto.String (sign, unsign) as Crypto.String
 import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
-import WebRow.HTTP (methodNotAllowed')
+import WebRow.HTTP (method, methodNotAllowed')
 import WebRow.Mailer (Email(..), Mailer)
 import WebRow.Mailer (send) as Mailer
-import WebRow.Request (method)
-import WebRow.Route (FullUrl)
+import WebRow.Routing (FullUrl)
 import WebRow.Types (WebRow)
 
 -- -- | I'm not sure about this response polymorphism here
@@ -66,7 +67,7 @@ registerEmail
 registerEmail = method >>= case _ of
   HTTPure.Post → fromBody >>= Forms.Uni.validate emailTakenForm >>= case _ of
     Tuple form (Just email@(Email e)) → do
-      signedEmail ← sign e
+      signedEmail ← Crypto.sign e
       confirmationLink ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
       void $ Mailer.send ({ to: email, context: inj _emailVerification confirmationLink })
       pure $ RegisterEmailResponse $ EmailSent email confirmationLink
@@ -108,7 +109,7 @@ confirmation signedEmail = do
         pure $ ConfirmationResponse $ InitialPasswordForm form
       _ → methodNotAllowed'
   where
-    validateEmail = un SignedEmail >>> unsign >=> case _ of
+    validateEmail = un SignedEmail >>> Crypto.unsign >=> case _ of
       Left _ → pure $ Left (ConfirmationResponse InvalidEmailSignature)
       Right emailStr → do
         let

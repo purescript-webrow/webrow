@@ -1,4 +1,4 @@
-module Main where
+module WebRow.Main where
 -- 
 -- import Prelude
 -- 

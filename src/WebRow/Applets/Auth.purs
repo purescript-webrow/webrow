@@ -7,20 +7,20 @@ import Data.Tuple (Tuple(..))
 import Data.Variant (on)
 import HTTPure as HTTPure
 import Run (Run)
+import Text.Smolder.HTML (b)
 import Type.Row (type (+))
 import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Forms (loginForm)
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..))
+import WebRow.Applets.Auth.Routes (Route(..)) as Routes
 import WebRow.Applets.Auth.Routes (RouteRow)
-import WebRow.Applets.Auth.Routes as Routes
 import WebRow.Applets.Auth.Types (Password, _auth, namespace)
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
-import WebRow.HTTP (methodNotAllowed', redirect)
+import WebRow.HTTP (methodNotAllowed', method, redirect)
 import WebRow.Mailer (Email)
-import WebRow.Request (method) as Request
-import WebRow.Route (printRoute) as Route
-import WebRow.Route (fromRelativeUrl)
+import WebRow.Routing (fromRelativeUrl)
+import WebRow.Routing (printRoute) as Routing
 import WebRow.Session (fetch, modify) as Session
 import WebRow.Types (WebRow)
 
@@ -57,7 +57,7 @@ login
     + eff
     )
     Response
-login = Request.method >>= case _ of
+login = method >>= case _ of
   HTTPure.Post → do
     body ← fromBody
     Forms.Uni.validate loginForm body >>= case _ of
@@ -92,7 +92,7 @@ withUserRequired ∷ ∀ a eff messages routes session user
 withUserRequired f = Session.fetch >>= _.user >>> case _ of
   Just user → f user
   Nothing → do
-    relativeUrl ← Route.printRoute (namespace Routes.Login)
+    relativeUrl ← Routing.printRoute (namespace Routes.Login)
     redirect (fromRelativeUrl relativeUrl)
 
 

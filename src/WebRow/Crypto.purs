@@ -1,80 +1,66 @@
-module WebRow.Crypto where
+module WebRow.Crypto
+  ( _crypto
+  , secret
+  , signJson
+  , sign
+  , unsignJson
+  , unsign
+  , Crypto
+  )
+  where
 
 import Prelude
 
-import Control.Bind (bindFlipped)
 import Data.Argonaut (Json)
-import Data.Argonaut (fromString, jsonParser, stringify, toString) as Argonaut
-import Data.Either (Either(..), note)
-import Node.Simple.Jwt (Algorithm(..), decode, encode, fromString, toString) as Jwt
-import Node.Simple.Jwt (JwtError)
-import Run (EFFECT, Run, SProxy(..), liftEffect)
+import Data.Either (Either(..))
+import HTTPure (empty) as Headers
+import Node.Simple.Jwt (Secret)
+import Run (Run, SProxy(..))
 import Run.Reader (READER, askAt)
 import Type.Row (type (+))
-import WebRow.Contrib.Run (EffRow)
-
-newtype Secret = Secret String
+import WebRow.Crypto.Jwt (UnsignError)
+import WebRow.Crypto.Jwt (sign, unsign) as Jwt
+import WebRow.Crypto.String (sign, unsign) as String
+import WebRow.HTTP.Response.Except (HTTPExcept, internalServerError)
 
 _crypto = SProxy ∷ SProxy "crypto"
 
 type Crypto r = (crypto ∷ READER Secret | r)
 
-newtype Signed = Signed String
-newtype Unsigned = Unsigned String
+secret ∷ ∀ eff. Run (Crypto + eff) Secret
+secret = askAt _crypto
 
+-- | Use Types.Signed wrapper
 signJson
   ∷ ∀ eff
   . Json
-  → Run ( Crypto + EffRow + eff ) String
+  → Run (Crypto + HTTPExcept + eff) String
 signJson json = do
-  Secret secret ← askAt _crypto
-  liftEffect $ Jwt.toString <$> (Jwt.encode secret Jwt.HS512 (Argonaut.stringify json))
+  sec ← askAt _crypto
+  case Jwt.sign sec json of
+    Left e → internalServerError Headers.empty "Serious problem..."
+    Right s → pure s
 
 sign
   ∷ ∀ eff
   . String
-  → Run
-    ( crypto ∷ READER Secret
-    , effect ∷ EFFECT
-    | eff
-    )
-    String
-sign = signJson <<< Argonaut.fromString
-
-
-data UnsignError
-  = JwtError JwtError
-  | JsonParserError String
+  → Run (Crypto + HTTPExcept + eff) String
+sign str = do
+  sec ← askAt _crypto
+  case String.sign sec str of
+    Left e → internalServerError Headers.empty "Serious problem..."
+    Right s → pure s
 
 unsignJson
   ∷ ∀ eff
   . String
-  → Run
-    ( crypto ∷ READER Secret
-    , effect ∷ EFFECT
-    | eff
-    )
-    (Either UnsignError Json)
-unsignJson str = do
-  Secret secret ← askAt _crypto
-  liftEffect (Jwt.decode secret (Jwt.fromString str)) >>= case _ of
-    Left err → pure $ Left $ JwtError err
-    Right payload → case Argonaut.jsonParser payload of
-      Left e → pure $ Left (JsonParserError e)
-      Right json → pure $ Right json
-      -- | TODO: add support for expiration date
-      -- exp  toObject >=> Object.lookup "exp"
+  → Run (Crypto + eff) (Either UnsignError Json)
+unsignJson json =
+  askAt _crypto <#> \s → Jwt.unsign s json
 
 unsign
   ∷ ∀ eff
   . String
-  → Run
-    ( crypto ∷ READER Secret
-    , effect ∷ EFFECT
-    | eff
-    )
-    (Either UnsignError String)
-unsign = unsignJson >=> bindFlipped toString' >>> pure
-  where
-    err = JsonParserError "String extraction error"
-    toString' = note err <$> Argonaut.toString
+  → Run (Crypto + eff) (Either UnsignError String)
+unsign json =
+  askAt _crypto <#> \s → String.unsign s json

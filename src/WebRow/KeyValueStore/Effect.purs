@@ -7,38 +7,44 @@ import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
 import Run (Run)
 import Run as Run
+import WebRow.KeyValueStore.Types (Key)
 
-data DataStoreF key val a
-  = Create (key → a)
-  | Delete key a
-  | Get key (Maybe val → a)
-  | Set key val (val → a)
-derive instance functorDataStoreF ∷ Functor (DataStoreF key val)
+data KeyValueStoreF val a
+  = DeleteF Key a
+  | GetF Key (Maybe val → a)
+  | ModifyF Key (val → Maybe val) Boolean
+  | NewF val (Maybe Key → a)
+derive instance functorDataStoreF ∷ Functor (KeyValueStoreF val)
 
-_store = SProxy ∷ SProxy "store"
 
-type STORE key val = FProxy (DataStoreF key val)
+-- type KeyValueStore =
+--   { delete: \k → Run.lift <<< DeleteF k
+--   , get: \k → 
 
-create
-  ∷ ∀ key val eff
-  . Run ( store ∷ STORE key val | eff ) key
-create = Run.lift _store (Create identity)
+-- _store = SProxy ∷ SProxy "store"
+-- 
+-- type STORE key val = FProxy (DataStoreF key val)
 
-delete
-  ∷ ∀ key val eff
-  . key
-  → Run ( store ∷ STORE key val | eff ) Unit
-delete key = Run.lift _store (Delete key unit)
-
-get
-  ∷ ∀ key val eff
-  . key
-  → Run ( store ∷ STORE key val | eff ) (Maybe val)
-get key = Run.lift _store (Get key identity)
-
-set
-  ∷ ∀ key val eff
-  . key
-  → val
-  → Run ( store ∷ STORE key val | eff ) val
-set key val = Run.lift _store (Set key val identity)
+-- create
+--   ∷ ∀ key val eff
+--   . Run ( store ∷ STORE key val | eff ) key
+-- create = Run.lift _store (Create identity)
+-- 
+-- delete
+--   ∷ ∀ key val eff
+--   . key
+--   → Run ( store ∷ STORE key val | eff ) Unit
+-- delete key = Run.lift _store (Delete key unit)
+-- 
+-- get
+--   ∷ ∀ key val eff
+--   . key
+--   → Run ( store ∷ STORE key val | eff ) (Maybe val)
+-- get key = Run.lift _store (Get key identity)
+-- 
+-- set
+--   ∷ ∀ key val eff
+--   . key
+--   → val
+--   → Run ( store ∷ STORE key val | eff ) val
+-- set key val = Run.lift _store (Set key val identity)

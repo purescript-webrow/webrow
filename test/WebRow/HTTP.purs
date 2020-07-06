@@ -17,6 +17,9 @@ import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
 import Run (Run, liftEffect)
 import Run (runBaseAff, runBaseAff', runBaseEffect) as Run
 import Run.Reader (runReaderAt)
+import Run.Streaming (REQUEST)
+import Run.Streaming (respond) as S
+import Run.Streaming.Pull (chain) as Pull
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (shouldEqual)
 import Type.Prelude (SProxy(..))
@@ -27,6 +30,8 @@ import WebRow.HTTP (HTTPExcept, HTTPResponse, Request, SetHeader, notFound)
 import WebRow.HTTP (HTTPResponse) as WebRow.Testing
 import WebRow.HTTP.Request (_request)
 import WebRow.HTTP.Response.SetHeader (setHeader)
+import WebRow.Testing.HTTP.Client (Server, Client)
+import WebRow.Testing.HTTP.Client (request) as Client
 import WebRow.Testing.HTTP.Response (Response(..), run) as Testing.HTTP.Response
 import WebRow.Testing.HTTP.Response (Response) as Testing.HTTP
 
@@ -43,7 +48,7 @@ routeDuplex = D.root $ RouteDuplex.Variant.variant' routes
       , "string": D.string D.segment
       }
 
-type Effects = (HTTPExcept + Request + SetHeader + ())
+type Effects = (HTTPExcept + Request + SetHeader + Server String + ())
 
 -- app :: Route -> Run (EffRow + Request + SetHeader + ()) (Either String (HTTPResponse String))
 router routeDuplex app = \req → do
@@ -76,8 +81,7 @@ app =
   , string: string
   }
 
--- server ∷ HTTPure.Request → Aff (Testing.HTTP.Response String)
-server = router routeDuplex app
+-- x = router routeDuplex app
 
 printUrl = D.print routeDuplex
 
@@ -94,6 +98,17 @@ get url =
   , url
   }
 
+server ∷ HTTPure.Request → Run (Server String + ()) _
+server req = do
+  res ← (router routeDuplex app) req
+  S.respond res
+
+
+client ∷ Run (Client String + ()) _
+client = do
+  let
+    req = get (printUrl (inj _string "test"))
+  Client.request req
 
 spec :: Spec Unit
 spec = do
@@ -102,6 +117,8 @@ spec = do
       it "SetHeader" do
         let
           url = get (printUrl (inj _string "test"))
+        -- let
+        --   x = client # Pull.chain server
         traceM url
         -- response ← server (get (printUrl (inj _string "test")))
         -- traceM response

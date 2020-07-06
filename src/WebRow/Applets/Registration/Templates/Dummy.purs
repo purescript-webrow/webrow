@@ -22,7 +22,7 @@ import WebRow.Applets.Registration.Types (_register)
 import WebRow.Forms (Layout) as Forms
 import WebRow.Forms.Layout (LayoutBase(..))
 import WebRow.Forms.Widgets (TextInput, TextInputProps(..), _textInput)
-import WebRow.Route (FullUrl(..))
+import WebRow.Routing (FullUrl(..))
 
 -- | This is still dummy and unuseful approach
 -- | Templates should be separated etc.

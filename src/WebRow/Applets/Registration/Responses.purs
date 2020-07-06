@@ -3,7 +3,7 @@ module WebRow.Applets.Registration.Responses where
 import WebRow.Applets.Auth.Types (Password)
 import WebRow.Applets.Registration.Forms (FormLayout)
 import WebRow.Mailer (Email)
-import WebRow.Route (FullUrl)
+import WebRow.Routing (FullUrl)
 
 data ConfirmationResponse
   = ConfirmationSucceeded Email Password

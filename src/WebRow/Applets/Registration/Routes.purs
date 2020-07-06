@@ -10,9 +10,10 @@ import Routing.Duplex.Generic (noArgs)
 import Routing.Duplex.Generic as DG
 import Routing.Duplex.Generic.Syntax ((/), (?))
 import Run (Run)
+import Type.Row (type (+))
 import WebRow.Applets.Registration.Types (Namespace, SignedEmail, namespace)
-import WebRow.Route (FullUrl, ROUTE)
-import WebRow.Route (printFullRoute) as Route
+import WebRow.Routing (FullUrl, Routing)
+import WebRow.Routing (printFullRoute) as Route
 
 data Route
   = RegisterEmail
@@ -33,6 +34,6 @@ duplexes =
     }
   }
 
-printFullRoute ∷ ∀ eff routes. Route → Run (route ∷ ROUTE (RouteRow routes) | eff) FullUrl
+printFullRoute ∷ ∀ eff routes. Route → Run (Routing (RouteRow routes) + eff) FullUrl
 printFullRoute = Route.printFullRoute <<< namespace
 

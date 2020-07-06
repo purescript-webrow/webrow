@@ -1,4 +1,9 @@
-module WebRow.KeyValueStore where
+module WebRow.KeyValueStore
+  ( module Types
+  )
+  where
+
+import WebRow.KeyValueStore.Types (Key, KeyValueStore) as Types
 
 -- import Prelude
 -- 

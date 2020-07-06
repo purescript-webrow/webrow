@@ -2,13 +2,14 @@
 
 Let's build a highly opinionated but fully-featured web framework in PureScript. For the backend. And the frontend.
 
+<!--
+
 ## Goals
 
   [ ] Abstract web stuff away:
 
   [ ] But stay close to _nodejs_ in the lower layer to preserve "some" performance
 
-<!--
 
 ## Goals
 
