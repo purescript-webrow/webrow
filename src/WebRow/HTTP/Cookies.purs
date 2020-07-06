@@ -21,10 +21,10 @@ import Run.State (STATE, getAt, putAt, runStateAt)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.Contrib.Data.JSDate (epoch)
-import WebRow.Cookies.CookieStore (CookieStore) as Exports
-import WebRow.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHeaders)
-import WebRow.Cookies.CookieStore (lookup, lookup', set) as CookieStore
 import WebRow.Crypto (Crypto, secret)
+import WebRow.HTTP.Cookies.CookieStore (CookieStore) as Exports
+import WebRow.HTTP.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHeaders)
+import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', set) as CookieStore
 import WebRow.HTTP.Cookies.Types (Attributes, Name, Value, Values, SetValue, defaultAttributes) as Exports
 import WebRow.HTTP.Cookies.Types (Name, Value, Values, SetValue, defaultAttributes)
 import WebRow.HTTP.Request (Request, headers)
