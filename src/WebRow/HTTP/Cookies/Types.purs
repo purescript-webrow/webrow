@@ -9,7 +9,7 @@ type Name = String
 type Value = String
 type Values = NonEmptyArray Value
 
-type ClientCookies = Object Values
+type RequestCookies = Object Values
 
 type SetValue =
   { value ∷ Value

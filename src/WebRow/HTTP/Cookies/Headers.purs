@@ -18,11 +18,11 @@ import Run (Run)
 import Type.Row (type (+))
 import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto)
-import WebRow.HTTP.Cookies.Types (Attributes, ClientCookies, Name, SameSite(..), SetValue, Value, Values)
+import WebRow.HTTP.Cookies.Types (Attributes, RequestCookies, Name, SameSite(..), SetValue, Value, Values)
 import WebRow.HTTP.Response.SetHeader (SetHeader, setHeader) as HTTP
 
-clientCookies ∷ HTTPure.Headers → ClientCookies
-clientCookies hs
+requestCookies ∷ HTTPure.Headers → RequestCookies
+requestCookies hs
   = fromMaybe mempty
   $ hush <<< parseCookies
   =<< HTTPure.lookup hs cookieHeaderKey
@@ -67,7 +67,7 @@ setCookieHeaderValue key value { comment, expires, path, maxAge, domain, secure,
   sameSiteSer Strict = "Strict"
   sameSiteSer Lax = "Lax"
 
-parseCookies ∷ String → Either String ClientCookies
+parseCookies ∷ String → Either String RequestCookies
 parseCookies s =
   splitPairs s
   <#> map toCookieMap

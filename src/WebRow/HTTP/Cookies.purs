@@ -1,6 +1,7 @@
 module WebRow.HTTP.Cookies
   ( Cookies
   , module Exports
+  , _cookies
   , cookies
   , delete
   , lookup

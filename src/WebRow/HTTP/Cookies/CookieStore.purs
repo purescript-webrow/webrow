@@ -1,4 +1,4 @@
-module WebRow.Cookies.CookieStore where
+module WebRow.HTTP.Cookies.CookieStore where
 
 import Prelude
 
@@ -16,48 +16,48 @@ import HTTPure as HTTPure
 import Node.Simple.Jwt (Secret)
 import WebRow.Contrib.Data.JSDate (epoch)
 import WebRow.Crypto.String (sign, unsign) as Crypto.String
-import WebRow.HTTP.Cookies.Headers (clientCookies, setCookieHeader)
-import WebRow.HTTP.Cookies.Types (ClientCookies, Name, SetValue, Value, Values)
+import WebRow.HTTP.Cookies.Headers (requestCookies, setCookieHeader)
+import WebRow.HTTP.Cookies.Types (RequestCookies, Name, SetValue, Value, Values)
 
 newtype CookieStore = CookieStore
-  { clientCookies ∷ Lazy ClientCookies
+  { requestCookies ∷ Lazy RequestCookies
   , secret ∷ Secret
-  , setCookies ∷ Map
+  , responseCookies ∷ Map
       Name
       SetValue
   }
 
 cookieStore ∷ Secret → HTTPure.Headers → CookieStore
 cookieStore secret headers = CookieStore
-  { clientCookies: defer \_ → clientCookies headers
+  { requestCookies: defer \_ → requestCookies headers
   , secret
-  , setCookies: mempty
+  , responseCookies: mempty
   }
 
 toSetCookieHeaders ∷ CookieStore → Array (Tuple String String)
-toSetCookieHeaders (CookieStore { setCookies }) =
-  setCookies # Map.toUnfoldable >>> map \(Tuple name { attributes, value }) →
+toSetCookieHeaders (CookieStore { responseCookies }) =
+  responseCookies # Map.toUnfoldable >>> map \(Tuple name { attributes, value }) →
       setCookieHeader name value attributes
 
 lookup ∷ Name → CookieStore → Lazy (Maybe Value)
 lookup name = map (map Array.NonEmpty.head) <<< lookup' name
 
 lookup' ∷ Name → CookieStore → Lazy (Maybe Values)
-lookup' name (CookieStore { clientCookies, secret, setCookies }) =
+lookup' name (CookieStore { requestCookies, secret, responseCookies }) =
   defer \_ → signed >>= traverse unsign
   where
     unsign v = hush (Crypto.String.unsign secret v)
-    signed = case name `Map.lookup` setCookies of
+    signed = case name `Map.lookup` responseCookies of
       Just { value, attributes } | attributes.expires /= Just epoch → Just (Array.NonEmpty.singleton value)
       Just _ → Nothing
-      Nothing → name `Object.lookup` (Lazy.force clientCookies)
+      Nothing → name `Object.lookup` (Lazy.force requestCookies)
 
 set ∷ Name → SetValue → CookieStore → Maybe CookieStore
-set name { value, attributes } (CookieStore { clientCookies, secret, setCookies }) = ado
+set name { value, attributes } (CookieStore { requestCookies, secret, responseCookies }) = ado
   value' ← hush (Crypto.String.sign secret value)
   in CookieStore
-    { clientCookies
+    { requestCookies
     , secret
-    , setCookies: Map.insert name { attributes, value: value' } setCookies
+    , responseCookies: Map.insert name { attributes, value: value' } responseCookies
     }
 
