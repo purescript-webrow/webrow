@@ -9,5 +9,4 @@ module WebRow.HTTP
 import WebRow.HTTP.Cookies (Cookies, CookieStore) as Cookies
 import WebRow.HTTP.Response.Except (badGateway, badRequest, badRequest', badRequest'', forbidden, HTTPExcept, HTTPException(..), internalServerError, methodNotAllowed, methodNotAllowed', notFound, notImplemented, redirect, serviceUnavailable, unauthorized) as Response.Except
 import WebRow.HTTP.Request (Request, headers, method, body, fullPath) as Request
-import WebRow.HTTP.Response (HTTPResponse) as Response
-import WebRow.HTTP.Response.SetHeader (setHeader, SetHeader) as Response
+import WebRow.HTTP.Response (HTTPResponse(..), setHeader, SetHeader) as Response

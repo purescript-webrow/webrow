@@ -4,6 +4,9 @@ import Prelude hiding ((/))
 
 import Data.Array (snoc) as A
 import Data.Either (Either(..))
+import Data.Lazy (force) as Lazy
+import Data.Map (fromFoldable) as Map
+import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj)
 import Data.Variant (match) as Variant
 import Debug.Trace (traceM)
@@ -11,6 +14,7 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (logShow)
 import Effect.Random (random)
+import Foreign.Object (fromHomogeneous) as Object
 import Global.Unsafe (unsafeStringify)
 import HTTPure (Method(..))
 import HTTPure (Method(..), Request, fullPath) as HTTPure
@@ -32,10 +36,14 @@ import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow (method, ok) as W
 import WebRow.Contrib.Run (EffRow, AffRow)
-import WebRow.Crypto (_crypto)
+import WebRow.Crypto (_crypto, secret)
+import WebRow.Crypto (secret) as Crypto
 import WebRow.HTTP (HTTPExcept, HTTPResponse, Request, SetHeader, notFound)
+import WebRow.HTTP.Cookies (defaultAttributes)
+import WebRow.HTTP.Cookies (defaultAttributes, lookup, set) as Cookies
 import WebRow.HTTP.Request (_request)
-import WebRow.Testing.HTTP.HTTPSession (_httpSession)
+import WebRow.HTTP.Response (ok)
+import WebRow.Testing.HTTP.HTTPSession (HTTPSession, _httpSession)
 import WebRow.Testing.HTTP.HTTPSession (x) as HTTPSession
 -- import WebRow.HTTP.Response.SetHeader (setHeader)
 -- import WebRow.Testing.HTTP.Client (Server, Client)
@@ -126,8 +134,17 @@ spec = do
   describe "WebRow.HTTP" do
     describe "Response" do
       it "SetHeader" do
-         --x = (HTTPSession.x # S.P.feed (S.P.take 4) # toArray))
-        httpSession <- runBaseAff' (execStateAt _httpSession mempty (runReaderAt _crypto "SECRET" ((HTTPSession.x) # S.P.head)))
+        let
+          session = do
+            void $ HTTPSession.x server # S.P.head
+            void $ HTTPSession.x server # S.P.head
+          -- value = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.IlwidGVzdFwiIg.ZuPI6iWPQzLUYO5IQrpUs-xmLZjw0f6xhH2y5W65XBLnJgGQ6rHFOOmfgb2-i7Q6maJF0cU0afplV8v19G9Oiw"
+          -- cookies = Map.fromFoldable
+          --   [ Tuple "test" { value, attributes: defaultAttributes } ]
+
+          httpSession = { cookies: mempty, history: mempty }
+
+        httpSession <- runBaseAff' (execStateAt _httpSession  httpSession  (runReaderAt _crypto "SECRET" session))
         logShow $ unsafeStringify httpSession
         pure unit
 
@@ -152,3 +169,11 @@ spec = do
     --     res `shouldEqual` "Alligator"
     --   it "is PureScript 0.12.x compatible" $ pure unit
 
+
+server = do
+  cs ← Crypto.secret
+  c ← Lazy.force <$> Cookies.lookup "test"
+  liftEffect $ logShow c
+  void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
+  r ← liftEffect $ random
+  ok $ show r

@@ -27,8 +27,9 @@ import WebRow.HTTP.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHea
 import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', set) as CookieStore
 import WebRow.HTTP.Cookies.Types (Attributes, Name, Value, Values, SetValue, defaultAttributes) as Exports
 import WebRow.HTTP.Cookies.Types (Name, Value, Values, SetValue, defaultAttributes)
-import WebRow.HTTP.Request (Request, headers)
-import WebRow.HTTP.Response.SetHeader (setHeader, SetHeader)
+import WebRow.HTTP.Request (Request)
+import WebRow.HTTP.Request (headers) as Request
+import WebRow.HTTP.Response (setHeader, SetHeader) as Response
 
 type Cookies r = (cookies ∷ STATE CookieStore | r)
 
@@ -45,6 +46,7 @@ lookup ∷ ∀ eff. Name → Run (Cookies + Crypto + eff) (Lazy (Maybe Value))
 lookup name =
   CookieStore.lookup name <$> cookies
 
+-- | TODO: We should handle here cookie errors like "to large cookies" etc.
 set ∷ ∀ eff. Name → SetValue → Run (Cookies + Crypto + eff) Boolean
 set name v = do
   cookies' ← CookieStore.set name v <$> cookies
@@ -60,20 +62,24 @@ delete name = set name { value: "", attributes: defaultAttributes { expires = Ju
 -- | Useful for testing when we want
 -- | to provide store directly and not
 -- | print and parse headers.
-runOnStore ∷ ∀ a eff. CookieStore → Run (Cookies + SetHeader + eff) a → Run (SetHeader + eff) a
+runOnStore
+  ∷ ∀ a eff
+  . CookieStore
+  → Run (Cookies + Response.SetHeader + eff) a
+  → Run (Response.SetHeader + eff) a
 runOnStore c action = do
   (Tuple cs a) ← runStateAt _cookies c action
   let
     headers = toSetCookieHeaders cs
   for_ headers \(Tuple k v) → do
-    setHeader k v
+    Response.setHeader k v
   pure a
 
 run
   ∷ ∀ a eff
-  . Run (Cookies + Crypto + Request + SetHeader + eff) a
-  → Run (Crypto + Request + SetHeader + eff) a
+  . Run (Cookies + Crypto + Request + Response.SetHeader + eff) a
+  → Run (Crypto + Request + Response.SetHeader + eff) a
 run action = do
   s ← secret
-  hs ← headers
+  hs ← Request.headers
   runOnStore (cookieStore s hs) action

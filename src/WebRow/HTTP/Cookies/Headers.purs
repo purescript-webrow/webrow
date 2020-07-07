@@ -19,7 +19,7 @@ import Type.Row (type (+))
 import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto)
 import WebRow.HTTP.Cookies.Types (Attributes, RequestCookies, Name, SameSite(..), SetValue, Value, Values)
-import WebRow.HTTP.Response.SetHeader (SetHeader, setHeader) as HTTP
+import WebRow.HTTP.Response (SetHeader, setHeader) as HTTP.Response
 
 requestCookies ∷ HTTPure.Headers → RequestCookies
 requestCookies hs
@@ -31,10 +31,10 @@ setCookie
   ∷ ∀ eff
   . Name
   → SetValue
-  → Run (EffRow + Crypto + HTTP.SetHeader + eff) Unit
+  → Run (EffRow + Crypto + HTTP.Response.SetHeader + eff) Unit
 setCookie name { value, attributes } = do
   let h = setCookieHeaderValue name value attributes
-  HTTP.setHeader setCookieHeaderKey h
+  HTTP.Response.setHeader setCookieHeaderKey h
 
 cookieHeaderKey ∷ String
 cookieHeaderKey = "cookie"
