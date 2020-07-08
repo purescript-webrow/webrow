@@ -6,9 +6,9 @@ import Data.Array.NonEmpty (head, singleton) as Array.NonEmpty
 import Data.Either (hush)
 import Data.Lazy (Lazy, defer)
 import Data.Lazy (force) as Lazy
-import Data.Map (Map)
 import Data.Map (insert, lookup, toUnfoldable) as Map
 import Data.Maybe (Maybe(..))
+import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Foreign.Object as Object
@@ -17,14 +17,12 @@ import Node.Simple.Jwt (Secret)
 import WebRow.Contrib.Data.JSDate (epoch)
 import WebRow.Crypto.String (sign, unsign) as Crypto.String
 import WebRow.HTTP.Cookies.Headers (requestCookies, setCookieHeader)
-import WebRow.HTTP.Cookies.Types (RequestCookies, Name, SetValue, Value, Values)
+import WebRow.HTTP.Cookies.Types (Name, RequestCookies, SetValue, Value, Values, ResponseCookies)
 
 newtype CookieStore = CookieStore
   { requestCookies ∷ Lazy RequestCookies
   , secret ∷ Secret
-  , responseCookies ∷ Map
-      Name
-      SetValue
+  , responseCookies ∷ ResponseCookies
   }
 
 cookieStore ∷ Secret → HTTPure.Headers → CookieStore
@@ -48,7 +46,7 @@ lookup' name (CookieStore { requestCookies, secret, responseCookies }) =
   where
     unsign v = hush (Crypto.String.unsign secret v)
     signed = case name `Map.lookup` responseCookies of
-      Just { value, attributes } | attributes.expires /= Just epoch → Just (Array.NonEmpty.singleton value)
+      Just { value, attributes } | (unwrap attributes).expires /= Just epoch → Just (Array.NonEmpty.singleton value)
       Just _ → Nothing
       Nothing → name `Object.lookup` (Lazy.force requestCookies)
 

@@ -21,8 +21,8 @@ derive instance genericRoute ∷ Generic Route _
 -- | (route ∷ ( auth ∷ Route | routes) | eff)
 type RouteRow routes = (Namespace Route routes)
 
-duplexes ∷ { | Namespace (D.RouteDuplex' Route) () }
-duplexes =
+routeDuplex ∷ { | Namespace (D.RouteDuplex' Route) () }
+routeDuplex =
   { "auth": DG.sum
     { "Login": DG.noArgs
     , "Logout": DG.noArgs

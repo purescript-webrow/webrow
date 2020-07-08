@@ -9,9 +9,10 @@ import Type.Row (type (+))
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (expand) as SessionStore
 
-_sessionStore = SProxy ∷ SProxy "session"
+_sessionStore = SProxy ∷ SProxy "sessionStore"
 
-type SessionStoreRow eff session r = (session ∷ READER (SessionStore (Run eff) session) | r)
+type SessionStoreRow eff session r =
+  (sessionStore ∷ READER (SessionStore (Run eff) session) | r)
 
 sessionStore
   ∷ ∀ eff sEff sEff_ session

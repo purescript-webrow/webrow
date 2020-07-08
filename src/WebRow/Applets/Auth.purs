@@ -1,4 +1,9 @@
-module WebRow.Applets.Auth where
+module WebRow.Applets.Auth
+  ( module Exports
+  , router
+  , withUserRequired
+  )
+  where
 
 import Prelude
 
@@ -7,11 +12,11 @@ import Data.Tuple (Tuple(..))
 import Data.Variant (on)
 import HTTPure as HTTPure
 import Run (Run)
-import Text.Smolder.HTML (b)
 import Type.Row (type (+))
 import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Forms (loginForm)
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..))
+import WebRow.Applets.Auth.Routes (routeDuplex, Route(..), RouteRow) as Exports
 import WebRow.Applets.Auth.Routes (Route(..)) as Routes
 import WebRow.Applets.Auth.Routes (RouteRow)
 import WebRow.Applets.Auth.Types (Password, _auth, namespace)

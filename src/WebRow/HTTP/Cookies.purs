@@ -25,8 +25,8 @@ import WebRow.Crypto (Crypto, secret)
 import WebRow.HTTP.Cookies.CookieStore (CookieStore) as Exports
 import WebRow.HTTP.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHeaders)
 import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', set) as CookieStore
-import WebRow.HTTP.Cookies.Types (Attributes, Name, Value, Values, SetValue, defaultAttributes) as Exports
-import WebRow.HTTP.Cookies.Types (Name, Value, Values, SetValue, defaultAttributes)
+import WebRow.HTTP.Cookies.Types (Attributes(..), Name, Value, Values, RequestCookies, ResponseCookies, SetValue, defaultAttributes) as Exports
+import WebRow.HTTP.Cookies.Types (Name, SetValue, Value, Values, attributes)
 import WebRow.HTTP.Request (Request)
 import WebRow.HTTP.Request (headers) as Request
 import WebRow.HTTP.Response (setHeader, SetHeader) as Response
@@ -57,7 +57,7 @@ set name v = do
     Nothing → pure false
 
 delete ∷ ∀ eff. Name → Run (Cookies + Crypto + eff) Boolean
-delete name = set name { value: "", attributes: defaultAttributes { expires = Just epoch }}
+delete name = set name { value: "", attributes: attributes _{ expires = Just epoch }}
 
 -- | Useful for testing when we want
 -- | to provide store directly and not

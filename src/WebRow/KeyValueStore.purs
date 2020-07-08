@@ -3,7 +3,7 @@ module WebRow.KeyValueStore
   )
   where
 
-import WebRow.KeyValueStore.Types (Key, KeyValueStore) as Types
+import WebRow.KeyValueStore.Types (hoist, Key, KeyValueStore) as Types
 
 -- import Prelude
 -- 

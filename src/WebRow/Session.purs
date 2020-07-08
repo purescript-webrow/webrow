@@ -5,12 +5,13 @@ import Prelude
 import HTTPure (empty) as Headers
 import Prim.Row (class Union) as Row
 import Run (FProxy, Run, SProxy(..))
-import Run (lift) as Run
+import Run (interpret, lift, on, send) as Run
 import Type.Row (type (+))
 import WebRow.HTTP (HTTPExcept, internalServerError)
 import WebRow.Session.SessionStore.Run (SessionStoreRow)
 import WebRow.Session.SessionStore.Run (delete, fetch, save) as SessionStore.Run
 
+-- | TODO: Move these pieces to Session.Effects
 data SessionF session a
   = DeleteF (Boolean → a)
   | FetchF (session → a)
@@ -57,3 +58,9 @@ handleSession
 handleSession (DeleteF next) = SessionStore.Run.delete >>= next >>> pure
 handleSession (FetchF next) = SessionStore.Run.fetch >>= next >>> pure
 handleSession (SaveF v next) = SessionStore.Run.save v >>= next >>> pure
+
+runSession ∷ ∀ eff sEff sEff_ session
+  .  Row.Union sEff sEff_ ( SessionStoreRow sEff session + eff)
+  ⇒ Run ( Session session + SessionStoreRow sEff session + eff)
+  ~> Run ( SessionStoreRow sEff session + eff)
+runSession = Run.interpret (Run.on _session handleSession Run.send)

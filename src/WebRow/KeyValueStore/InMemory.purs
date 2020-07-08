@@ -5,19 +5,24 @@ import Prelude
 import Data.Map (delete, insert, lookup) as Map
 import Effect (Effect)
 import Effect.Ref (modify, new, read) as Ref
-import WebRow.KeyValueStore.Types (KeyValueStore, newKey)
+import WebRow.KeyValueStore.Types (KeyValueStore, hoist, newKey)
 
 type InMemory a = KeyValueStore Effect a
 
-inMemory ∷ ∀ a. Effect (InMemory a)
-inMemory = do
+new ∷ ∀ a. Effect (InMemory a)
+new = do
   ref ← Ref.new mempty
   let
-    new = newKey ""
-    delete key = (void $ Ref.modify (Map.delete key) ref) *> pure true
-    get key = Ref.read ref >>= (Map.lookup key >>> pure)
+    key = newKey ""
+    delete k = (void $ Ref.modify (Map.delete k) ref) *> pure true
+    get k = Ref.read ref >>= (Map.lookup k >>> pure)
     put k v = do
       void $ Ref.modify (Map.insert k v) ref
       pure true
-  pure { delete, get, new, put }
+  pure { delete, get, new: key, put }
 
+
+lifted ∷ ∀ a m. Monad m ⇒ (Effect ~> m) → m (KeyValueStore m a)
+lifted liftEffect = do
+  kv ← liftEffect new
+  pure $ hoist liftEffect kv

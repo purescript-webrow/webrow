@@ -18,7 +18,7 @@ import Run (Run)
 import Type.Row (type (+))
 import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto)
-import WebRow.HTTP.Cookies.Types (Attributes, RequestCookies, Name, SameSite(..), SetValue, Value, Values)
+import WebRow.HTTP.Cookies.Types (Attributes(..), Name, RequestCookies, SameSite(..), SetValue, Value, Values)
 import WebRow.HTTP.Response (SetHeader, setHeader) as HTTP.Response
 
 requestCookies ∷ HTTPure.Headers → RequestCookies
@@ -48,7 +48,7 @@ setCookieHeader n v attrs =
 
 -- | XXX: Add cookie size check here
 setCookieHeaderValue ∷ Name → Value → Attributes → String
-setCookieHeaderValue key value { comment, expires, path, maxAge, domain, secure, httpOnly, sameSite } =
+setCookieHeaderValue key value (Attributes { comment, expires, path, maxAge, domain, secure, httpOnly, sameSite }) =
   [ Just $ assign (unsafeEncodeURIComponent key) (unsafeEncodeURIComponent value)
   , (assign "Comment" <<< unsafeEncodeURIComponent) <$> comment
   , (assign "Expires" <<< toUTCString) <$> expires

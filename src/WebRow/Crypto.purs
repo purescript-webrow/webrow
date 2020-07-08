@@ -30,7 +30,7 @@ type Crypto r = (crypto ∷ READER Secret | r)
 secret ∷ ∀ eff. Run (Crypto + eff) Secret
 secret = askAt _crypto
 
--- | Use Types.Signed wrapper
+-- | TODO: Should we handle errors through custom exception?
 signJson
   ∷ ∀ eff
   . Json

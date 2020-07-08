@@ -28,7 +28,7 @@ type KeyValueStore m a =
 newKey ∷ Namespace → Effect Key
 newKey namespace = (append namespace <<< UUID.toString) <$> genUUID
 
-hoist ∷ ∀ a m m'. (m ~> m') → KeyValueStore m a → KeyValueStore m' a
+hoist ∷ ∀ m m'. (m ~> m') → KeyValueStore m ~> KeyValueStore m'
 hoist h s = { delete, get, new, put }
   where
   new = h s.new
