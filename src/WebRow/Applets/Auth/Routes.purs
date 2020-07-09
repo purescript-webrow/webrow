@@ -3,8 +3,12 @@ module WebRow.Applets.Auth.Routes where
 import Prelude hiding ((/))
 
 import Data.Generic.Rep (class Generic)
-import Routing.Duplex as D
+import Prim.Row (class Lacks) as Row
+import Record.Builder (Builder, insert) as Record.Builder
+import Routing.Duplex (RouteDuplex')
 import Routing.Duplex.Generic as DG
+import Routing.Duplex.Generic.Syntax ((/))
+import Type.Prelude (SProxy(..))
 import WebRow.Applets.Auth.Types (Namespace)
 
 data Route
@@ -21,15 +25,14 @@ derive instance genericRoute ∷ Generic Route _
 -- | (route ∷ ( auth ∷ Route | routes) | eff)
 type RouteRow routes = (Namespace Route routes)
 
-routeDuplex ∷ { | Namespace (D.RouteDuplex' Route) () }
-routeDuplex =
-  { "auth": DG.sum
-    { "Login": DG.noArgs
-    , "Logout": DG.noArgs
-    -- , "PasswordChange": D.optional $ D.params
-    --     { oldPassword: _Newtype <<< D.string
-    --     , password1: _Newtype <<< D.string
-    --     , password2: _Newtype <<< D.string
-    --     }
-    }
+localDuplex ∷ RouteDuplex' Route
+localDuplex = DG.sum
+  { "Login": "login" / DG.noArgs
+  , "Logout": "login" / DG.noArgs
   }
+
+routeBuilder
+  ∷ ∀ routes
+  .  Row.Lacks "auth" routes
+  ⇒ Record.Builder.Builder { | routes } { auth ∷ RouteDuplex' Route | routes }
+routeBuilder = Record.Builder.insert (SProxy ∷ SProxy "auth") localDuplex

@@ -41,7 +41,6 @@ import Polyform.Reporter (liftFn, liftValidatorWith, liftValidatorWithM, lmapM) 
 import Polyform.Validator (liftFn, lmapM) as Validator
 import Run (Run)
 import Type.Row (type (+))
-import Unsafe.Coerce (unsafeCoerce)
 import WebRow.Forms.BuilderM (eval) as BuilderM
 import WebRow.Forms.Layout (Layout, LayoutBase(..), closeSection, sectionErrors) as Layout
 import WebRow.Forms.Payload (UrlDecoded)
@@ -100,12 +99,12 @@ fieldBuilder { constructor, defaults, validator: msgValidator } = Builder $ B.Bu
     widgetValidator ∷ Polyform.Reporter (MessageM info eff) (Layout widgets) (Widget.Payload inputs) o
     widgetValidator = Reporter.liftValidatorWithM fromFailure fromSuccess msgValidator
 
-    validator
+    reporter
       = widgetValidator
       <<< Reporter.liftFn ( Widget.payload ns )
 
-  pure $ unsafeCoerce 8
-    { validator
+  pure $
+    { reporter
     , default: constructor' { payload: defaults, names: ns, result: Nothing }
     }
 

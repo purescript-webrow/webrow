@@ -22,7 +22,7 @@
   "dependencies": {
     "decimal.js": "^10.2.0",
     "pg": "^8.0.2",
-    "uuid": "3.4.0",
+    "uuid": "^3.4.0",
     "uuid-validate": "0.0.3"
   }
 }

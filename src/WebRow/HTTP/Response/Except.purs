@@ -14,7 +14,7 @@ import Run.Except (EXCEPT, catchAt, runExceptAt, throwAt)
 import Type.Row (type (+))
 import WebRow.Contrib.Run (AffRow, EffRow)
 import WebRow.HTTP.Types (Body)
-import WebRow.Routing (Url(..))
+import WebRow.Routing.Types (Url(..))
 
 newtype HTTPException = HTTPException { body ∷ String, headers ∷ HTTPure.Headers, status ∷ HTTPure.Status }
 

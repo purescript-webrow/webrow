@@ -12,9 +12,9 @@ message
   ∷ ∀ eff msg
   . Variant msg
   → Run ( message ∷ MESSAGE msg | eff ) String
-message msg = Run.lift _message (Message msg identity)
+message msg = Run.lift _message (MessageF msg identity)
 
-data MessageF msg a = Message msg (String → a)
+data MessageF msg a = MessageF msg (String → a)
 derive instance functorSessionF ∷ Functor (MessageF info)
 
 _message = SProxy ∷ SProxy "message"

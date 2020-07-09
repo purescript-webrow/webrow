@@ -1,5 +1,6 @@
 module WebRow.Applets.Auth
   ( module Exports
+  , localRouter
   , router
   , withUserRequired
   )
@@ -16,7 +17,7 @@ import Type.Row (type (+))
 import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Forms (loginForm)
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..))
-import WebRow.Applets.Auth.Routes (routeDuplex, Route(..), RouteRow) as Exports
+import WebRow.Applets.Auth.Routes (localDuplex, routeBuilder, Route(..), RouteRow) as Exports
 import WebRow.Applets.Auth.Routes (Route(..)) as Routes
 import WebRow.Applets.Auth.Routes (RouteRow)
 import WebRow.Applets.Auth.Types (Password, _auth, namespace)
@@ -47,7 +48,9 @@ type AuthRow messages routes session user eff =
 --   . (Variant routes → Run (AuthRow messages session user eff) Response)
 --   → Variant ( auth ∷ Routes.Route | routes )
 --   → Run (AuthRow messages session user eff) Response
-router = on _auth case _ of
+router = on _auth localRouter
+
+localRouter = case _ of
   Routes.Login → login
   Routes.Logout → logout
 
