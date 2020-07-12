@@ -2,11 +2,14 @@ module WebRow.Testing.Templates where
 
 import Prelude
 
+import Data.Array (head) as Array
+import Data.Either (Either(..))
 import Data.Foldable (for_)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Variant (Variant, case_, on)
+import Global.Unsafe (unsafeStringify)
 import Text.Smolder.HTML (Html)
-import Text.Smolder.HTML (div, form, h2, html, input) as M
+import Text.Smolder.HTML (div, form, h2, html, input, p) as M
 import Text.Smolder.HTML.Attributes as A
 import Text.Smolder.Markup ((!))
 import Text.Smolder.Markup (text) as M
@@ -38,9 +41,11 @@ formBody renderExtra (Forms.Widget widget) = M.div $ do
   where
   renderWidget =
     renderExtra
-    # on _textInput \(TextInputProps { name, payload, type_ }) →
-      -- | TODO: Render widget errors + value
-      M.input ! A.type' type_ ! A.name name ! A.value "" -- (fromMaybe "" (value >>= Array.head))
+    # on _textInput \(TextInputProps { name, payload, result, type_ }) → do
+      for_ result case _ of
+        Left r → M.p $ M.text (unsafeStringify r)
+        otherwise → pure unit
+      M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (payload >>= Array.head))
 
 form ∷ ∀ widgets. RenderWidgets widgets → FormLayout widgets → Html Unit
 form renderExtra l = do

@@ -49,7 +49,7 @@ import WebRow.Forms.Uni.Builder (Builder(..)) as B
 import WebRow.Forms.Uni.Form (Form(..), default, validate) as Form
 import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.Forms.Validators (email) as Validators
-import WebRow.Forms.Widget (Constructor, Payload, names, payload) as Widget
+import WebRow.Forms.Widget (Constructor, Payload, Names, names, payload) as Widget
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Forms.Widgets (textInput) as Widgets
 import WebRow.Mailer (Email)
@@ -73,17 +73,26 @@ derive newtype instance applicativeBuilder ∷ Applicative (Builder eff info wid
 derive newtype instance semigroupoidBuilder ∷ Semigroupoid (Builder eff info widgets)
 derive newtype instance categoryBuilder ∷ Category (Builder eff info widgets)
 
+-- | TODO: Custom names are currently NOT validated.
+-- | We are not able (and don't want) to keep these
+-- | info on type type level (we would lose `Monoid`
+-- | instance with such a `Row`).
+-- | We probably want keep track of used names and provide
+-- | validation on value level during "`safeBuild`".
 fieldBuilder
   ∷ ∀ eff info inputs o widgets
   . Traversable inputs
   ⇒ Monoid (inputs Unit)
   ⇒ { constructor ∷ Widget.Constructor (MessageM info eff) inputs widgets o
     , defaults ∷ Widget.Payload inputs
+    , name ∷ Maybe (Widget.Names inputs)
     , validator ∷ FieldValidator eff info (Widget.Payload inputs) o
     }
   → Builder eff info widgets UrlDecoded o
-fieldBuilder { constructor, defaults, validator: msgValidator } = Builder $ B.Builder $ do
-  ns ← Widget.names
+fieldBuilder { constructor, defaults, name, validator: msgValidator } = Builder $ B.Builder $ do
+  ns ← case name of
+    Nothing → Widget.names
+    Just n → pure n
   let
     constructor' = map Layout.Widget <<< constructor
 
@@ -112,6 +121,7 @@ fieldBuilder { constructor, defaults, validator: msgValidator } = Builder $ B.Bu
 type TextInputInitialsBase (r ∷ # Type) =
   ( default ∷ Opt String
   , label ∷ Opt String
+  , name ∷ Opt String
   , type_ ∷ Opt String
   , placeholder ∷ Opt String
   , helpText ∷ Opt String
@@ -128,7 +138,12 @@ textInputBuilder
   . NoProblem.Closed.Coerce args (TextInputInitials info eff o)
   ⇒ args
   → Builder eff info (TextInput + widgets) UrlDecoded o
-textInputBuilder args = fieldBuilder { constructor, defaults: Identity (Just [ default ! "" ]), validator: validator' }
+textInputBuilder args = fieldBuilder
+  { constructor
+  , defaults: Identity (Just [ default ! "" ])
+  , name: Identity <$> NoProblem.toMaybe i.name
+  , validator: validator'
+  }
   where
     i@{ default, validator } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
     validator' = validator <<< Validator.liftFn (un Identity)
@@ -145,6 +160,7 @@ textInputBuilder args = fieldBuilder { constructor, defaults: Identity (Just [ d
 
 type PasswordInputInitials =
   { label ∷ Opt String
+  , name ∷ Opt String
   , placeholder ∷ Opt String
   , helpText ∷ Opt String
   }
@@ -163,15 +179,17 @@ passwordInputBuilder args = textInputBuilder
   { placeholder
   , helpText
   , label
+  , name
   , validator: Batteries.singleValue
   }
   where
-    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials
+    i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials
 
 type EmailMessages r = InvalidEmailFormat + SingleValueExpected + r
 
 type EmailInputInitials eff info =
   { label ∷ Opt String
+  , name ∷ Opt String
   , placeholder ∷ Opt String
   , helpText ∷ Opt String
   , policy ∷ Opt (Polyform.Validator (MessageM (EmailMessages + info) eff) (Errors (EmailMessages + info)) Email Email)
@@ -194,10 +212,12 @@ emailInputBuilder args = textInputBuilder
   { placeholder
   , helpText
   , label
+  , name
+  , type_: "email"
   , validator: Batteries.singleValue >>> Validators.email >>> (i.policy ! identity)
   }
   where
-    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff info
+    i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff info
 
 sectionValidator
   ∷ ∀ eff i info o widgets

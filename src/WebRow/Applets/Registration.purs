@@ -1,4 +1,11 @@
-module WebRow.Applets.Registration where
+module WebRow.Applets.Registration
+  ( module Exports
+  , confirmation
+  , registerEmail
+  , router
+
+  )
+  where
 
 import Prelude
 
@@ -17,7 +24,9 @@ import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..))
 import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
 import WebRow.Applets.Registration.Routes (Route) as Registration
-import WebRow.Applets.Registration.Types (SignedEmail(..), _register)
+import WebRow.Applets.Registration.Routes (RouteRow)
+import WebRow.Applets.Registration.Routes (localDuplex, routeBuilder, Route(..), RouteRow) as Exports
+import WebRow.Applets.Registration.Types (SignedEmail(..), _registration)
 import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto)
 import WebRow.Crypto (sign, unsign) as Crypto
@@ -38,9 +47,9 @@ import WebRow.Types (WebRow)
 --   . (Variant (Auth.Routes.RouteRow + routes) → Run (Effects ctx res routes user eff) a)
 --   → Variant (Routes.RouteRow + Auth.Routes.RouteRow + routes)
 --   → Run (Effects ctx res routes user eff) a
-router = on _register $ case _ of
-    Routes.RegisterEmail → registerEmail
-    Routes.Confirmation email → confirmation email
+router = on _registration $ case _ of
+    Routes.RegisterEmail → inj _registration <$> registerEmail
+    Routes.Confirmation email → inj _registration <$> confirmation email
 --     Routes.ChangeEmail → changeEmail
 --     Routes.ChangeEmailConfirmation payload → changeEmailConfirmation payload
 
@@ -60,7 +69,7 @@ registerEmail
       | messages
       )
       session
-      (register :: Registration.Route | routes)
+      (RouteRow routes)
     + eff
     )
     Response

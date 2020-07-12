@@ -2,16 +2,20 @@ module WebRow.KeyValueStore.InMemory where
 
 import Prelude
 
+import Data.Map (Map)
 import Data.Map (delete, insert, lookup) as Map
 import Effect (Effect)
+import Effect.Ref (Ref)
 import Effect.Ref (modify, new, read) as Ref
 import WebRow.KeyValueStore.Types (KeyValueStore, hoist, newKey)
 
 type InMemory a = KeyValueStore Effect a
 
 new ∷ ∀ a. Effect (InMemory a)
-new = do
-  ref ← Ref.new mempty
+new = forRef <$> Ref.new mempty
+
+forRef ∷ ∀ a. Ref (Map String a) → (InMemory a)
+forRef ref =
   let
     key = newKey ""
     delete k = (void $ Ref.modify (Map.delete k) ref) *> pure true
@@ -19,10 +23,10 @@ new = do
     put k v = do
       void $ Ref.modify (Map.insert k v) ref
       pure true
-  pure { delete, get, new: key, put }
+  in
+    { delete, get, new: key, put }
 
-
-lifted ∷ ∀ a m. Monad m ⇒ (Effect ~> m) → m (KeyValueStore m a)
+lifted ∷ ∀ a m. (Effect ~> m) → Effect (KeyValueStore m a)
 lifted liftEffect = do
-  kv ← liftEffect new
+  kv ← new
   pure $ hoist liftEffect kv

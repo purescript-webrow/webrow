@@ -28,7 +28,7 @@ type RouteRow routes = (Namespace Route routes)
 localDuplex ∷ RouteDuplex' Route
 localDuplex = DG.sum
   { "Login": "login" / DG.noArgs
-  , "Logout": "login" / DG.noArgs
+  , "Logout": "logout" / DG.noArgs
   }
 
 routeBuilder

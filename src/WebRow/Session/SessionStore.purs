@@ -17,7 +17,11 @@ type SessionStore m session =
 
 hoist ∷ ∀ a m m'. (m ~> m') → SessionStore m a → SessionStore m' a
 hoist h s =
-  { delete: h s.delete, fetch: h s.fetch, key: s.key, save: h <$> s.save }
+  { delete: h s.delete
+  , fetch: h s.fetch
+  , key: s.key
+  , save: h <$> s.save
+  }
 
 expand
   ∷ ∀ a eff sEff sEff_

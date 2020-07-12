@@ -31,7 +31,7 @@ _emailTaken = SProxy ∷ SProxy "emailTaken"
 
 type EmailTaken r = (emailTaken ∷ Email | r)
 
-emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { policy: validator }
+emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { name: "email", policy: validator }
   where
     validator = Validator.checkM
       (Batteries.error _emailTaken)

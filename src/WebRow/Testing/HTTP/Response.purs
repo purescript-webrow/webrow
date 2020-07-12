@@ -16,6 +16,9 @@ import WebRow.HTTP.Response (Parts) as HTTP.Response
 import WebRow.HTTP.Response (SetHeader, SetHeaderF(..), _httpExcept, _setHeader)
 import WebRow.HTTP.Response.Headers (setHeaderOnParts)
 
+-- | TODO: We should extend response by template
+-- | "rendering context" so we can inspect these pieces
+-- | during testing: `Response body context`
 data Response body
   = HTTPException HTTP.HTTPException HTTPure.Headers
   | HTTPResponse (HTTP.Response.Parts body)

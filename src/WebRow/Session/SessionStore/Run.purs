@@ -41,4 +41,3 @@ save
   → Run (SessionStoreRow sEff session + eff) Boolean
 save session = sessionStore >>= (\s → s.save session)
 
-

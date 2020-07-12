@@ -26,7 +26,7 @@ email e = if String.contains (String.Pattern "@") e
 
 type Mail mail = { to ∷ Email, context ∷ Variant mail }
 
-data MailerF mails a = Send (Mail mails)
+data MailerF mails a = SendF (Mail mails) a
 
 derive instance functorMailerF ∷ Functor (MailerF mails)
 
@@ -37,8 +37,8 @@ type Mailer mails eff = (mailer ∷ MAILER mails | eff)
 _mailer = SProxy ∷ SProxy "mailer"
 
 send ∷
-  ∀ a eff mails
+  ∀ eff mails
   . Mail mails
-  → Run (Mailer mails + eff) a
-send mail = Run.lift _mailer (Send mail)
+  → Run (Mailer mails + eff) Unit
+send mail = Run.lift _mailer (SendF mail unit)
 

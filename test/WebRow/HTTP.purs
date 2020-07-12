@@ -44,7 +44,7 @@ import WebRow.HTTP.Cookies (defaultAttributes)
 import WebRow.HTTP.Cookies (defaultAttributes, lookup, set) as Cookies
 import WebRow.HTTP.Request (_request)
 import WebRow.HTTP.Response (ok)
-import WebRow.Testing.HTTP (Client, HTTPSession, _httpSession, get, request)
+import WebRow.Testing.HTTP (Client, HTTPSession, _httpSession, get, get_, request)
 import WebRow.Testing.HTTP (run, run') as Testing.HTTP
 
 spec :: Spec Unit
@@ -54,8 +54,8 @@ spec = do
       it "SetHeader" do
         let
           client = do
-            get "1"
-            get "2"
+            get_ "1"
+            get_ "2"
 
           server req = do
             cs ← Crypto.secret
@@ -65,7 +65,7 @@ spec = do
             r ← liftEffect $ random
             ok $ (req.url <> ":" <> show r)
 
-        httpSession <- Testing.HTTP.run' {} server client
+        httpSession <- runBaseAff' $ Testing.HTTP.run' {} server client
         logShow $ unsafeStringify httpSession
         pure unit
 

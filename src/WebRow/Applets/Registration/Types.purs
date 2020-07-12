@@ -10,9 +10,9 @@ newtype SignedEmail = SignedEmail String
 derive instance newtypeSignedEmail ∷ Newtype SignedEmail _
 derive newtype instance showSignedEmail ∷ Show SignedEmail
 
-_register = SProxy ∷ SProxy "register"
+_registration = SProxy ∷ SProxy "registration"
 
-type Namespace t r = (register ∷ t | r)
+type Namespace t r = (registration ∷ t | r)
 
 namespace ∷ ∀ a r. a → Variant (Namespace a r)
-namespace = inj _register
+namespace = inj _registration
