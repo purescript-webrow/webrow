@@ -2,6 +2,7 @@ module WebRow.Applets.Registration.Responses where
 
 import WebRow.Applets.Auth.Types (Password)
 import WebRow.Applets.Registration.Forms (FormLayout)
+import WebRow.Applets.Registration.Types (Namespace)
 import WebRow.Mailer (Email)
 import WebRow.Routing (FullUrl)
 
@@ -24,3 +25,4 @@ data Response
   | RegisterEmailResponse RegisterEmailResponse
   | ChangeEmailResponse ChangeEmailResponse
 
+type ResponseRow responses = Namespace Response responses

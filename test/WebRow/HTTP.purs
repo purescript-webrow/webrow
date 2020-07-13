@@ -49,25 +49,26 @@ import WebRow.Testing.HTTP (run, run') as Testing.HTTP
 
 spec :: Spec Unit
 spec = do
-  describe "WebRow.HTTP" do
-    describe "Response" do
-      it "SetHeader" do
-        let
-          client = do
-            get_ "1"
-            get_ "2"
+  pure unit
+  -- describe "WebRow.HTTP" do
+  --   describe "Response" do
+  --     it "SetHeader" do
+  --       let
+  --         client = do
+  --           get_ "1"
+  --           get_ "2"
 
-          server req = do
-            cs ← Crypto.secret
-            c ← Lazy.force <$> Cookies.lookup "test"
-            liftEffect $ logShow c
-            void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
-            r ← liftEffect $ random
-            ok $ (req.url <> ":" <> show r)
+  --         server req = do
+  --           cs ← Crypto.secret
+  --           c ← Lazy.force <$> Cookies.lookup "test"
+  --           liftEffect $ logShow c
+  --           void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
+  --           r ← liftEffect $ random
+  --           ok $ (req.url <> ":" <> show r)
 
-        httpSession <- runBaseAff' $ Testing.HTTP.run' {} server client
-        logShow $ unsafeStringify httpSession
-        pure unit
+  --       httpSession <- runBaseAff' $ Testing.HTTP.run' {} pure server client
+  --       logShow $ unsafeStringify httpSession
+  --       pure unit
 
     --  pending "feature complete"
     -- describe "Features" do

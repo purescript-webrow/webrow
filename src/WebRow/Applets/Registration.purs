@@ -21,13 +21,13 @@ import Type.Row (type (+))
 import WebRow.Applets.Registration.Effects (Registration)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
+import WebRow.Applets.Registration.Messages (Messages) as Exports
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..))
+import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), ResponseRow) as Exports
 import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
-import WebRow.Applets.Registration.Routes (Route) as Registration
 import WebRow.Applets.Registration.Routes (RouteRow)
 import WebRow.Applets.Registration.Routes (localDuplex, routeBuilder, Route(..), RouteRow) as Exports
 import WebRow.Applets.Registration.Types (SignedEmail(..), _registration)
-import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto)
 import WebRow.Crypto (sign, unsign) as Crypto
 import WebRow.Crypto.String (sign, unsign) as Crypto.String
@@ -59,7 +59,6 @@ registerEmail
   :: ∀ eff mails messages routes session
   . Run
     ( Crypto
-    + EffRow
     + Mailer (emailVerification ∷ FullUrl | mails)
     + Registration
     + WebRow
@@ -92,7 +91,6 @@ confirmation
   . SignedEmail
   → Run
     ( Crypto
-    + EffRow
     + Registration
     + WebRow
       ( singleValueExpected :: Maybe Payload.Value

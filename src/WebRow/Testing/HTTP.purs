@@ -2,19 +2,24 @@ module WebRow.Testing.HTTP where
 
 import Prelude
 
+import Data.Array (singleton) as Array
 import Data.Lazy (defer) as Lazy
 import Data.List (List(..), reverse) as List
 import Data.List (List)
+import Data.Map (fromFoldableWithIndex) as Map
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect) as Effect
 import Effect.Ref (new) as Effect.Ref
+import Foreign.Object (fromHomogeneous) as Object
 import HTTPure (Method(..)) as HTTPure.Method
 import HTTPure (empty) as Headers
 import HTTPure.Request (Request) as HTTPure
 import HTTPure.Version (Version(..))
+import Polyform.Batteries.UrlEncoded (Decoded(..))
 import Polyform.Batteries.UrlEncoded.Query (unsafeEncode) as UrlEncoded
 import Prim.Row (class Union) as Row
+import Routing.Duplex (RouteDuplex')
 import Run (Run, runBaseAff')
 import Run (expand, liftEffect) as Run
 import Run.Reader (runReaderAt)
@@ -25,30 +30,33 @@ import Run.Streaming.Pull (chain) as S.Pull
 import Run.Streaming.Pull (feed) as Pull
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
+import Type.Row.Homogeneous (class Homogeneous)
 import WebRow.Contrib.Run (AffRow, EffRow)
 import WebRow.Crypto (Crypto, _crypto)
-import WebRow.Forms.Payload (UrlDecoded)
-import WebRow.HTTP (Cookies, HTTPExcept, HTTPResponse, ResponseCookies, SetHeader)
+import WebRow.HTTP (Cookies, HTTPExcept, ResponseCookies, SetHeader)
 import WebRow.HTTP.Cookies (_cookies)
 import WebRow.HTTP.Cookies.CookieStore (CookieStore(..))
 import WebRow.HTTP.Cookies.Types (RequestCookies)
+import WebRow.HTTP.Request (Request)
+import WebRow.Routing (Routing, runRouting)
 import WebRow.Session (Session, runSession)
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (hoist) as SessionStore
 import WebRow.Session.SessionStore.InMemory (forRef) as SessionStore.InMemory
 import WebRow.Session.SessionStore.Run (SessionStoreRow, _sessionStore)
 import WebRow.Testing.HTTP.Cookies (toRequestCookies)
+import WebRow.Testing.HTTP.Response (Render) as Response
 import WebRow.Testing.HTTP.Response (Response) as Testing.HTTP
-import WebRow.Testing.HTTP.Response (run) as Testing.Response
+import WebRow.Testing.HTTP.Response (runHTTPExcept, runRender, runSetHeader) as Testing.Response
 import WebRow.Testing.HTTP.Types (ClientCookies)
 
 -- | TODO: Upgrdae to polymorphic `body` type here when
 -- | monorphic implementation is working.
-type Response = Testing.HTTP.Response String
+type Response ctx = Testing.HTTP.Response String ctx
 
-type Exchange =
+type Exchange ctx =
   { clientCookies ∷ ClientCookies
-  , response ∷ Response
+  , response ∷ Response ctx
   , request ∷ HTTPure.Request
   }
 
@@ -59,19 +67,19 @@ _httpSession = SProxy ∷ SProxy "httpSession"
 type HTTPSession eff = (httpSession ∷ STATE ClientCookies | eff)
 
 -- | During request response exchange
-type Client session eff = S.Client
+type Client session res eff = S.Client
   { cookies ∷ RequestCookies, request ∷ HTTPure.Request }
-  { cookies ∷ ResponseCookies, response ∷ Response }
-  ( S.Producer Exchange
+  { cookies ∷ ResponseCookies, response ∷ Response res }
+  ( S.Producer (Exchange res)
   + HTTPSession
   + Session session
   + eff
   )
 
 request
-  ∷ ∀ eff session
+  ∷ ∀ eff res session
   . HTTPure.Request
-  → Run (Client session + eff) Response
+  → Run (Client session res + eff) (Response res)
 request req = do
   clientCookies ← getAt _httpSession
   let
@@ -90,9 +98,9 @@ request req = do
   pure response
 
 get
-  ∷ ∀ eff session
+  ∷ ∀ eff res session
   . String
-  → Run (Client session + eff) Response
+  → Run (Client session res + eff) (Response res)
 get url = request
   { method: HTTPure.Method.Get
   , headers: Headers.empty
@@ -104,62 +112,70 @@ get url = request
   }
 
 get_
-  ∷ ∀ eff session
+  ∷ ∀ eff res session
   . String
-  → Run (Client session + eff) Unit
+  → Run (Client session res + eff) Unit
 get_ url = get url *> pure unit
 
 post
-  ∷ ∀ eff session
-  . String
-  → UrlDecoded
-  → Run (Client session + eff) Response
-post url decoded = request
+  ∷ ∀ eff payload res session
+  . Homogeneous payload String
+  ⇒ String
+  → { | payload }
+  → Run (Client session res + eff) (Response res)
+post url payload = request
   { method: HTTPure.Method.Post
   , headers: Headers.empty
   , path: mempty
   , query: mempty
-  , body: UrlEncoded.unsafeEncode decoded
+  , body: UrlEncoded.unsafeEncode $ Decoded $ Map.fromFoldableWithIndex $ map Array.singleton $ Object.fromHomogeneous $
+      payload
   , httpVersion: HTTP1_1
   , url
   }
 
 post_
-  ∷ ∀ eff session
-  . String
-  → Run (Client session + eff) Unit
-post_ url = post_ url *> pure unit
+  ∷ ∀ eff payload res session
+  . Homogeneous payload String
+  ⇒ String
+  → { | payload }
+  → Run (Client session res + eff) Unit
+post_ url payload = post url payload *> pure unit
 
-type ServerRow session eff =
+type ServerRow session routes res eff =
   ( AffRow
   + Cookies
   + Crypto
   + EffRow
   + HTTPSession
   + HTTPExcept
-  + S.Producer Exchange
+  + S.Producer (Exchange res)
+  + Routing routes
+  + Request
   + Session session
   + SetHeader
   + eff
   )
 
-type Server session eff = S.Server
+type Server session routes res eff = S.Server
   { cookies ∷ RequestCookies, request ∷ HTTPure.Request }
-  { cookies ∷ ResponseCookies, response ∷ Response }
-  (ServerRow session + eff)
+  { cookies ∷ ResponseCookies, response ∷ Response res }
+  (ServerRow session routes res + eff)
 
-type History = List Exchange
+type History res = List (Exchange res)
 
 -- | To use this function compiler requires a closed client or server row.
 run
-  ∷ ∀ eff eff_ session
+  ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer Exchange + SessionStoreRow (AffRow + EffRow + ()) session + eff)
+      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
   ⇒ SessionStore (Run (AffRow + EffRow + ())) session
-  → (HTTPure.Request → Run (Server session + eff) (HTTPResponse String))
-  → Run (AffRow + Client session + EffRow + eff) Unit
-  → Run (AffRow + EffRow + eff) History
-run sessionStore server client
+  → RouteDuplex' routes
+  → Response.Render (Server session routes res + eff) String res
+  → Run (Server session routes res + eff) res
+  → Run (AffRow + Client session res + EffRow + eff) Unit
+  → Run (AffRow + EffRow + eff) (History res)
+run sessionStore routeDuplex render server client
   -- = runBaseAff'
   = runReaderAt _sessionStore sessionStore
   $ runSession
@@ -178,10 +194,11 @@ run sessionStore server client
       ( AffRow
       + EffRow
       + HTTPSession
-      + S.Producer Exchange
-      + S.Producer Exchange
+      + S.Producer (Exchange res)
+      + S.Producer (Exchange res)
       + SessionStoreRow (AffRow + EffRow + ()) session
-      + Session session + eff
+      + Session session
+      + eff
       )
       Unit
     go = S.Pull.chain server' (Run.expand client)
@@ -200,51 +217,59 @@ run sessionStore server client
             Tuple (CookieStore { responseCookies }) response ← Run.expand $
               runReaderAt _crypto secret
               <<< runStateAt _cookies (cookieStore requestCookies)
-              <<< Testing.Response.run
-              $  server req
+              <<< Testing.Response.runSetHeader
+              <<< Testing.Response.runHTTPExcept
+              <<< runRouting "test.example.com" routeDuplex req
+              <<< Testing.Response.runRender render
+              $ server
             S.respond
               { cookies: responseCookies
               , response
               }
 
--- | Closed version without extra
 runAff
-  ∷ ∀ eff eff_ session
+  ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer Exchange + SessionStoreRow (AffRow + EffRow + ()) session + eff)
+      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
   ⇒ SessionStore (Run (AffRow + EffRow + ())) session
-  → (HTTPure.Request → Run (Server session + ()) (HTTPResponse String))
-  → Run (AffRow + Client session + EffRow + ()) Unit
-  → Aff History
-runAff sessionStore server client = do
-  runBaseAff' $ run sessionStore server client
+  → RouteDuplex' routes
+  → Response.Render (Server session routes res + ()) String res
+  → Run (Server session routes res + ()) res
+  → Run (AffRow + Client session res + EffRow + ()) Unit
+  → Aff (History res)
+runAff sessionStore routeDuplex render server client = do
+  runBaseAff' $ run sessionStore routeDuplex render server client
 
 run'
-  ∷ ∀ eff eff_ session
+  ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer Exchange + SessionStoreRow (AffRow + EffRow + ()) session + eff)
+      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
   ⇒ session
-  → (HTTPure.Request → Run (Server session + eff) (HTTPResponse String))
-  → Run (AffRow + Client session + EffRow + eff) Unit
-  → Run (AffRow + EffRow + eff) History
-run' defaultSession server client = do
+  → RouteDuplex' routes
+  → Response.Render (Server session routes res + eff) String res
+  → Run (Server session routes res + eff) res
+  → Run (AffRow + Client session res + EffRow + eff) Unit
+  → Run (AffRow + EffRow + eff) (History res)
+run' defaultSession routeDuplex render server client = do
   ss ← Effect.liftEffect do
     ref ← Effect.Ref.new mempty
     SessionStore.hoist Run.liftEffect <$>
       SessionStore.InMemory.forRef ref defaultSession
-  run ss server client
+  run ss routeDuplex render server client
 
 runAff'
-  ∷ ∀ eff eff_ session
+  ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer Exchange + SessionStoreRow (AffRow + EffRow + ()) session + eff)
+      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
   ⇒ session
-  → (HTTPure.Request → Run (Server session + ()) (HTTPResponse String))
-  → Run (AffRow + Client session + EffRow + ()) Unit
-  → Aff History
-runAff' defaultSession server client = do
+  → RouteDuplex' routes
+  → Response.Render (Server session routes res + ())  String res
+  → Run (Server session routes res + ()) res
+  → Run (AffRow + Client session res + EffRow + ()) Unit
+  → Aff (History res)
+runAff' defaultSession routeDuplex render server client = do
   ss ← Effect.liftEffect do
     ref ← Effect.Ref.new mempty
     SessionStore.hoist Run.liftEffect <$>
       SessionStore.InMemory.forRef ref defaultSession
-  runBaseAff' $ run ss server client
+  runBaseAff' $ run ss routeDuplex render server client

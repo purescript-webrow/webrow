@@ -2,54 +2,56 @@ module Test.WebRow.Applets.Registration where
 
 import Prelude
 
-import Data.Array (fromFoldable) as Array
-import Data.List (List(..)) as List
-import Data.Map (fromFoldableWithIndex) as Map
+import Data.Foldable (length)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, case_, inj, on)
 import Effect.Class (liftEffect) as Effect
-import Effect.Class.Console (log, logShow)
 import Effect.Ref (new) as Effect.Ref
-import Effect.Ref (read) as Ref
-import Foreign.Object (fromHomogeneous) as Object
-import Global.Unsafe (unsafeStringify)
-import Polyform.Batteries.UrlEncoded (Decoded(..))
 import Record.Builder (build) as Record.Builder
 import Routing.Duplex (RouteDuplex', print, root) as D
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
-import Run (Run(..), runBaseAff')
-import Run (interpret, liftEffect, on, send) as Run
-import Run.Reader (askAt, runReaderAt)
-import Run.Writer (runWriterAt)
+import Run (Run, runBaseAff')
+import Run (liftEffect, on, run, send) as Run
+import Run.Reader (askAt)
 import Test.Spec (Spec, describe, it)
+import Test.Spec.Assertions (shouldEqual)
 import Test.WebRow.Applets.Auth (runAuth)
+import Test.WebRow.Applets.Auth.Templates (render) as A.Templates
 import Test.WebRow.Applets.Registration.Templates (render) as R.Templates
-import Test.WebRow.Applets.Templates (toHTTPResponse) as Templates
 import Type.Row (type (+))
-import WebRow.Applets.Auth (RouteRow, routeBuilder, router) as Auth
+import WebRow.Applets.Auth (Messages, ResponseRow, RouteRow, routeBuilder, router) as Auth
+import WebRow.Applets.Auth.Effects (Auth)
 import WebRow.Applets.Auth.Types (_auth)
+import WebRow.Applets.Registration (Messages, ResponseRow, RouteRow, router) as Registration
 import WebRow.Applets.Registration (Route(..)) as Registration.Routes
-import WebRow.Applets.Registration (RouteRow, router) as Registration
 import WebRow.Applets.Registration (routeBuilder) as Registartion
 import WebRow.Applets.Registration.Effects (Registration, RegistrationF(..))
 import WebRow.Applets.Registration.Types (_registration)
-import WebRow.Mailer (_mailer)
-import WebRow.Routing (_routing, runRouting)
+import WebRow.Crypto (Crypto)
+import WebRow.HTTP (HTTPResponse)
+import WebRow.Mailer (Email(..), Mailer)
+import WebRow.Routing (FullUrl, Routing', _routing)
 import WebRow.Session.SessionStore (hoist) as SessionStore
 import WebRow.Session.SessionStore.InMemory (forRef) as SessionStore.InMemory
-import WebRow.Testing.HTTP (post, run) as T.H
-import WebRow.Testing.Interpret (_mailQueue, runMailer)
+import WebRow.Testing.HTTP (post_, run) as T.H
+import WebRow.Testing.Interpret (runMailer')
 import WebRow.Testing.Interpret (runMessage) as Testing.Interpret
+import WebRow.Types (WebRow)
 
-type Route = Variant (Auth.RouteRow + Registration.RouteRow + ())
--- type Route = Variant (Registration.RouteRow + ())
+type RouteRow = (Auth.RouteRow + Registration.RouteRow + ())
 
-routeDuplex ∷ D.RouteDuplex' Route
+type MessageRow = (Auth.Messages + Registration.Messages + ())
+
+type ResponseRow = (Auth.ResponseRow + Registration.ResponseRow + ())
+
+routeDuplex ∷ D.RouteDuplex' (Variant RouteRow)
 routeDuplex = D.root $ RouteDuplex.Variant.variant' routes
   where
-    routes = Record.Builder.build (Auth.routeBuilder <<< Registartion.routeBuilder) {}
-    -- routes = Record.Builder.build (Registartion.routeBuilder) {}
+    routes = Record.Builder.build
+      (Auth.routeBuilder <<< Registartion.routeBuilder)
+      {}
+
 runRegistration
   ∷ ∀ eff
   . Run
@@ -57,48 +59,76 @@ runRegistration
     + eff
     )
    ~> Run eff
-runRegistration = Run.interpret (Run.on _registration handler Run.send)
+runRegistration = Run.run (Run.on _registration handler Run.send)
   where
-    handler ∷ RegistrationF ~> Run eff
-    handler (EmailTaken email next) = pure (next true)
+    -- handler ∷ RegistrationF ~> Run eff
+    handler (EmailTaken (Email email) next) = pure (next $ email == "already-taken@example.com")
 
+render
+  ∷ ∀ eff
+  . Variant ResponseRow
+  → Run (Routing' RouteRow + eff) (HTTPResponse String)
 render = case_
-  # on _auth Templates.toHTTPResponse
+  # on _auth A.Templates.render
   # on _registration R.Templates.render
 
-server req =  runRouting "test.example.com" routeDuplex req $ Testing.Interpret.runMessage do
+type UserSession = { user ∷ Maybe { email ∷ Email }}
+
+server
+  ∷ ∀ eff mails
+  . Run
+      ( Auth ()
+      + Crypto
+      + Mailer (emailVerification ∷ FullUrl | mails)
+      + Registration
+      + WebRow
+          MessageRow
+          UserSession
+          RouteRow
+      + eff
+      )
+      (Variant ResponseRow)
+server =  do
   routing ← askAt _routing
   -- | TODO: FIX THIS
-  response ← case_
+  case_
     # Registration.router
     # Auth.router
     $ routing.route
-  render response
 
 spec ∷ Spec Unit
 spec = do
   describe "Registration" do
     describe "registerEmail" do
-      it "flow" do
-        -- | TODO: Could it be a helper in WebRow.Testing.Sesssion?
+      let
+        run ref c = do
+          ss ← Effect.liftEffect do
+            SessionStore.hoist Run.liftEffect <$>
+              SessionStore.InMemory.forRef ref { user: Nothing }
+          runBaseAff'
+            $ Testing.Interpret.runMessage
+            $ runAuth
+            $ runMailer'
+            $ runRegistration
+            $ (T.H.run ss routeDuplex render server c)
+
+      it "fails for already registered email" do
         ref ← Effect.liftEffect $ Effect.Ref.new mempty
-        ss ← Effect.liftEffect do
-          SessionStore.hoist Run.liftEffect <$>
-            SessionStore.InMemory.forRef ref { user: Nothing }
-        let
-          client = do
+
+        Tuple mails httpSession ← run ref do
+          let
+            registrationUrl = (D.print routeDuplex (inj _registration Registration.Routes.RegisterEmail))
+          T.H.post_ registrationUrl { "email": "already-taken@example.com" }
+
+        length mails `shouldEqual` 0
+
+      it "sends registration mail to new address" do
+        ref ← Effect.liftEffect $ Effect.Ref.new mempty
+
+        Tuple mails httpSession ← run ref do
             let
               registrationUrl = (D.print routeDuplex (inj _registration Registration.Routes.RegisterEmail))
+            T.H.post_ registrationUrl { "email": "not-taken@example.com" }
 
-            response ← T.H.post registrationUrl $ Decoded $ Map.fromFoldableWithIndex $ Object.fromHomogeneous $
-              { "email": [ "user@example.com" ] }
-            pure unit
-
-        Tuple mails httpSession ← runBaseAff' $ runAuth $ runWriterAt _mailQueue $ runMailer $ runRegistration $ (T.H.run ss server client)
-
-        log "\nMails:"
-        log $ unsafeStringify $ Array.fromFoldable mails
-
-        log "\nThe whole session:"
-        logShow $ unsafeStringify httpSession
+        length mails `shouldEqual` 1
 

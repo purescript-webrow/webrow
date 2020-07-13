@@ -4,10 +4,11 @@ import Prelude
 
 import Data.List (List)
 import Data.List (singleton) as List
+import Data.Tuple (Tuple)
 import Global.Unsafe (unsafeStringify)
 import Run (Run)
 import Run (interpret, on, send) as Run
-import Run.Writer (WRITER, tellAt)
+import Run.Writer (WRITER, runWriterAt, tellAt)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.Mailer (Mail, MailerF, Mailer, _mailer)
@@ -32,3 +33,6 @@ handleMail (Mailer.SendF mail next) = do
 
 runMailer ∷ ∀ eff mails. Run (Mailer mails + MailQueue mails + eff) ~> Run (MailQueue mails + eff)
 runMailer = Run.interpret (Run.on _mailer handleMail Run.send)
+
+runMailer' ∷ ∀ a eff mails. Run (Mailer mails + MailQueue mails + eff) a → Run (eff) (Tuple (List (Mail mails)) a)
+runMailer' = runWriterAt _mailQueue <<< runMailer

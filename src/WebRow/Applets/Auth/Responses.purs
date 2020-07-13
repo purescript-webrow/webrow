@@ -1,6 +1,7 @@
 module WebRow.Applets.Auth.Responses where
 
 import WebRow.Applets.Auth.Forms (LoginLayout) as Forms
+import WebRow.Applets.Auth.Types (Namespace)
 
 data LoginResponse
   = LoginFormValidationFailed Forms.LoginLayout
@@ -11,6 +12,8 @@ data LoginResponse
 data Response
   = LoginResponse LoginResponse
   | LogoutResponse
+
+type ResponseRow responses = Namespace Response responses
 
 -- response
 --   ∷ ∀ a eff res widgets

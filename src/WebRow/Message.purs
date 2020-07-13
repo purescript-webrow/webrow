@@ -23,3 +23,5 @@ type MESSAGE messages = FProxy (MessageF (Variant messages))
 
 type Message messages eff = (message ∷ MESSAGE messages | eff)
 
+-- type Message' messages eff = Message (Variant messages) eff
+

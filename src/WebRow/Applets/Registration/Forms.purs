@@ -35,7 +35,7 @@ emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { name: "email", policy
   where
     validator = Validator.checkM
       (Batteries.error _emailTaken)
-      Effects.emailTaken
+      (map not <$> Effects.emailTaken)
 
 _passwordsMismatch = SProxy ∷ SProxy "passwordsMismatch"
 
