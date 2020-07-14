@@ -1,4 +1,4 @@
-module Test.WebRow.Applets.Auth.Templates where
+module WebRow.Applets.Auth.Testing.Templates where
 
 import Prelude
 

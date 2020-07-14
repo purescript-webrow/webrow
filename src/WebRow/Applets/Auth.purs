@@ -10,7 +10,7 @@ import Prelude
 
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
-import Data.Variant (inj, on)
+import Data.Variant (Variant, inj, on)
 import HTTPure as HTTPure
 import Run (Run)
 import Type.Row (type (+))
@@ -18,12 +18,13 @@ import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Effects (Auth, User) as Exports
 import WebRow.Applets.Auth.Forms (loginForm)
 import WebRow.Applets.Auth.Messages (Messages) as Exports
-import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..))
+import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..), ResponseRow)
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..), ResponseRow) as Exports
 import WebRow.Applets.Auth.Routes (Route(..)) as Routes
 import WebRow.Applets.Auth.Routes (Route, RouteRow)
 import WebRow.Applets.Auth.Routes (localDuplex, routeBuilder, Route(..), RouteRow) as Exports
 import WebRow.Applets.Auth.Types (Password, _auth, namespace)
+import WebRow.Crypto (Crypto)
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
 import WebRow.HTTP (methodNotAllowed', method, redirect)
@@ -41,16 +42,22 @@ type AuthRow messages routes session user eff =
     | messages
     )
     { user ∷ Maybe (User user) | session }
-    (RouteRow routes)
+    (RouteRow + routes)
   + Auth user
   + eff
   )
 
--- router
---   ∷ ∀ eff messages routes session user
---   . (Variant routes → Run (AuthRow messages routes session user eff) Response)
---   → Variant (auth ∷ Route | routes )
---   → Run (AuthRow messages routes session user eff) (Variant (Namespace Response response))
+router
+  :: ∀ eff messages responses routes routes' session user
+  . ( Variant routes
+    → Run
+      (AuthRow messages routes' session user + eff)
+      (Variant (ResponseRow + responses))
+    )
+  → Variant (RouteRow + routes)
+  → Run
+    (AuthRow messages routes' session user + eff)
+    (Variant (ResponseRow + responses))
 router = on _auth (map (inj _auth) <$> localRouter)
 
 localRouter
@@ -63,15 +70,7 @@ localRouter = case _ of
 
 login
   ∷ ∀ eff messages routes session user
-  . Run
-    ( AuthRow
-      messages
-      routes
-      session
-      user
-    + eff
-    )
-    Response
+  . Run (AuthRow messages routes session user + eff) Response
 login = method >>= case _ of
   HTTPure.Post → do
     body ← fromBody

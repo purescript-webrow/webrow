@@ -24,7 +24,8 @@ data Route
   -- | ChangeEmailConfirmation { payload ∷ String }
 derive instance genericRoute ∷ Generic Route _
 
-type RouteRow r = Namespace Route r
+-- | ( registartion ∷ Route | routes)
+type RouteRow routes = Namespace Route routes
 
 localDuplex ∷ RouteDuplex' Route
 localDuplex = DG.sum

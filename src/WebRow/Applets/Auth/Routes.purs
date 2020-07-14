@@ -22,8 +22,8 @@ data Route
   --       })
 derive instance genericRoute ∷ Generic Route _
 
--- | (route ∷ ( auth ∷ Route | routes) | eff)
-type RouteRow routes = (Namespace Route routes)
+-- | ( auth ∷ Route | routes)
+type RouteRow routes = Namespace Route routes
 
 localDuplex ∷ RouteDuplex' Route
 localDuplex = DG.sum

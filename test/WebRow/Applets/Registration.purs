@@ -17,16 +17,16 @@ import Run.Reader (askAt)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.WebRow.Applets.Auth (runAuth)
-import Test.WebRow.Applets.Auth.Templates (render) as A.Templates
-import Test.WebRow.Applets.Registration.Templates (render) as R.Templates
 import Type.Row (type (+))
 import WebRow.Applets.Auth (Messages, ResponseRow, RouteRow, routeBuilder, router) as Auth
 import WebRow.Applets.Auth.Effects (Auth)
+import WebRow.Applets.Auth.Testing.Templates (render) as A.Templates
 import WebRow.Applets.Auth.Types (_auth)
 import WebRow.Applets.Registration (Messages, ResponseRow, RouteRow, router) as Registration
 import WebRow.Applets.Registration (Route(..)) as Registration.Routes
 import WebRow.Applets.Registration (routeBuilder) as Registartion
 import WebRow.Applets.Registration.Effects (Registration, RegistrationF(..))
+import WebRow.Applets.Registration.Testing.Templates (render) as R.Templates
 import WebRow.Applets.Registration.Types (_registration)
 import WebRow.Crypto (Crypto)
 import WebRow.HTTP (HTTPResponse)
@@ -52,17 +52,11 @@ routeDuplex = D.root $ RouteDuplex.Variant.variant' routes
       (Auth.routeBuilder <<< Registartion.routeBuilder)
       {}
 
-runRegistration
-  ∷ ∀ eff
-  . Run
-    ( Registration
-    + eff
-    )
-   ~> Run eff
+runRegistration ∷ ∀ eff. Run (Registration + eff) ~> Run eff
 runRegistration = Run.run (Run.on _registration handler Run.send)
   where
-    -- handler ∷ RegistrationF ~> Run eff
-    handler (EmailTaken (Email email) next) = pure (next $ email == "already-taken@example.com")
+    handler (EmailTaken (Email email) next) =
+      pure (next $ email == "already-registered@example.com")
 
 render
   ∷ ∀ eff
@@ -73,6 +67,12 @@ render = case_
   # on _registration R.Templates.render
 
 type UserSession = { user ∷ Maybe { email ∷ Email }}
+
+-- | Handling through this localRouter
+-- x =
+--   { registration: Registration.localRouter
+--   , auth: Auth.localRouter
+--   }
 
 server
   ∷ ∀ eff mails
@@ -90,7 +90,6 @@ server
       (Variant ResponseRow)
 server =  do
   routing ← askAt _routing
-  -- | TODO: FIX THIS
   case_
     # Registration.router
     # Auth.router
@@ -118,7 +117,7 @@ spec = do
         Tuple mails httpSession ← run ref do
           let
             registrationUrl = (D.print routeDuplex (inj _registration Registration.Routes.RegisterEmail))
-          T.H.post_ registrationUrl { "email": "already-taken@example.com" }
+          T.H.post_ registrationUrl { "email": "already-registered@example.com" }
 
         length mails `shouldEqual` 0
 

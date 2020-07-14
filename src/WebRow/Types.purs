@@ -9,12 +9,12 @@ import WebRow.Session (Session)
 
 _webrow = SProxy ∷ SProxy "webrow"
 
-type WebRow messages session route eff =
+type WebRow messages session routes eff =
   ( Cookies
   + HTTPExcept
   + Message messages
   + Request
-  + Routing' route
+  + Routing' routes
   + Session session
   + eff
   )

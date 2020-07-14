@@ -13,7 +13,7 @@ import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
-import Data.Variant (inj, on)
+import Data.Variant (Variant, inj, on)
 import HTTPure (Method(..)) as HTTPure
 import Run (Run)
 import Type.Prelude (SProxy(..))
@@ -22,7 +22,7 @@ import WebRow.Applets.Registration.Effects (Registration)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
 import WebRow.Applets.Registration.Messages (Messages) as Exports
-import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..))
+import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), ResponseRow)
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), ResponseRow) as Exports
 import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
 import WebRow.Applets.Registration.Routes (RouteRow)
@@ -30,7 +30,6 @@ import WebRow.Applets.Registration.Routes (localDuplex, routeBuilder, Route(..),
 import WebRow.Applets.Registration.Types (SignedEmail(..), _registration)
 import WebRow.Crypto (Crypto)
 import WebRow.Crypto (sign, unsign) as Crypto
-import WebRow.Crypto.String (sign, unsign) as Crypto.String
 import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
@@ -40,18 +39,43 @@ import WebRow.Mailer (send) as Mailer
 import WebRow.Routing (FullUrl)
 import WebRow.Types (WebRow)
 
--- -- | I'm not sure about this response polymorphism here
--- -- | Is it good or bad? Or doesn't matter at all?
--- router
---   ∷ ∀ a eff ctx res routes user
---   . (Variant (Auth.Routes.RouteRow + routes) → Run (Effects ctx res routes user eff) a)
---   → Variant (Routes.RouteRow + Auth.Routes.RouteRow + routes)
---   → Run (Effects ctx res routes user eff) a
-router = on _registration $ case _ of
-    Routes.RegisterEmail → inj _registration <$> registerEmail
-    Routes.Confirmation email → inj _registration <$> confirmation email
---     Routes.ChangeEmail → changeEmail
---     Routes.ChangeEmailConfirmation payload → changeEmailConfirmation payload
+type RegistartionRow messages routes session mails eff =
+  ( WebRow
+     ( emailTaken :: Email
+     , invalidEmailFormat :: String
+     , singleValueExpected :: Maybe (Array String)
+     , passwordsMismatch :: { password1 ∷ String, password2 ∷ String }
+     | messages
+     )
+     session
+     (RouteRow + routes)
+  + Crypto
+  + Mailer (emailVerification ∷ FullUrl | mails)
+  + Registration
+  + eff
+  )
+
+router
+  :: ∀ eff mails messages responses routes routes' session
+  . ( Variant routes
+    → Run
+        (RegistartionRow messages routes' session mails eff)
+        (Variant (ResponseRow + responses))
+    )
+  → Variant (RouteRow + routes)
+  → Run
+      (RegistartionRow messages routes' session mails eff)
+      (Variant (ResponseRow + responses))
+router = on _registration (map (inj _registration) <$> localRouter)
+
+localRouter
+  ∷ ∀ eff mails messages routes session
+  . Routes.Route
+  → Run (RegistartionRow messages routes session mails eff) Response
+localRouter = case _ of
+    Routes.RegisterEmail → registerEmail
+    Routes.Confirmation email → confirmation email
+
 
 _emailVerification = SProxy ∷ SProxy "emailVerification"
 

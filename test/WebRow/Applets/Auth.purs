@@ -17,14 +17,14 @@ import Record.Builder (build) as Record.Builder
 import Routing.Duplex (RouteDuplex', print, root) as D
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
 import Run (Run, liftEffect, runBaseAff')
-import Run (interpret, liftEffect, on, send) as Run
+import Run (interpret, liftEffect, on, run, send) as Run
 import Run.Reader (askAt)
 import Test.Spec (Spec, describe, it)
-import Test.WebRow.Applets.Auth.Templates (render) as Templates
 import Type.Row (type (+))
 import WebRow.Applets.Auth (RouteRow, routeBuilder, router) as Auth
 import WebRow.Applets.Auth.Effects (Auth, AuthF(..))
 import WebRow.Applets.Auth.Routes (Route(..)) as Auth.Routes
+import WebRow.Applets.Auth.Testing.Templates (render) as Templates
 import WebRow.Applets.Auth.Types (Password(..), _auth)
 import WebRow.Contrib.Run (EffRow)
 import WebRow.Mailer (Email(..))
@@ -42,19 +42,10 @@ routeDuplex = D.root $ RouteDuplex.Variant.variant' routes
   where
     routes = Record.Builder.build Auth.routeBuilder {}
 
-runAuth
-  ∷ ∀ eff
-  . Run
-    ( Auth ()
-    + EffRow
-    + eff
-    )
-   ~> Run (EffRow + eff)
-runAuth = Run.interpret (Run.on _auth handler Run.send)
+runAuth ∷ ∀ eff. Run (Auth () + eff) ~> Run eff
+runAuth = Run.run (Run.on _auth handler Run.send)
   where
-    handler ∷ AuthF () ~> Run (EffRow + eff)
     handler (Authenticate email password next) = do
-      liftEffect $ log $ "Validating blabla" <> unsafeStringify email
       if email == Email "user@example.com" && un Password password == "correct"
         then pure $ next (Just { email })
         else pure $ next Nothing

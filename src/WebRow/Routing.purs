@@ -6,6 +6,7 @@ module WebRow.Routing
   , context
   , printRoute
   , printFullRoute
+  , route
   , _routing
   , runRouting
   )
@@ -85,4 +86,5 @@ runRouting domain routeDuplex request action =
     Right routing → runReaders { request, routing } action
     Left _ → notFound HTTPure.Headers.empty
 
-
+route ∷ ∀ eff route. Run (Routing route + eff) route
+route = askAt _routing <#> _.route
