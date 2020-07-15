@@ -16,19 +16,17 @@ import Run (Run)
 import Type.Row (type (+))
 import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Effects (Auth, User) as Exports
-import WebRow.Applets.Auth.Forms (loginForm)
+import WebRow.Applets.Auth.Forms (AuthPayload, loginForm)
 import WebRow.Applets.Auth.Messages (Messages) as Exports
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..), ResponseRow)
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..), ResponseRow) as Exports
 import WebRow.Applets.Auth.Routes (Route(..)) as Routes
 import WebRow.Applets.Auth.Routes (Route, RouteRow)
 import WebRow.Applets.Auth.Routes (localDuplex, routeBuilder, Route(..), RouteRow) as Exports
-import WebRow.Applets.Auth.Types (Password, _auth, namespace)
-import WebRow.Crypto (Crypto)
+import WebRow.Applets.Auth.Types (_auth, namespace)
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
 import WebRow.HTTP (methodNotAllowed', method, redirect)
-import WebRow.Mailer (Email)
 import WebRow.Routing (fromRelativeUrl)
 import WebRow.Routing (printRoute) as Routing
 import WebRow.Session (delete, fetch, modify) as Session
@@ -36,9 +34,10 @@ import WebRow.Types (WebRow)
 
 type AuthRow messages routes session user eff =
   ( WebRow
-    ( authFailed ∷ { email ∷ Email, password ∷ Password }
+    ( authFailed ∷ AuthPayload
     , invalidEmailFormat ∷ String
     , singleValueExpected ∷ Maybe (Array String)
+    , stringNotEmptyExpected ∷ Unit
     | messages
     )
     { user ∷ Maybe (User user) | session }

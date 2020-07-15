@@ -15,12 +15,15 @@ import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
 import HTTPure (Method(..)) as HTTPure
+import Polyform.Batteries.String.Validators (NotEmptyExpected) as String
+import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
 import Run (Run)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.Applets.Registration.Effects (Registration)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
+import WebRow.Applets.Registration.Messages (Messages)
 import WebRow.Applets.Registration.Messages (Messages) as Exports
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), ResponseRow)
 import WebRow.Applets.Registration.Responses (ConfirmationResponse(..), RegisterEmailResponse(..), Response(..), ResponseRow) as Exports
@@ -30,25 +33,28 @@ import WebRow.Applets.Registration.Routes (localDuplex, routeBuilder, Route(..),
 import WebRow.Applets.Registration.Types (SignedEmail(..), _registration)
 import WebRow.Crypto (Crypto)
 import WebRow.Crypto (sign, unsign) as Crypto
-import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
+import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.HTTP (method, methodNotAllowed')
 import WebRow.Mailer (Email(..), Mailer)
 import WebRow.Mailer (send) as Mailer
 import WebRow.Routing (FullUrl)
 import WebRow.Types (WebRow)
 
+type AllMessages messages =
+  ( Messages
+  + InvalidEmailFormat
+  + String.NotEmptyExpected
+  + SingleValueExpected
+  + messages
+  )
+
 type RegistartionRow messages routes session mails eff =
   ( WebRow
-     ( emailTaken :: Email
-     , invalidEmailFormat :: String
-     , singleValueExpected :: Maybe (Array String)
-     , passwordsMismatch :: { password1 ∷ String, password2 ∷ String }
-     | messages
-     )
-     session
-     (RouteRow + routes)
+      (AllMessages + messages)
+      session
+      (RouteRow + routes)
   + Crypto
   + Mailer (emailVerification ∷ FullUrl | mails)
   + Registration
@@ -76,7 +82,6 @@ localRouter = case _ of
     Routes.RegisterEmail → registerEmail
     Routes.Confirmation email → confirmation email
 
-
 _emailVerification = SProxy ∷ SProxy "emailVerification"
 
 registerEmail
@@ -86,11 +91,7 @@ registerEmail
     + Mailer (emailVerification ∷ FullUrl | mails)
     + Registration
     + WebRow
-      ( emailTaken :: Email
-      , invalidEmailFormat :: String
-      , singleValueExpected :: Maybe (Array String)
-      | messages
-      )
+      (AllMessages messages)
       session
       (RouteRow routes)
     + eff
@@ -117,10 +118,7 @@ confirmation
     ( Crypto
     + Registration
     + WebRow
-      ( singleValueExpected :: Maybe Payload.Value
-      , passwordsMismatch :: { password1 ∷ String, password2 ∷ String }
-      | messages
-      )
+      (AllMessages messages)
       session
       routes
     + eff

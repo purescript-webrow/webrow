@@ -158,16 +158,17 @@ textInputBuilder args = fieldBuilder
       , result: map (mkExists <<< Identity) <$> result
       }
 
-type PasswordInputInitials =
+type PasswordInputInitials eff info =
   { label ∷ Opt String
   , name ∷ Opt String
   , placeholder ∷ Opt String
+  , policy ∷ Opt (FieldValidator eff (SingleValueExpected + info) String String)
   , helpText ∷ Opt String
   }
 
 passwordInputBuilder
   ∷ ∀ args eff info r
-  . NoProblem.Closed.Coerce args PasswordInputInitials
+  . NoProblem.Closed.Coerce args (PasswordInputInitials eff info)
   ⇒ args
   → Builder
     eff
@@ -180,10 +181,11 @@ passwordInputBuilder args = textInputBuilder
   , helpText
   , label
   , name
-  , validator: Batteries.singleValue
+  , type_: "password"
+  , validator: Batteries.singleValue >>> (i.policy ! identity)
   }
   where
-    i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials
+    i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials eff info
 
 type EmailMessages r = InvalidEmailFormat + SingleValueExpected + r
 
@@ -192,7 +194,7 @@ type EmailInputInitials eff info =
   , name ∷ Opt String
   , placeholder ∷ Opt String
   , helpText ∷ Opt String
-  , policy ∷ Opt (Polyform.Validator (MessageM (EmailMessages + info) eff) (Errors (EmailMessages + info)) Email Email)
+  , policy ∷ Opt (FieldValidator eff (EmailMessages + info) Email Email)
   }
 
 emailInputBuilder

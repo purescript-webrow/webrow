@@ -2,16 +2,23 @@ module WebRow.Session where
 
 import Prelude
 
+import Data.Lazy (Lazy)
+import Data.Lazy (force) as Lazy
+import Data.Map (Map)
+import Effect.Ref (Ref)
 import HTTPure (empty) as Headers
-import Prim.Row (class Union) as Row
 import Run (FProxy, Run, SProxy(..))
-import Run (interpret, lift, on, send) as Run
+import Run (interpret, lift, liftEffect, on, send) as Run
 import Type.Row (type (+))
+import WebRow.Contrib.Run (EffRow)
 import WebRow.HTTP (HTTPExcept, internalServerError)
-import WebRow.Session.SessionStore.Run (SessionStoreRow)
-import WebRow.Session.SessionStore.Run (delete, fetch, save) as SessionStore.Run
+import WebRow.HTTP.Cookies (Cookies)
+import WebRow.HTTP.Cookies (defaultAttributes, delete, lookup, set) as Cookies
+import WebRow.KeyValueStore.Types (Key)
+import WebRow.Session.SessionStore (SessionStore)
+import WebRow.Session.SessionStore (hoist) as SessionStore
+import WebRow.Session.SessionStore.InMemory (lazy) as SessionStore.InMemory
 
--- | TODO: Move these pieces to Session.Effects
 data SessionF session a
   = DeleteF (Boolean → a)
   | FetchF (session → a)
@@ -50,17 +57,44 @@ save session = Run.lift _session (SaveF session identity) >>= not >>> if _
   else
     pure unit
 
--- | To use clean API we provide effect layer
-handleSession
-  ∷ ∀ eff sEff sEff_ session
-  . Row.Union sEff sEff_ (SessionStoreRow sEff session + eff)
-  ⇒ SessionF session ~> Run (SessionStoreRow sEff session + eff)
-handleSession (DeleteF next) = SessionStore.Run.delete >>= next >>> pure
-handleSession (FetchF next) = SessionStore.Run.fetch >>= next >>> pure
-handleSession (SaveF v next) = SessionStore.Run.save v >>= next >>> pure
+cookieName ∷ Key
+cookieName = "sessionId"
 
-runSession ∷ ∀ eff sEff sEff_ session
-  .  Row.Union sEff sEff_ ( SessionStoreRow sEff session + eff)
-  ⇒ Run ( Session session + SessionStoreRow sEff session + eff)
-  ~> Run ( SessionStoreRow sEff session + eff)
-runSession = Run.interpret (Run.on _session handleSession Run.send)
+handleSession
+  ∷ ∀ eff session
+  . (Lazy (SessionStore (Run (Cookies + eff)) session)) → SessionF session ~> Run (Cookies + eff)
+handleSession ss (DeleteF next) = do
+  void $ Cookies.delete cookieName
+  (Lazy.force ss).delete >>= next >>> pure
+handleSession ss (FetchF next) = do
+  let
+    key = (Lazy.force ss).key
+  -- | TODO:
+  -- | * Handle custom cookie attributes (expiration etc.).
+  -- | * Should we raise here internalServerError when `set` returns `false`?
+  -- | * Should we run testing cycle of test cookie setup?
+  void $ Cookies.set cookieName { value: key, attributes: Cookies.defaultAttributes }
+  (Lazy.force ss).fetch >>= next >>> pure
+handleSession ss (SaveF v next) = do
+  let
+    key = (Lazy.force ss).key
+  void $ Cookies.set cookieName { value: key, attributes: Cookies.defaultAttributes }
+  (Lazy.force ss).save v >>= next >>> pure
+
+run ∷ ∀ eff session
+  . Lazy (SessionStore (Run (Cookies + eff)) session)
+  → Run (Cookies + Session session + eff)
+  ~> Run (Cookies + eff)
+run ss action = Run.interpret (Run.on _session (handleSession ss) Run.send) action
+
+runInMemory ∷ ∀ a eff session
+  . Ref (Map String session)
+  → session
+  → Run (Cookies + EffRow + Session session + eff) a
+  → Run (Cookies + EffRow + eff) a
+runInMemory ref defaultSession action = do
+  lazySessionKey ← Cookies.lookup cookieName
+  lazySessionStore ← Run.liftEffect $
+    SessionStore.InMemory.lazy ref defaultSession lazySessionKey
+  run (map (SessionStore.hoist Run.liftEffect) lazySessionStore) action
+

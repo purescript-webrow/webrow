@@ -1,5 +1,7 @@
 module WebRow.Crypto
-  ( _crypto
+  ( module Exports
+  , _crypto
+  , run
   , secret
   , signJson
   , sign
@@ -15,8 +17,9 @@ import Data.Argonaut (Json)
 import Data.Either (Either(..))
 import HTTPure (empty) as Headers
 import Node.Simple.Jwt (Secret)
+import Node.Simple.Jwt (Secret) as Exports
 import Run (Run, SProxy(..))
-import Run.Reader (READER, askAt)
+import Run.Reader (READER, askAt, runReaderAt)
 import Type.Row (type (+))
 import WebRow.Crypto.Jwt (UnsignError)
 import WebRow.Crypto.Jwt (sign, unsign) as Jwt
@@ -64,3 +67,6 @@ unsign
   → Run (Crypto + eff) (Either UnsignError String)
 unsign json =
   askAt _crypto <#> \s → String.unsign s json
+
+run ∷ ∀ eff. Secret → Run (Crypto + eff) ~> Run eff
+run = runReaderAt _crypto

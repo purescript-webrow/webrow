@@ -6,4 +6,4 @@ import WebRow.Applets.Auth.Forms (AuthFailed)
 import WebRow.Forms.Validators (InvalidEmailFormat)
 
 
-type Messages r = AuthFailed + InvalidEmailFormat + SingleValueExpected + r
+type Messages r = AuthFailed + r

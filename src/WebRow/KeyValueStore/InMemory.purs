@@ -7,14 +7,17 @@ import Data.Map (delete, insert, lookup) as Map
 import Effect (Effect)
 import Effect.Ref (Ref)
 import Effect.Ref (modify, new, read) as Ref
-import WebRow.KeyValueStore.Types (KeyValueStore, hoist, newKey)
+import WebRow.KeyValueStore.Types (KeyValueStore, newKey)
 
 type InMemory a = KeyValueStore Effect a
 
+-- | TODO: Provide also efficient JS Map reference
+-- | based implementation done through mutable
+-- | reference.
 new ∷ ∀ a. Effect (InMemory a)
 new = forRef <$> Ref.new mempty
 
-forRef ∷ ∀ a. Ref (Map String a) → (InMemory a)
+forRef ∷ ∀ a. Ref (Map String a) → InMemory a
 forRef ref =
   let
     key = newKey ""
@@ -26,7 +29,3 @@ forRef ref =
   in
     { delete, get, new: key, put }
 
-lifted ∷ ∀ a m. (Effect ~> m) → Effect (KeyValueStore m a)
-lifted liftEffect = do
-  kv ← new
-  pure $ hoist liftEffect kv

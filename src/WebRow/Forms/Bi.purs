@@ -205,7 +205,7 @@ textInputBuilder args =
 
 passwordInputBuilder
   ∷ ∀ args eff info r
-  . Closed.Coerce args PasswordInputInitials
+  . Closed.Coerce args (PasswordInputInitials eff info)
   ⇒ args
   → Builder
     eff
@@ -221,7 +221,7 @@ passwordInputBuilder args = textInputBuilder
   , type_: "password"
   }
   where
-    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials
+    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ (PasswordInputInitials eff info)
 
 closeSection ∷ ∀ eff i info o widgets. Variant info → Builder eff info widgets i o → Builder eff info widgets i o
 closeSection title (Builder (B.BuilderD bd)) = builder do

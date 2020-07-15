@@ -2,23 +2,19 @@ module Test.WebRow.Applets.Auth where
 
 import Prelude
 
-import Data.Map (fromFoldableWithIndex) as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Variant (Variant, case_, inj, on)
 import Effect.Class (liftEffect) as Effect
 import Effect.Class.Console (log)
 import Effect.Ref (new) as Effect.Ref
-import Effect.Ref (read) as Ref
-import Foreign.Object (fromHomogeneous) as Object
+import Effect.Ref (new, read) as Ref
 import Global.Unsafe (unsafeStringify)
-import Polyform.Batteries.UrlEncoded.Query (Decoded(..))
 import Record.Builder (build) as Record.Builder
 import Routing.Duplex (RouteDuplex', print, root) as D
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
 import Run (Run, liftEffect, runBaseAff')
-import Run (interpret, liftEffect, on, run, send) as Run
-import Run.Reader (askAt)
+import Run (liftEffect, on, run, send) as Run
 import Test.Spec (Spec, describe, it)
 import Type.Row (type (+))
 import WebRow.Applets.Auth (RouteRow, routeBuilder, router) as Auth
@@ -26,12 +22,10 @@ import WebRow.Applets.Auth.Effects (Auth, AuthF(..))
 import WebRow.Applets.Auth.Routes (Route(..)) as Auth.Routes
 import WebRow.Applets.Auth.Testing.Templates (render) as Templates
 import WebRow.Applets.Auth.Types (Password(..), _auth)
-import WebRow.Contrib.Run (EffRow)
 import WebRow.Mailer (Email(..))
-import WebRow.Routing (_routing, runRouting)
+import WebRow.Routing (route)
 import WebRow.Session (fetch) as Session
 import WebRow.Session.SessionStore (hoist) as SessionStore
-import WebRow.Session.SessionStore.InMemory (forRef) as SessionStore.InMemory
 import WebRow.Testing.HTTP (get, post, run) as T.H
 import WebRow.Testing.Interpret (runMessage) as Testing.Interpret
 
@@ -50,9 +44,8 @@ runAuth = Run.run (Run.on _auth handler Run.send)
         then pure $ next (Just { email })
         else pure $ next Nothing
 
-server = Testing.Interpret.runMessage $ runAuth $ do
-  routing ← askAt _routing
-  case_ # Auth.router $ routing.route
+server = Testing.Interpret.runMessage $ runAuth $ bind route $ case_
+  # Auth.router
 
 render = case_
   # on _auth Templates.render
@@ -62,12 +55,10 @@ spec = do
   describe "Auth" do
     describe "login" do
       it "flow" do
-        -- | TODO: Could it be a helper in WebRow.Testing.Sesssion?
-        ref ← Effect.liftEffect $ Effect.Ref.new mempty
-        ss ← Effect.liftEffect do
-          SessionStore.hoist Run.liftEffect <$>
-            SessionStore.InMemory.forRef ref { user: Nothing }
+        ref ← Effect.liftEffect $ Ref.new mempty
         let
+          sessionStorageConfig =
+            { default: { user: Nothing }, ref, key: Nothing }
           client = do
             let
               loginUrl = (D.print routeDuplex (inj _auth Auth.Routes.Login))
@@ -109,7 +100,7 @@ spec = do
             liftEffect $ log "\nSession:"
             liftEffect $ log $ unsafeStringify s
 
-        httpSession ← runBaseAff' $ T.H.run ss routeDuplex render server client
+        httpSession ← runBaseAff' $ T.H.run sessionStorageConfig routeDuplex render server client
         Effect.liftEffect $ log "\nSession store:"
         Effect.liftEffect $ log =<< (Ref.read ref <#> unsafeStringify)
         pure unit

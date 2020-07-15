@@ -28,9 +28,7 @@ type RenderWidgets widgets = Variant widgets → Html Unit
 formBody ∷ ∀ widgets. RenderWidgets widgets → FormLayout widgets → Html Unit
 formBody renderExtra (Forms.Section { closed, errors, layout }) = do
   -- | TODO: Render form errors
-  -- for_ errors case _ of
-  --   Just (Left r) → M.p $ M.text (unsafeStringify r)
-  --   otherwise → pure unit
+  for_ errors \msg → M.p $ M.text msg
   case closed of
     Just { title } → M.h2 $ M.text title
     Nothing → pure unit

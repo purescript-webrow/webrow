@@ -5,6 +5,8 @@ import Prelude
 import Data.Either (note)
 import Data.Validation.Semigroup (V(..))
 import Polyform.Batteries (error) as Batteries
+import Polyform.Batteries.String.Validators (NotEmptyExpected)
+import Polyform.Batteries.String.Validators (isNotEmpty, NotEmptyExpected) as String
 import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
 import Polyform.Validator (liftFnMV) as Validator
 import Type.Prelude (SProxy(..))
@@ -29,7 +31,7 @@ type AuthFailed r = (authFailed ∷ AuthPayload | r)
 loginForm :: forall eff errs user.
   Forms.Uni
     (Effects.Auth user + eff)
-    (AuthFailed + InvalidEmailFormat + SingleValueExpected + errs)
+    (AuthFailed + InvalidEmailFormat + SingleValueExpected + NotEmptyExpected + errs)
     (TextInput + ())
     (User user)
 loginForm = Uni.build
@@ -40,7 +42,7 @@ loginForm = Uni.build
       ∷ ∀ errs' widgets'
       . Uni.Builder
           (Effects.Auth user + eff)
-          (AuthFailed + errs')
+          (AuthFailed + String.NotEmptyExpected + errs')
           widgets'
           AuthPayload
           (User user)
@@ -49,7 +51,8 @@ loginForm = Uni.build
       in
         V (note (Batteries.error _authFailed r) res)
 
-    passwordFormBuilder = Password <$> Uni.passwordInputBuilder { name: "password" }
+    passwordFormBuilder = Password <$> Uni.passwordInputBuilder
+      { name: "password", policy: String.isNotEmpty }
 
     emailFormBuilder = Uni.emailInputBuilder { name: "email" }
 

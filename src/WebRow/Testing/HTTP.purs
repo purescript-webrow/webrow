@@ -7,6 +7,7 @@ import Data.Lazy (defer) as Lazy
 import Data.List (List(..), reverse) as List
 import Data.List (List)
 import Data.Map (fromFoldableWithIndex) as Map
+import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect) as Effect
@@ -39,16 +40,14 @@ import WebRow.HTTP.Cookies.CookieStore (CookieStore(..))
 import WebRow.HTTP.Cookies.Types (RequestCookies)
 import WebRow.HTTP.Request (Request)
 import WebRow.Routing (Routing, runRouting)
-import WebRow.Session (Session, runSession)
-import WebRow.Session.SessionStore (SessionStore)
-import WebRow.Session.SessionStore (hoist) as SessionStore
-import WebRow.Session.SessionStore.InMemory (forRef) as SessionStore.InMemory
-import WebRow.Session.SessionStore.Run (SessionStoreRow, _sessionStore)
+import WebRow.Session (Session)
 import WebRow.Testing.HTTP.Cookies (toRequestCookies)
 import WebRow.Testing.HTTP.Response (Render) as Response
 import WebRow.Testing.HTTP.Response (Response) as Testing.HTTP
 import WebRow.Testing.HTTP.Response (runHTTPExcept, runRender, runSetHeader) as Testing.Response
 import WebRow.Testing.HTTP.Types (ClientCookies)
+import WebRow.Testing.Session (SessionStoreConfig)
+import WebRow.Testing.Session (runInMemory) as Testing.Session
 
 -- | TODO: Upgrdae to polymorphic `body` type here when
 -- | monorphic implementation is working.
@@ -168,19 +167,17 @@ type History res = List (Exchange res)
 run
   ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
-  ⇒ SessionStore (Run (AffRow + EffRow + ())) session
+      (S.Producer (Exchange res) + eff)
+  ⇒ SessionStoreConfig session
   → RouteDuplex' routes
   → Response.Render (Server session routes res + eff) String res
   → Run (Server session routes res + eff) res
   → Run (AffRow + Client session res + EffRow + eff) Unit
   → Run (AffRow + EffRow + eff) (History res)
-run sessionStore routeDuplex render server client
-  -- = runBaseAff'
-  = runReaderAt _sessionStore sessionStore
-  $ runSession
-  $ evalStateAt _httpSession (mempty ∷ ClientCookies)
-  $ httpSession
+run sessionStoreConfig routeDuplex render server client = do
+  Testing.Session.runInMemory sessionStoreConfig
+    $ evalStateAt _httpSession (mempty ∷ ClientCookies)
+    $ httpSession
   where
     -- | This can be a bit unintuitive but we have to expand
     -- | row with another yield so the consumer `take' 100`
@@ -196,7 +193,6 @@ run sessionStore routeDuplex render server client
       + HTTPSession
       + S.Producer (Exchange res)
       + S.Producer (Exchange res)
-      + SessionStoreRow (AffRow + EffRow + ()) session
       + Session session
       + eff
       )
@@ -227,11 +223,13 @@ run sessionStore routeDuplex render server client
               , response
               }
 
+
+
 runAff
   ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
-  ⇒ SessionStore (Run (AffRow + EffRow + ())) session
+      (S.Producer (Exchange res) + eff)
+  ⇒ SessionStoreConfig session
   → RouteDuplex' routes
   → Response.Render (Server session routes res + ()) String res
   → Run (Server session routes res + ()) res
@@ -243,7 +241,7 @@ runAff sessionStore routeDuplex render server client = do
 run'
   ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
+      (S.Producer (Exchange res) + eff)
   ⇒ session
   → RouteDuplex' routes
   → Response.Render (Server session routes res + eff) String res
@@ -251,16 +249,15 @@ run'
   → Run (AffRow + Client session res + EffRow + eff) Unit
   → Run (AffRow + EffRow + eff) (History res)
 run' defaultSession routeDuplex render server client = do
-  ss ← Effect.liftEffect do
-    ref ← Effect.Ref.new mempty
-    SessionStore.hoist Run.liftEffect <$>
-      SessionStore.InMemory.forRef ref defaultSession
-  run ss routeDuplex render server client
+  ref ← Run.liftEffect (Effect.Ref.new mempty)
+  let
+    sc = { ref, default: defaultSession, key: Nothing }
+  run sc routeDuplex render server client
 
 runAff'
   ∷ ∀ eff eff_ res routes session
   . Row.Union eff eff_
-      (S.Producer (Exchange res) + SessionStoreRow (AffRow + EffRow + ()) session + eff)
+      (S.Producer (Exchange res) + eff)
   ⇒ session
   → RouteDuplex' routes
   → Response.Render (Server session routes res + ())  String res
@@ -268,8 +265,7 @@ runAff'
   → Run (AffRow + Client session res + EffRow + ()) Unit
   → Aff (History res)
 runAff' defaultSession routeDuplex render server client = do
-  ss ← Effect.liftEffect do
-    ref ← Effect.Ref.new mempty
-    SessionStore.hoist Run.liftEffect <$>
-      SessionStore.InMemory.forRef ref defaultSession
-  runBaseAff' $ run ss routeDuplex render server client
+  ref ← Effect.liftEffect (Effect.Ref.new mempty)
+  let
+    sc = { ref, default: defaultSession, key: Nothing }
+  runBaseAff' $ run sc routeDuplex render server client

@@ -6,6 +6,7 @@ module WebRow.HTTP.Cookies
   , delete
   , lookup
   , lookup'
+  , run
   , set
   )
   where
@@ -38,16 +39,16 @@ _cookies = SProxy ∷ SProxy "cookies"
 cookies ∷ ∀ eff. Run (Cookies + eff) CookieStore
 cookies = getAt _cookies
 
-lookup' ∷ ∀ eff. Name → Run (Cookies + Crypto + eff) (Lazy (Maybe Values))
+lookup' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Values))
 lookup' name =
   CookieStore.lookup' name <$> cookies
 
-lookup ∷ ∀ eff. Name → Run (Cookies + Crypto + eff) (Lazy (Maybe Value))
+lookup ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Value))
 lookup name =
   CookieStore.lookup name <$> cookies
 
 -- | TODO: We should handle here cookie errors like "to large cookies" etc.
-set ∷ ∀ eff. Name → SetValue → Run (Cookies + Crypto + eff) Boolean
+set ∷ ∀ eff. Name → SetValue → Run (Cookies + eff) Boolean
 set name v = do
   cookies' ← CookieStore.set name v <$> cookies
   case cookies' of
@@ -56,7 +57,7 @@ set name v = do
       pure true
     Nothing → pure false
 
-delete ∷ ∀ eff. Name → Run (Cookies + Crypto + eff) Boolean
+delete ∷ ∀ eff. Name → Run (Cookies + eff) Boolean
 delete name = set name { value: "", attributes: attributes _{ expires = Just epoch }}
 
 -- | Useful for testing when we want
