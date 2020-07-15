@@ -2,10 +2,10 @@ module WebRow.Testing.Session where
 
 import Prelude
 
-import Data.Lazy (Lazy, defer)
-import Data.Lazy (force) as Lazy
+import Data.Lazy (defer)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
+import Effect (Effect)
 import Effect.Ref (Ref)
 import Run (Run)
 import Run (interpret, liftEffect, on, send) as Run
@@ -25,16 +25,19 @@ type SessionStoreConfig session =
 
 handleSession
   ∷ ∀ eff session
-  . Lazy (SessionStore (Run eff) session) → SessionF session ~> Run eff
-handleSession ss (DeleteF next) = (Lazy.force ss).delete >>= next >>> pure
-handleSession ss (FetchF next) = (Lazy.force ss).fetch >>= next >>> pure
-handleSession ss (SaveF v next) = (Lazy.force ss).save v >>= next >>> pure
+  . Effect (SessionStore (Run (EffRow + eff)) session) → SessionF session ~> Run (EffRow + eff)
+handleSession ss (DeleteF next) =
+  Run.liftEffect ss >>= _.delete >>= next >>> pure
+handleSession ss (FetchF next) = Run.liftEffect ss >>= _.fetch >>= next >>> pure
+handleSession ss (SaveF v next) = do
+  ss' ← Run.liftEffect ss
+  ss'.save v >>= next >>> pure
 
 run
   ∷ ∀ eff session
-  . Lazy (SessionStore (Run eff) session)
-  → Run (Session session + eff)
-  ~> Run (eff)
+  . Effect (SessionStore (Run (EffRow + eff)) session)
+  → Run (EffRow + Session session + eff)
+  ~> Run (EffRow + eff)
 run ss action = Run.interpret (Run.on _session (handleSession ss) Run.send) action
 
 runInMemory ∷ ∀ a eff session
@@ -42,9 +45,8 @@ runInMemory ∷ ∀ a eff session
   → Run (EffRow + Session session + eff) a
   → Run (EffRow + eff) a
 runInMemory { default, key, ref } action = do
-  lazySessionStore ← Run.liftEffect $
-    SessionStore.InMemory.lazy ref default (defer \_ → key)
   let
-    ss = map (SessionStore.hoist Run.liftEffect) lazySessionStore
-  run ss action
+    ss = SessionStore.InMemory.lazy ref default (defer \_ → key)
+    ss' = map (SessionStore.hoist Run.liftEffect) ss
+  run ss' action
 

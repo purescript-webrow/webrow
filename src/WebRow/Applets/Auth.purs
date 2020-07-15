@@ -11,6 +11,7 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
+import Debug.Trace (traceM)
 import HTTPure as HTTPure
 import Run (Run)
 import Type.Row (type (+))
@@ -95,11 +96,9 @@ logout
     + eff
     )
     Response
-logout = method >>= case _ of
-  HTTPure.Post → do
-    void $ Session.delete
-    pure $ LogoutResponse
-  method → methodNotAllowed'
+logout = do
+  void $ Session.delete
+  pure $ LogoutResponse
 
 withUserRequired ∷ ∀ a eff messages routes session user
   . (User user → Run (AuthRow messages routes session user + eff) a)

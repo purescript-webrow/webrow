@@ -41,14 +41,15 @@ lookup ∷ Name → CookieStore → Lazy (Maybe Value)
 lookup name = map (map Array.NonEmpty.head) <<< lookup' name
 
 lookup' ∷ Name → CookieStore → Lazy (Maybe Values)
-lookup' name (CookieStore { requestCookies, secret, responseCookies }) =
-  defer \_ → signed >>= traverse unsign
+lookup' name (CookieStore { requestCookies, secret, responseCookies }) = defer f
   where
-    unsign v = hush (Crypto.String.unsign secret v)
-    signed = case name `Map.lookup` responseCookies of
-      Just { value, attributes } | (unwrap attributes).expires /= Just epoch → Just (Array.NonEmpty.singleton value)
-      Just _ → Nothing
-      Nothing → name `Object.lookup` (Lazy.force requestCookies)
+    f _ = signed >>= traverse unsign
+      where
+      unsign v = hush (Crypto.String.unsign secret v)
+      signed = case name `Map.lookup` responseCookies of
+        Just { value, attributes } | (unwrap attributes).expires /= Just epoch → Just (Array.NonEmpty.singleton value)
+        Just _ → Nothing
+        Nothing → name `Object.lookup` (Lazy.force requestCookies)
 
 set ∷ Name → SetValue → CookieStore → Maybe CookieStore
 set name { value, attributes } (CookieStore { requestCookies, secret, responseCookies }) = ado

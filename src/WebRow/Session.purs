@@ -5,6 +5,7 @@ import Prelude
 import Data.Lazy (Lazy)
 import Data.Lazy (force) as Lazy
 import Data.Map (Map)
+import Effect (Effect)
 import Effect.Ref (Ref)
 import HTTPure (empty) as Headers
 import Run (FProxy, Run, SProxy(..))
@@ -62,29 +63,28 @@ cookieName = "sessionId"
 
 handleSession
   ∷ ∀ eff session
-  . (Lazy (SessionStore (Run (Cookies + eff)) session)) → SessionF session ~> Run (Cookies + eff)
+  . Lazy (Effect (SessionStore (Run (Cookies + EffRow + eff)) session))
+  → SessionF session ~> Run (Cookies + EffRow + eff)
 handleSession ss (DeleteF next) = do
   void $ Cookies.delete cookieName
-  (Lazy.force ss).delete >>= next >>> pure
+  Run.liftEffect (Lazy.force ss) >>= _.delete >>= next >>> pure
 handleSession ss (FetchF next) = do
-  let
-    key = (Lazy.force ss).key
+  ss' ← Run.liftEffect $ Lazy.force ss
   -- | TODO:
   -- | * Handle custom cookie attributes (expiration etc.).
   -- | * Should we raise here internalServerError when `set` returns `false`?
   -- | * Should we run testing cycle of test cookie setup?
-  void $ Cookies.set cookieName { value: key, attributes: Cookies.defaultAttributes }
-  (Lazy.force ss).fetch >>= next >>> pure
+  void $ Cookies.set cookieName { value: ss'.key, attributes: Cookies.defaultAttributes }
+  ss'.fetch >>= next >>> pure
 handleSession ss (SaveF v next) = do
-  let
-    key = (Lazy.force ss).key
-  void $ Cookies.set cookieName { value: key, attributes: Cookies.defaultAttributes }
-  (Lazy.force ss).save v >>= next >>> pure
+  ss' ← Run.liftEffect $ Lazy.force ss
+  void $ Cookies.set cookieName { value: ss'.key, attributes: Cookies.defaultAttributes }
+  ss'.save v >>= next >>> pure
 
 run ∷ ∀ eff session
-  . Lazy (SessionStore (Run (Cookies + eff)) session)
-  → Run (Cookies + Session session + eff)
-  ~> Run (Cookies + eff)
+  . Lazy (Effect (SessionStore (Run (Cookies + EffRow + eff)) session))
+  → Run (Cookies + EffRow + Session session + eff)
+  ~> Run (Cookies + EffRow + eff)
 run ss action = Run.interpret (Run.on _session (handleSession ss) Run.send) action
 
 runInMemory ∷ ∀ a eff session
@@ -94,7 +94,7 @@ runInMemory ∷ ∀ a eff session
   → Run (Cookies + EffRow + eff) a
 runInMemory ref defaultSession action = do
   lazySessionKey ← Cookies.lookup cookieName
-  lazySessionStore ← Run.liftEffect $
-    SessionStore.InMemory.lazy ref defaultSession lazySessionKey
-  run (map (SessionStore.hoist Run.liftEffect) lazySessionStore) action
+  let
+    effSessionStore = SessionStore.InMemory.lazy ref defaultSession lazySessionKey
+  run (map (SessionStore.hoist Run.liftEffect) <$> effSessionStore) action
 

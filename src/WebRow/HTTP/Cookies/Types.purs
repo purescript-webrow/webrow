@@ -43,7 +43,7 @@ defaultAttributes = Attributes
   , expires: Nothing
   , httpOnly: false
   , maxAge: Nothing
-  , path: Nothing
+  , path: Just "/"
 
   , sameSite: Nothing
   , secure: false

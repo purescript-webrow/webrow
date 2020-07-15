@@ -13,7 +13,7 @@ import WebRow.Applets.Auth.Routes (Route) as Auth.Routes
 import WebRow.Applets.Auth.Types (_auth)
 import WebRow.HTTP (HTTPResponse)
 import WebRow.HTTP.Response (found, ok)
-import WebRow.Routing (Routing', fromFullUrl, printFullRoute)
+import WebRow.Routing (Routing', fromRelativeUrl, printRoute)
 import WebRow.Testing.Templates (form', html)
 
 render :: forall routes t7. Auth.Response -> Run (Routing' (auth ∷ Auth.Routes.Route | routes) + t7) (HTTPResponse String)
@@ -24,6 +24,6 @@ render = case _ of
     Auth.Responses.InitialEmailPassordForm formLayout → ok $ html $ form' formLayout
     Auth.Responses.LoginSuccess → ok $ html $ M.text "TEST"
   Auth.Responses.LogoutResponse → do
-    redirectTo ← fromFullUrl <$> printFullRoute (inj _auth Login)
+    redirectTo ← fromRelativeUrl <$> printRoute (inj _auth Login)
     found redirectTo
 

@@ -11,6 +11,7 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), joinWith, split, trim)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
+import Debug.Trace (traceM)
 import Foreign.Object as Object
 import Global.Unsafe (unsafeDecodeURIComponent, unsafeEncodeURIComponent)
 import HTTPure (Headers, lookup) as HTTPure
@@ -69,9 +70,14 @@ setCookieHeaderValue key value (Attributes { comment, expires, path, maxAge, dom
 
 parseCookies ∷ String → Either String RequestCookies
 parseCookies s =
-  splitPairs s
-  <#> map toCookieMap
-  <#> Object.fromFoldableWith append
+  let
+    x = do
+      traceM "PARSING COOKIES"
+      Nothing
+  in
+    splitPairs s
+    <#> map toCookieMap
+    <#> Object.fromFoldableWith append
 
 splitPairs ∷ String → Either String (Array (Tuple Name String))
 splitPairs =
