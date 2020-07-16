@@ -20,7 +20,7 @@ import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
 import Run (Run)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
-import WebRow.Applets.Registration.Effects (Registration)
+import WebRow.Applets.Registration.Effects (Registration, register)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
 import WebRow.Applets.Registration.Messages (Messages)
@@ -129,7 +129,8 @@ confirmation signedEmail = do
     Left err → pure err
     Right email → method >>= case _ of
       HTTPure.Post → fromBody >>= Forms.Uni.validate passwordForm >>= case _ of
-        Tuple _ (Just password) →
+        Tuple _ (Just password) → do
+          register email password
           pure $ ConfirmationResponse $ ConfirmationSucceeded email password
         Tuple form _ → do
           pure $ ConfirmationResponse $ PasswordValidationFailed form

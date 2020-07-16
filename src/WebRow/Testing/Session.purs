@@ -3,6 +3,7 @@ module WebRow.Testing.Session where
 import Prelude
 
 import Data.Lazy (defer)
+import Data.Lazy (force) as Lazy
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Effect (Effect)
@@ -47,6 +48,6 @@ runInMemory ∷ ∀ a eff session
 runInMemory { default, key, ref } action = do
   let
     ss = SessionStore.InMemory.lazy ref default (defer \_ → key)
-    ss' = map (SessionStore.hoist Run.liftEffect) ss
+    ss' = map (SessionStore.hoist Run.liftEffect) $ Lazy.force ss
   run ss' action
 

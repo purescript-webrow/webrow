@@ -47,7 +47,7 @@ passwordForm = Forms.Uni.build $ Forms.Uni.sectionValidator validator <<< passwo
   where
     validator = Validator.liftFn (Password <<< _.password1) <<< Validator.check
       (Batteries.error _passwordsMismatch)
-      (\r → r.password1 /= r.password2)
+      (\r → r.password1 == r.password2)
 
     passwordsForm = { password1: _, password2: _ }
       <$> Forms.Uni.passwordInputBuilder {}

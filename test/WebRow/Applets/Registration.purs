@@ -25,7 +25,7 @@ import Type.Row (type (+))
 import WebRow.Applets.Auth (Messages, ResponseRow, RouteRow, routeBuilder, router) as Auth
 import WebRow.Applets.Auth.Effects (Auth)
 import WebRow.Applets.Auth.Testing.Templates (render) as A.Templates
-import WebRow.Applets.Auth.Types (_auth)
+import WebRow.Applets.Auth.Types (Password(..), _auth)
 import WebRow.Applets.Registration (Messages, ResponseRow, RouteRow, router) as Registration
 import WebRow.Applets.Registration (Route(..)) as Registration.Routes
 import WebRow.Applets.Registration (routeBuilder) as Registartion
@@ -65,8 +65,10 @@ routeDuplex = D.root $ RouteDuplex.Variant.variant' routes
 runRegistration ∷ ∀ eff. Run (Registration + eff) ~> Run eff
 runRegistration = Run.run (Run.on _registration handler Run.send)
   where
-    handler (EmailTaken (Email email) next) =
+    handler (EmailTakenF (Email email) next) =
       pure (next $ email == "already-registered@example.com")
+    handler (RegisterF (Email email) (Password password) next) =
+      pure next
 
 render
   ∷ ∀ eff

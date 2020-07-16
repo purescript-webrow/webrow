@@ -5,9 +5,12 @@ import Prelude
 import Run (FProxy, Run)
 import Run (lift) as Run
 import Type.Prelude (SProxy(..))
+import WebRow.Applets.Auth.Types (Password)
 import WebRow.Mailer (Email)
 
-data RegistrationF a = EmailTaken Email (Boolean → a)
+data RegistrationF a
+  = EmailTakenF Email (Boolean → a)
+  | RegisterF Email Password a
 
 derive instance functorRegistrationF ∷ Functor RegistrationF
 
@@ -19,17 +22,9 @@ type Registration r = (registration ∷ REGISTER | r)
 
 emailTaken ∷ ∀ eff. Email → Run ( registration ∷ REGISTER | eff ) Boolean
 emailTaken email = do
-  Run.lift _registration (EmailTaken email identity)
+  Run.lift _registration (EmailTakenF email identity)
 
--- type Effects ctx res routes user eff widgets =
---   ( aff ∷ AFF
---   , auth ∷ AUTH user
---   , logger ∷ LOGGER
---   , mailer ∷ MAILER
---   , reader ∷ WebRow.Reader.READER ctx
---   , registration ∷ REGISTER
---   , response ∷ RESPONSE (ResponseRow widgets res)
---   , route ∷ ROUTE (Routes.RouteRow + Auth.Routes.RouteRow + routes)
---   | eff
---   )
--- 
+register ∷ ∀ eff. Email → Password → Run ( registration ∷ REGISTER | eff ) Unit
+register email password = do
+  Run.lift _registration (RegisterF email password unit)
+
