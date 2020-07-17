@@ -51,5 +51,7 @@ form renderExtra l = do
     formBody renderExtra l
     M.input ! A.type' "submit" ! A.value "submit"
 
+-- { dangerouslySetInnerHTML: { __html : "<a href=\"https://google.com\">UNSAFE</a>" }}
+
 form' ∷ FormLayout () → Html Unit
 form' = form case_

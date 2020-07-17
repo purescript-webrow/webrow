@@ -15,6 +15,7 @@ import Type.Row (type (+))
 newtype Email = Email String
 derive instance newtypeEmail ∷ Newtype Email _
 derive instance eqEmail ∷ Eq Email
+derive instance ordEmail ∷ Ord Email
 derive newtype instance showEmail ∷ Show Email
 
 -- | TODO: Fix this smart constructor - possibly use this:

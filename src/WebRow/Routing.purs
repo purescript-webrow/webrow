@@ -81,10 +81,11 @@ runRouting
   → HTTPure.Request
   → Run (HTTPExcept + Request + Routing route + eff)
   ~> Run (HTTPExcept + eff)
-runRouting domain routeDuplex request action =
+runRouting domain routeDuplex request action = do
   case context domain routeDuplex request.url of
     Right routing → runReaders { request, routing } action
-    Left _ → notFound HTTPure.Headers.empty
+    Left e → do
+      notFound HTTPure.Headers.empty
 
 route ∷ ∀ eff route. Run (Routing route + eff) route
 route = askAt _routing <#> _.route

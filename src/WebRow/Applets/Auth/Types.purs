@@ -15,5 +15,7 @@ namespace = inj _auth
 
 newtype Password = Password String
 derive instance newtypePassword ∷ Newtype Password _
+derive newtype instance eqPassword ∷ Eq Password
+derive newtype instance ordPassword ∷ Ord Password
 derive newtype instance showPassword ∷ Show Password
 

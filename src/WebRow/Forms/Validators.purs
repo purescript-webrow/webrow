@@ -5,8 +5,11 @@ import Prelude
 import Polyform.Batteries (Validator, error) as Batteries
 import Polyform.Validator (liftFnMaybe) as Validator
 import Type.Prelude (SProxy(..))
+import Type.Row (type (+))
 import WebRow.Mailer (Email)
 import WebRow.Mailer (email) as Mailer
+
+type Messages msgs = (InvalidEmailFormat + msgs)
 
 _invalidEmailFormat = SProxy ∷ SProxy "invalidEmailFormat"
 
