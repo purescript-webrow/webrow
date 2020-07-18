@@ -11,7 +11,6 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
-import Debug.Trace (traceM)
 import HTTPure as HTTPure
 import Run (Run)
 import Type.Row (type (+))
@@ -37,8 +36,7 @@ type AuthRow messages routes session user eff =
   ( WebRow
     ( authFailed ∷ AuthPayload
     , invalidEmailFormat ∷ String
-    , singleValueExpected ∷ Maybe (Array String)
-    , stringNotEmptyExpected ∷ Unit
+    , missingValue ∷ Unit
     | messages
     )
     { user ∷ Maybe (User user) | session }

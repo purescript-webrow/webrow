@@ -12,7 +12,9 @@ module WebRow.Forms.Uni
   , closeSection
   , fieldBuilder
   , emailInputBuilder
+  , optEmailInputBuilder
   , passwordInputBuilder
+  , optPasswordInputBuilder
   , sectionValidator
   , textInputBuilder
   , validate
@@ -35,8 +37,8 @@ import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Close
 import Data.Variant (Variant)
 import Polyform (Reporter, Validator) as Polyform
 import Polyform.Batteries (Errors)
-import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
-import Polyform.Batteries.UrlEncoded.Validators (singleValue) as Batteries
+import Polyform.Batteries.UrlEncoded.Validators (MissingValue, optValidator)
+import Polyform.Batteries.UrlEncoded.Validators (value) as Batteries
 import Polyform.Reporter (liftFn, liftValidatorWith, liftValidatorWithM, lmapM) as Reporter
 import Polyform.Validator (liftFn, lmapM) as Validator
 import Run (Run)
@@ -74,8 +76,8 @@ derive newtype instance semigroupoidBuilder ∷ Semigroupoid (Builder eff info w
 derive newtype instance categoryBuilder ∷ Category (Builder eff info widgets)
 
 -- | TODO: Custom names are currently NOT validated.
--- | We are not able (and don't want) to keep these
--- | info on type type level (we would lose `Monoid`
+-- | We are not able (and don't want) to keep this
+-- | info on the type type level (we would lose `Monoid`
 -- | instance with such a `Row`).
 -- | We probably want keep track of used names and provide
 -- | validation on value level during "`safeBuild`".
@@ -116,6 +118,10 @@ fieldBuilder { constructor, defaults, name, validator: msgValidator } = Builder 
     { reporter
     , default: constructor' { payload: defaults, names: ns, result: Nothing }
     }
+
+foreign import kind OptFlag
+foreign import data Optional ∷ OptFlag
+foreign import data Required ∷ OptFlag
 
 -- | We reuse this row in Forms.Bi
 type TextInputInitialsBase (r ∷ # Type) =
@@ -162,17 +168,17 @@ type PasswordInputInitials eff info =
   { label ∷ Opt String
   , name ∷ Opt String
   , placeholder ∷ Opt String
-  , policy ∷ Opt (FieldValidator eff (SingleValueExpected + info) String String)
+  , policy ∷ Opt (FieldValidator eff info String String)
   , helpText ∷ Opt String
   }
 
 passwordInputBuilder
   ∷ ∀ args eff info r
-  . NoProblem.Closed.Coerce args (PasswordInputInitials eff info)
+  . NoProblem.Closed.Coerce args (PasswordInputInitials eff (MissingValue + info))
   ⇒ args
   → Builder
     eff
-    (SingleValueExpected + info)
+    (MissingValue + info)
     (TextInput + r)
     UrlDecoded
     String
@@ -182,12 +188,34 @@ passwordInputBuilder args = textInputBuilder
   , label
   , name
   , type_: "password"
-  , validator: Batteries.singleValue >>> (i.policy ! identity)
+  , validator: Batteries.value >>> (i.policy ! identity)
+  }
+  where
+    i@{ helpText, label, name, placeholder } =
+      NoProblem.Closed.coerce args ∷ PasswordInputInitials eff (MissingValue + info)
+
+optPasswordInputBuilder
+  ∷ ∀ args eff info r
+  . NoProblem.Closed.Coerce args (PasswordInputInitials eff info)
+  ⇒ args
+  → Builder
+    eff
+    info
+    (TextInput + r)
+    UrlDecoded
+    (Maybe String)
+optPasswordInputBuilder args = textInputBuilder
+  { placeholder
+  , helpText
+  , label
+  , name
+  , type_: "password"
+  , validator: optValidator (i.policy ! identity)
   }
   where
     i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials eff info
 
-type EmailMessages r = InvalidEmailFormat + SingleValueExpected + r
+type EmailMessages r = InvalidEmailFormat + r
 
 type EmailInputInitials eff info =
   { label ∷ Opt String
@@ -201,12 +229,12 @@ emailInputBuilder
   ∷ ∀ args eff info r
   . NoProblem.Closed.Coerce
       args
-      (EmailInputInitials eff info)
+      (EmailInputInitials eff (MissingValue + info))
       -- (EmailInputInitials eff info)
   ⇒ args
   → Builder
       eff
-      (EmailMessages info)
+      (EmailMessages + MissingValue + info)
       (TextInput + r)
       UrlDecoded
       Email
@@ -216,10 +244,34 @@ emailInputBuilder args = textInputBuilder
   , label
   , name
   , type_: "email"
-  , validator: Batteries.singleValue >>> Validators.email >>> (i.policy ! identity)
+  , validator: Batteries.value >>> Validators.email >>> (i.policy ! identity)
+  }
+  where
+    i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff (MissingValue + info)
+
+optEmailInputBuilder
+  ∷ ∀ args eff info r
+  . NoProblem.Closed.Coerce
+      args
+      (EmailInputInitials eff info)
+  ⇒ args
+  → Builder
+      eff
+      (EmailMessages info)
+      (TextInput + r)
+      UrlDecoded
+      (Maybe Email)
+optEmailInputBuilder args = textInputBuilder
+  { placeholder
+  , helpText
+  , label
+  , name
+  , type_: "email"
+  , validator: optValidator (Validators.email >>> (i.policy ! identity))
   }
   where
     i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff info
+
 
 sectionValidator
   ∷ ∀ eff i info o widgets

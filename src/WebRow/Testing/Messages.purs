@@ -14,10 +14,10 @@ printers =
       \value → "Given value is not a valid email address: " <> show value
   }
 
-print
+validators
   ∷ ∀ r r' r''
   . Row.Union r Printers r'
   ⇒ Row.Nub r' r''
   ⇒ Record.Builder.Builder { | r } { | r'' }
-print = Record.Builder.merge printers
+validators = Record.Builder.merge printers
 

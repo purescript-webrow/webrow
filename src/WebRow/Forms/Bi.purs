@@ -40,9 +40,9 @@ import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Close
 import Data.Variant (Variant)
 import Polyform (Dual(..)) as Polyform
 import Polyform.Batteries (Errors)
-import Polyform.Batteries.UrlEncoded.Duals (singleValue) as Batteries
+import Polyform.Batteries.UrlEncoded.Duals (value) as Batteries
 import Polyform.Batteries.UrlEncoded.Query (Decoded(..)) as Query
-import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
+import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Dual (Dual(..), dual) as Dual
 import Polyform.Reporter (liftFn) as Polyform.Reporter
 import Polyform.Reporter.Dual (Dual, DualD) as Reporter
@@ -209,7 +209,7 @@ passwordInputBuilder
   ⇒ args
   → Builder
     eff
-    (SingleValueExpected + info)
+    (MissingValue + info)
     (TextInput + r)
     UrlDecoded
     String
@@ -217,7 +217,7 @@ passwordInputBuilder args = textInputBuilder
   { placeholder
   , helpText
   , label
-  , dual: Batteries.singleValue
+  , dual: Batteries.value
   , type_: "password"
   }
   where

@@ -11,8 +11,7 @@ import Data.Variant (Variant, case_, inj, on)
 import Effect.Class (liftEffect) as Effect
 import Effect.Ref (new) as Effect.Ref
 import Global.Unsafe (unsafeStringify)
-import Polyform.Batteries.String.Validators (NotEmptyExpected) as String
-import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
+import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Record.Builder (build) as Record.Builder
 import Routing.Duplex (RouteDuplex', print, root) as D
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
@@ -48,8 +47,7 @@ type MessageRow =
   ( Auth.Messages
   + Registration.Messages
   + InvalidEmailFormat
-  + String.NotEmptyExpected
-  + SingleValueExpected
+  + MissingValue
   + ()
   )
 

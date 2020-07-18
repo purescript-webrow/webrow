@@ -41,7 +41,8 @@ formBody renderExtra (Forms.Widget widget) = M.div $ do
     renderExtra
     # on _textInput \(TextInputProps { name, payload, result, type_ }) → do
       for_ result case _ of
-        Left r → M.p $ M.text (unsafeStringify r)
+        Left errors → for_ errors \msg →
+          M.p $ M.text msg
         otherwise → pure unit
       M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (payload >>= Array.head))
 

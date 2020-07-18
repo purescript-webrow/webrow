@@ -15,8 +15,7 @@ import Data.Newtype (un)
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
 import HTTPure (Method(..)) as HTTPure
-import Polyform.Batteries.String.Validators (NotEmptyExpected) as String
-import Polyform.Batteries.UrlEncoded.Validators (SingleValueExpected)
+import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Run (Run)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
@@ -45,8 +44,7 @@ import WebRow.Types (WebRow)
 type AllMessages messages =
   ( Messages
   + InvalidEmailFormat
-  + String.NotEmptyExpected
-  + SingleValueExpected
+  + MissingValue
   + messages
   )
 
