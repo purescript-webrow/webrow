@@ -261,5 +261,5 @@ validate
   ∷ ∀ eff info o widgets
   . Bi eff info widgets o
   → UrlDecoded
-  → MessageM info eff (Tuple (Layout widgets) (Maybe o))
+  → MessageM info eff (Tuple (Maybe o) (Layout widgets))
 validate (Bi form) = Form.validate form

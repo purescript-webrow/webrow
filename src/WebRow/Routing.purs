@@ -21,6 +21,7 @@ import Data.Map (fromFoldableWith) as Map
 import Data.Newtype (un)
 import Data.String (Pattern(..), Replacement(..), replaceAll) as String
 import Data.Variant (SProxy(..), Variant)
+import Debug.Trace (traceM)
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Request (Request) as HTTPure
 import Polyform.Batteries.UrlEncoded (Decoded(..))

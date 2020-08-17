@@ -3,6 +3,7 @@ module WebRow.Forms.Layout where
 import Prelude
 
 import Data.Bifunctor (class Bifunctor, bimap)
+import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
 import Data.List (List(..), singleton, snoc) as List
 import Data.List (List, (:))
 import Data.Maybe (Maybe(..))
@@ -38,6 +39,13 @@ data LayoutBase message widgets
   | Widget widgets
 
 derive instance functorLayoutBase ∷ Functor (LayoutBase message)
+instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
+  foldMap f (Widget widgets) = f widgets
+  foldMap f (Section { layout }) = foldMap (foldMap f) layout
+
+  foldr f = foldrDefault f
+  foldl f = foldlDefault f
+
 instance bifunctorLayoutBase ∷ Bifunctor LayoutBase where
   bimap f g (Section { closed, errors, layout }) = Section $
     { closed: (\r → { title: f r.title }) <$> closed

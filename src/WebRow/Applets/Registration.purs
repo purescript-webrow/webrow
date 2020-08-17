@@ -1,5 +1,6 @@
 module WebRow.Applets.Registration
   ( module Exports
+  , _emailVerification
   , confirmation
   , registerEmail
   , router
@@ -97,12 +98,12 @@ registerEmail
     Response
 registerEmail = method >>= case _ of
   HTTPure.Post → fromBody >>= Forms.Uni.validate emailTakenForm >>= case _ of
-    Tuple form (Just email@(Email e)) → do
+    Tuple (Just email@(Email e)) form → do
       signedEmail ← Crypto.sign e
       confirmationLink ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
       void $ Mailer.send ({ to: email, context: inj _emailVerification confirmationLink })
       pure $ RegisterEmailResponse $ EmailSent email confirmationLink
-    Tuple form _ → do
+    Tuple _ form → do
       pure $ RegisterEmailResponse $ EmailValidationFailed form
   HTTPure.Get → do
     form ← Forms.Uni.default emailTakenForm
@@ -127,10 +128,10 @@ confirmation signedEmail = do
     Left err → pure err
     Right email → method >>= case _ of
       HTTPure.Post → fromBody >>= Forms.Uni.validate passwordForm >>= case _ of
-        Tuple _ (Just password) → do
+        Tuple (Just password) _ → do
           register email password
           pure $ ConfirmationResponse $ ConfirmationSucceeded email password
-        Tuple form _ → do
+        Tuple _ form → do
           pure $ ConfirmationResponse $ PasswordValidationFailed form
       HTTPure.Get → do
         form ← Forms.Uni.default passwordForm

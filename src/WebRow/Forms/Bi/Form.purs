@@ -2,12 +2,11 @@ module WebRow.Forms.Bi.Form where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
-import Data.Tuple (Tuple(..))
+import Data.Maybe (Maybe)
+import Data.Tuple (Tuple)
 import Polyform (Dual(..))
 import Polyform.Reporter.Dual (Dual) as Reporter
 import Polyform.Reporter.Dual (runReporter, runSerializer) as Reporter.Dual
-import Polyform.Reporter.R (R(..)) as R
 import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..))
 import WebRow.Forms.BuilderM (eval) as BuilderM
 import WebRow.Forms.Layout (Layout)
@@ -43,7 +42,5 @@ validate
   . Monad m
   ⇒ Form m (Layout msg widget) o
   → UrlDecoded
-  → m (Tuple (Layout msg widget) (Maybe o))
-validate (Form { dual }) input = Reporter.Dual.runReporter dual input >>= case _ of
-  R.Success r o → pure $ Tuple r (Just o)
-  R.Failure r → pure $ Tuple r Nothing
+  → m (Tuple (Maybe o) (Layout msg widget))
+validate (Form { dual }) input = Reporter.Dual.runReporter dual input

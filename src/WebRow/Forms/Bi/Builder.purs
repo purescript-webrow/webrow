@@ -17,7 +17,7 @@ newtype BuilderD m layout i o' o = BuilderD
 
 derive instance functorBuilderD ∷ Functor m ⇒ Functor (BuilderD m layout i o')
 
-instance applyBuilderD ∷ (Monoid layout, Semigroup i, Applicative m) ⇒ Apply (BuilderD m layout i o') where
+instance applyBuilderD ∷ (Monoid layout, Semigroup i, Monad m) ⇒ Apply (BuilderD m layout i o') where
   apply (BuilderD sw1) (BuilderD sw2) = BuilderD $ do
     w1 ← sw1
     w2 ← sw2
@@ -27,7 +27,7 @@ instance applyBuilderD ∷ (Monoid layout, Semigroup i, Applicative m) ⇒ Apply
       }
 
 instance applicativeBuilderD
-  ∷ ( Monoid i, Monoid layout, Applicative m )
+  ∷ ( Monoid i, Monoid layout, Monad m )
   ⇒ Applicative (BuilderD m layout i o') where
   pure a = BuilderD $ pure
     { dualD: pure a

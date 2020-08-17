@@ -17,7 +17,7 @@ newtype Builder m layout i o = Builder
 derive instance newtypeBuilder ∷ Newtype (Builder m l i o) _
 derive instance functorBuilder ∷ (Applicative m) ⇒ Functor (Builder m layout i)
 
-instance applyBuilder ∷ (Applicative m, Semigroup layout) ⇒ Apply (Builder m layout i) where
+instance applyBuilder ∷ (Monad m, Monoid layout) ⇒ Apply (Builder m layout i) where
   apply (Builder sw1) (Builder sw2) = Builder $ do
     w1 ← sw1
     w2 ← sw2
@@ -25,14 +25,14 @@ instance applyBuilder ∷ (Applicative m, Semigroup layout) ⇒ Apply (Builder m
       { default: append <$> w1.default <*> w2.default
       , reporter: apply w1.reporter w2.reporter
       }
-instance applicativeBuilder ∷ (Applicative m, Monoid layout) ⇒ Applicative (Builder m layout i) where
+instance applicativeBuilder ∷ (Monad m, Monoid layout) ⇒ Applicative (Builder m layout i) where
   pure a = Builder $ do
     pure
       { default: pure mempty
       , reporter: pure a
       }
 
-instance semigroupoidBuilder ∷ (Monad m, Semigroup layout) ⇒ Semigroupoid (Builder m layout) where
+instance semigroupoidBuilder ∷ (Monad m, Monoid layout) ⇒ Semigroupoid (Builder m layout) where
   compose (Builder sw1) (Builder sw2) = Builder $ do
     w1 ← sw1
     w2 ← sw2

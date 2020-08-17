@@ -3,9 +3,13 @@ module WebRow.Forms.Widget where
 import Prelude
 
 import Data.Either (Either)
+import Data.Foldable (class Foldable, foldr)
+import Data.List (List(..), catMaybes, zip) as List
+import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe)
-import Data.Traversable (class Traversable, for)
+import Data.Traversable (class Traversable, for, sequence)
 import Data.Variant (Variant)
+import Polyform.Batteries.UrlEncoded (Decoded(..))
 import WebRow.Forms.BuilderM (BuilderM)
 import WebRow.Forms.BuilderM (id) as BuilderM
 import WebRow.Forms.Payload (Key, UrlDecoded, Value, lookup) as Payload
@@ -32,6 +36,7 @@ names
   ⇒ BuilderM (Names inputs)
 names = for (mempty ∷ inputs Unit) (\_ → BuilderM.id)
 
+-- | Extract payload from query given a functor with names
 payload
   ∷ ∀ inputs
   . Functor inputs
@@ -40,3 +45,19 @@ payload
   → Payload inputs
 payload inputs urlDecoded = map (flip Payload.lookup urlDecoded) inputs
 
+dump
+  ∷ ∀ inputs
+  . Foldable inputs
+  ⇒ Names inputs
+  → Payload inputs
+  → Payload.UrlDecoded
+dump ns pl
+  = Decoded
+  <<< Map.fromFoldable
+  -- | Drop empty values
+  <<< List.catMaybes
+  -- | Turn (Tuple k (Maybe v)) into (Maybe (Tuple k v))
+  <<< map sequence
+  $ List.zip
+      (foldr List.Cons List.Nil ns)
+      (foldr List.Cons List.Nil pl)

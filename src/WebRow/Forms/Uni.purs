@@ -59,14 +59,14 @@ import WebRow.Message (MESSAGE, message)
 
 type Layout widgets = Layout.Layout String widgets
 
-type FieldValidator eff info i o = Polyform.Validator (MessageM info eff) (Errors info) i o
+type MessageM msgs eff = Run (message ∷ MESSAGE msgs | eff)
 
-type MessageM info eff = Run (message ∷ MESSAGE info | eff)
+type FieldValidator eff info i o = Polyform.Validator (MessageM info eff) (Errors info) i o
 
 newtype Builder eff info widgets i o = Builder
   (B.Builder (MessageM info eff) (Layout widgets) i o)
 
-newtype Uni eff info widgets o = Uni (Form.Form (MessageM info eff) (Layout widgets) o)
+newtype Uni eff msgs widgets o = Uni (Form.Form (MessageM msgs eff) (Layout widgets) o)
 
 -- | Not able to derive one - probably monkind issue
 derive newtype instance functorBuilder ∷ Functor (Builder eff info widgets i)
@@ -297,14 +297,15 @@ build
   → Uni eff info widgets o
 build (Builder (B.Builder b)) = Uni $ Form.Form $ BuilderM.eval b
 
-default :: forall eff info widgets o.
-   Uni eff info widgets o
-   -> MessageM info eff (Layout widgets)
+default
+  ∷ ∀ eff info widgets o
+  . Uni eff info widgets o
+  → MessageM info eff (Layout widgets)
 default (Uni form) = Form.default form
 
 validate
   ∷ ∀ eff info o widgets
   . Uni eff info widgets o
   → UrlDecoded
-  → MessageM info eff (Tuple (Layout widgets) (Maybe o))
+  → MessageM info eff (Tuple (Maybe o) (Layout widgets))
 validate (Uni form) i = Form.validate form i
