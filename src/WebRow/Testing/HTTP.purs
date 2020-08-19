@@ -33,7 +33,7 @@ import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import Type.Row.Homogeneous (class Homogeneous)
 import WebRow.Contrib.Run (AffRow, EffRow)
-import WebRow.Crypto (Crypto, _crypto)
+import WebRow.Crypto (Crypto, Secret(..), _crypto)
 import WebRow.HTTP (Cookies, HTTPExcept, ResponseCookies, SetHeader)
 import WebRow.HTTP.Cookies (_cookies)
 import WebRow.HTTP.Cookies.CookieStore (CookieStore(..))
@@ -199,7 +199,7 @@ run sessionStoreConfig routeDuplex render server client = do
       Unit
     go = S.Pull.chain server' (Run.expand client)
       where
-        secret = "testing-secret"
+        secret = Secret "testing-secret"
         cookieStore requestCookies =
           CookieStore
             { requestCookies: Lazy.defer \_ → requestCookies

@@ -6,9 +6,9 @@ import Data.Argonaut (fromString, toString) as Argonaut
 import Data.Either (Either, note)
 import Effect.Exception (error) as Effect
 import Global.Unsafe (unsafeStringify)
-import Node.Simple.Jwt (Secret)
 import WebRow.Crypto.Jwt (SignError, UnsignError(..))
 import WebRow.Crypto.Jwt (sign, unsign) as Jwt
+import WebRow.Crypto.Types (Secret)
 
 sign
   ∷ Secret

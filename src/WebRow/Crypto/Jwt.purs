@@ -8,7 +8,8 @@ import Data.Either (Either(..))
 import Effect.Exception (Error, catchException) as Effect
 import Effect.Unsafe (unsafePerformEffect)
 import Node.Simple.Jwt (Algorithm(..), decode, encode, fromString, toString) as Jwt
-import Node.Simple.Jwt (JwtError, Secret)
+import Node.Simple.Jwt (JwtError)
+import WebRow.Crypto.Types (Secret(..))
 
 data UnsignError
   = JwtError JwtError
@@ -21,7 +22,7 @@ sign
   ∷ Secret
   → Json
   → Either SignError String
-sign secret json =
+sign (Secret secret) json =
   unsafePerformEffect $ Effect.catchException (pure <<< Left <<< PossibleEncodingError) s
   where
     s = (Right <<< Jwt.toString) <$> (Jwt.encode secret Jwt.HS512 (Argonaut.stringify json))
@@ -30,7 +31,7 @@ unsign
   ∷ Secret
   → String
   → Either UnsignError Json
-unsign secret str =
+unsign (Secret secret) str =
   unsafePerformEffect $ Effect.catchException (pure <<< Left <<< PossibleDecodingError) u
   where
     u = Jwt.decode secret (Jwt.fromString str) >>= case _ of

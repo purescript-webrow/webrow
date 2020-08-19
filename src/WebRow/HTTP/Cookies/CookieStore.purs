@@ -13,8 +13,8 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Foreign.Object as Object
 import HTTPure as HTTPure
-import Node.Simple.Jwt (Secret)
 import WebRow.Contrib.Data.JSDate (epoch)
+import WebRow.Crypto (Secret)
 import WebRow.Crypto.String (sign, unsign) as Crypto.String
 import WebRow.HTTP.Cookies.Headers (requestCookies, setCookieHeader)
 import WebRow.HTTP.Cookies.Types (Name, RequestCookies, SetValue, Value, Values, ResponseCookies)
