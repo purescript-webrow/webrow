@@ -1,6 +1,5 @@
 module WebRow.Crypto
-  ( module Exports
-  , _crypto
+  ( _crypto
   , run
   , secret
   , signJson
@@ -8,6 +7,7 @@ module WebRow.Crypto
   , unsignJson
   , unsign
   , Crypto
+  , module Types
   )
   where
 
@@ -16,14 +16,14 @@ import Prelude
 import Data.Argonaut (Json)
 import Data.Either (Either(..))
 import HTTPure (empty) as Headers
-import Node.Simple.Jwt (Secret)
-import Node.Simple.Jwt (Secret) as Exports
 import Run (Run, SProxy(..))
 import Run.Reader (READER, askAt, runReaderAt)
 import Type.Row (type (+))
 import WebRow.Crypto.Jwt (UnsignError)
 import WebRow.Crypto.Jwt (sign, unsign) as Jwt
 import WebRow.Crypto.String (sign, unsign) as String
+import WebRow.Crypto.Types (Secret(..))
+import WebRow.Crypto.Types (Secret(..)) as Types
 import WebRow.HTTP.Response.Except (HTTPExcept, internalServerError)
 
 _crypto = SProxy ∷ SProxy "crypto"
@@ -39,7 +39,7 @@ signJson
   . Json
   → Run (Crypto + HTTPExcept + eff) String
 signJson json = do
-  sec ← askAt _crypto
+  (Secret sec) ← askAt _crypto
   case Jwt.sign sec json of
     Left e → internalServerError Headers.empty "Serious problem..."
     Right s → pure s
@@ -49,7 +49,7 @@ sign
   . String
   → Run (Crypto + HTTPExcept + eff) String
 sign str = do
-  sec ← askAt _crypto
+  (Secret sec) ← askAt _crypto
   case String.sign sec str of
     Left e → internalServerError Headers.empty "Serious problem..."
     Right s → pure s
@@ -59,14 +59,14 @@ unsignJson
   . String
   → Run (Crypto + eff) (Either UnsignError Json)
 unsignJson json =
-  askAt _crypto <#> \s → Jwt.unsign s json
+  askAt _crypto <#> \(Secret s) → Jwt.unsign s json
 
 unsign
   ∷ ∀ eff
   . String
   → Run (Crypto + eff) (Either UnsignError String)
-unsign json =
-  askAt _crypto <#> \s → String.unsign s json
+unsign json = do
+  askAt _crypto <#> \(Secret s) → String.unsign s json
 
 run ∷ ∀ eff. Secret → Run (Crypto + eff) ~> Run eff
-run = runReaderAt _crypto
+run s = runReaderAt _crypto s
