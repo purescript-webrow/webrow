@@ -121,8 +121,9 @@ serveFile fileName = do
     notFoundHandler = const $ do
       log $ "File not found: " <> fileName
       HTTPure.notFound
+  -- | TODO: make this efficient
   liftAff
-    $ ((FS.readFile fileName  ∷ Aff Buffer) >>= HTTPure.ok' headers)
+    $ ((FS.readFile fileName ∷ Aff Buffer) >>= HTTPure.ok' headers)
     `catchError` notFoundHandler
 
 static ∷ ∀ m. MonadAff m ⇒ String → Array String → m HTTPure.Response.Response

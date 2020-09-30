@@ -16,6 +16,7 @@ import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
 import Run (Run, liftEffect, runBaseAff')
 import Run (liftEffect, on, run, send) as Run
 import Test.Spec (Spec, describe, it)
+import Test.Spec.Assertions (fail, shouldEqual)
 import Type.Row (type (+))
 import WebRow.Applets.Auth (RouteRow, routeBuilder, router) as Auth
 import WebRow.Applets.Auth.Effects (Auth, AuthF(..))
@@ -27,6 +28,7 @@ import WebRow.Routing (route)
 import WebRow.Session (fetch) as Session
 import WebRow.Session.SessionStore (hoist) as SessionStore
 import WebRow.Testing.HTTP (get, post, run) as T.H
+import WebRow.Testing.HTTP.Response (Response(..)) as T.H.R
 import WebRow.Testing.Interpret (runMessage) as Testing.Interpret
 
 type Route = Variant (Auth.RouteRow + ())
@@ -63,14 +65,17 @@ spec = do
             let
               loginUrl = (D.print routeDuplex (inj _auth Auth.Routes.Login))
 
-            -- response ← T.H.get loginUrl
             response ← T.H.post loginUrl
               { "email": "user@example.com"
               , "password": "wrong"
               }
 
-            liftEffect $ log "\nLogin wrong response:"
-            liftEffect $ log $ unsafeStringify response
+            -- | TODO:
+            -- | Refector this piece out into something like
+            -- | `Webrow.Testing.Spec.post` which expects status code etc.
+            liftEffect $ case response of
+                T.H.R.HTTPResponse r → r.parts.status `shouldEqual` 200
+                T.H.R.HTTPException _ _ → fail "Unexpected exception"
 
             s ← Session.fetch
             liftEffect $ log "\nSession:"
