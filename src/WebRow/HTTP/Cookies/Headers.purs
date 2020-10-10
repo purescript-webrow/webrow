@@ -70,14 +70,9 @@ setCookieHeaderValue key value (Attributes { comment, expires, path, maxAge, dom
 
 parseCookies ∷ String → Either String RequestCookies
 parseCookies s =
-  let
-    x = do
-      traceM "PARSING COOKIES"
-      Nothing
-  in
-    splitPairs s
-    <#> map toCookieMap
-    <#> Object.fromFoldableWith append
+  splitPairs s
+  <#> map toCookieMap
+  <#> Object.fromFoldableWith append
 
 splitPairs ∷ String → Either String (Array (Tuple Name String))
 splitPairs =

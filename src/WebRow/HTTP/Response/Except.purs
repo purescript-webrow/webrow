@@ -2,17 +2,13 @@ module WebRow.HTTP.Response.Except where
 
 import Prelude
 
-import Data.Either (Either(..))
 import Data.Variant (SProxy(..))
-import HTTPure (Headers, Response, Status, header, response') as HTTPure
+import HTTPure (Headers, Status, header) as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Headers (empty) as Headers
 import HTTPure.Status (badGateway, badRequest, forbidden, internalServerError, methodNotAllowed, notFound, notImplemented, serviceUnavailable, temporaryRedirect, unauthorized) as Status
 import Run (Run)
-import Run (expand) as Run
-import Run.Except (EXCEPT, catchAt, runExceptAt, throwAt)
-import Type.Row (type (+))
-import WebRow.Contrib.Run (AffRow, EffRow)
+import Run.Except (EXCEPT, throwAt)
 import WebRow.HTTP.Types (Body)
 import WebRow.Routing.Types (Url(..))
 

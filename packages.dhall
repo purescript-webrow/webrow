@@ -119,7 +119,7 @@ let additions =
 
 
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.13.6-20200404/packages.dhall sha256:f239f2e215d0cbd5c203307701748581938f74c4c78f4aeffa32c11c131ef7b6
+      https://github.com/purescript/package-sets/releases/download/psc-0.13.8-20201007/packages.dhall sha256:35633f6f591b94d216392c9e0500207bb1fec42dd355f4fecdfd186956567b6b
 
 let overrides = {=}
 
@@ -324,8 +324,8 @@ let additions =
   , homogeneous = homogeneous
   , literal = literal
   , oneof = oneof
-  , polyform = ../purescript-polyform/spago.dhall as Location
-  , polyform-batteries = ../purescript-polyform-batteries/spago.dhall as Location
+  , polyform = ../polyform/spago.dhall as Location
+  , polyform-batteries = ../polyform-batteries/spago.dhall as Location
   , postgresql-client = postgresql-client
   , prettyprinter = prettyprinter
   , routing-duplex-variant = routing-duplex-variant
