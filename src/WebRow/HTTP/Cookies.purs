@@ -6,13 +6,18 @@ module WebRow.HTTP.Cookies
   , delete
   , lookup
   , lookup'
+  , lookupJson
+  , lookupJson'
   , run
   , set
+  , setJson
   )
   where
 
 import Prelude
 
+import Data.Argonaut (Json)
+import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Foldable (for_)
 import Data.Lazy (Lazy)
 import Data.Maybe (Maybe(..))
@@ -25,9 +30,9 @@ import WebRow.Contrib.Data.JSDate (epoch)
 import WebRow.Crypto (Crypto, secret)
 import WebRow.HTTP.Cookies.CookieStore (CookieStore) as Exports
 import WebRow.HTTP.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHeaders)
-import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', set) as CookieStore
+import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', lookupJson, lookupJson', set, setJson) as CookieStore
+import WebRow.HTTP.Cookies.Types (Attributes, Name, SetValue, Value, Values, attributes)
 import WebRow.HTTP.Cookies.Types (Attributes(..), Name, Value, Values, RequestCookies, ResponseCookies, SetValue, defaultAttributes) as Exports
-import WebRow.HTTP.Cookies.Types (Name, SetValue, Value, Values, attributes)
 import WebRow.HTTP.Request (Request)
 import WebRow.HTTP.Request (headers) as Request
 import WebRow.HTTP.Response (setHeader, SetHeader) as Response
@@ -39,18 +44,35 @@ _cookies = SProxy ∷ SProxy "cookies"
 cookies ∷ ∀ eff. Run (Cookies + eff) CookieStore
 cookies = getAt _cookies
 
+lookup ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Value))
+lookup name =
+  CookieStore.lookup name <$> cookies
+
 lookup' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Values))
 lookup' name =
   CookieStore.lookup' name <$> cookies
 
-lookup ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Value))
-lookup name =
-  CookieStore.lookup name <$> cookies
+lookupJson ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Json))
+lookupJson name =
+  CookieStore.lookupJson name <$> cookies
+
+lookupJson' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe (NonEmptyArray Json)))
+lookupJson' name =
+  CookieStore.lookupJson' name <$> cookies
 
 -- | TODO: We should handle here cookie errors like "to large cookies" etc.
 set ∷ ∀ eff. Name → SetValue → Run (Cookies + eff) Boolean
 set name v = do
   cookies' ← CookieStore.set name v <$> cookies
+  case cookies' of
+    Just c → do
+      putAt _cookies c
+      pure true
+    Nothing → pure false
+
+setJson ∷ ∀ eff. Name → { json ∷ Json, attributes ∷ Attributes } → Run (Cookies + eff) Boolean
+setJson name v = do
+  cookies' ← CookieStore.setJson name v <$> cookies
   case cookies' of
     Just c → do
       putAt _cookies c

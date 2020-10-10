@@ -2,6 +2,7 @@ module WebRow.Session where
 
 import Prelude
 
+import Data.Argonaut (Json)
 import Data.Either (hush)
 import Data.Lazy (Lazy, defer)
 import Data.Lazy (force) as Lazy
@@ -19,7 +20,7 @@ import Type.Row (type (+))
 import WebRow.Contrib.Run (EffRow)
 import WebRow.HTTP (HTTPExcept, internalServerError)
 import WebRow.HTTP.Cookies (Cookies)
-import WebRow.HTTP.Cookies (defaultAttributes, delete, lookup, set) as Cookies
+import WebRow.HTTP.Cookies (defaultAttributes, delete, lookup, lookupJson, set, setJson) as Cookies
 import WebRow.KeyValueStore.Types (Key)
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (hoist) as SessionStore
@@ -105,7 +106,7 @@ runInMemoryStore ref defaultSession action = do
 -- | The whole session is stored in a cookie value so visible in the browser.
 -- | We don't need any key-value session store.
 runInCookieValue ∷ ∀ a eff err session
-  . Pure.Dual err String session
+  . Pure.Dual err Json session
   → Run (Cookies + EffRow + eff) session
   → Run (Cookies + EffRow + Session session + eff) a
   → Run (Cookies + EffRow + eff) a
@@ -114,7 +115,7 @@ runInCookieValue dual defaultSession action = do
   let
     decode maybeRepr = fromMaybe default $
       (maybeRepr >>= Pure.runValidator dual >>> toEither >>> hush)
-  lazySession ← map decode <$> Cookies.lookup cookieName
+  lazySession ← map decode <$> Cookies.lookupJson cookieName
   ref ← liftEffect $ Ref.new lazySession
 
   Run.interpret (Run.on _session (handleSession ref) Run.send) action
@@ -131,17 +132,18 @@ runInCookieValue dual defaultSession action = do
       lazySession ← liftEffect $ Ref.read ref
       let
         session = Lazy.force lazySession
-        repr = Pure.runSerializer dual session
+        json = Pure.runSerializer dual session
       -- | TODO:
       -- | * Handle custom cookie attributes (expiration etc.).
       -- | * Should we raise here internalServerError when `set` returns `false`?
       -- | * Should we run testing cycle of test cookie setup?
-      void $ Cookies.set cookieName { value: repr, attributes: Cookies.defaultAttributes }
+
+      void $ Cookies.setJson cookieName { json, attributes: Cookies.defaultAttributes }
       pure $ next session
     handleSession ref (SaveF v next) = do
       lazySession ← liftEffect $ Ref.read ref
       let
-        repr = Pure.runSerializer dual v
-      void $ Cookies.set cookieName { value: repr, attributes: Cookies.defaultAttributes }
+        json = Pure.runSerializer dual v
+      void $ Cookies.setJson cookieName { json, attributes: Cookies.defaultAttributes }
       pure (next true)
 

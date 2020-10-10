@@ -19,9 +19,9 @@ import HTTPure (empty) as Headers
 import Run (Run, SProxy(..))
 import Run.Reader (READER, askAt, runReaderAt)
 import Type.Row (type (+))
-import WebRow.Crypto.Jwt (UnsignError)
-import WebRow.Crypto.Jwt (sign, unsign) as Jwt
-import WebRow.Crypto.String (sign, unsign) as String
+import WebRow.Crypto.Jwt.Node (UnsignError)
+import WebRow.Crypto.Jwt.Node (sign, unsign) as Jwt
+import WebRow.Crypto.Jwt.Node.String (sign, unsign) as String
 import WebRow.Crypto.Types (Secret)
 import WebRow.Crypto.Types (Secret(..)) as Types
 import WebRow.HTTP.Response.Except (HTTPExcept, internalServerError)
