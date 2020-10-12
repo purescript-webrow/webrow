@@ -1,802 +1,644 @@
 module WebRow.I18N.ISO639.TwoLetter where
 
--- import Prelude
--- 
--- import Data.Maybe (Maybe)
--- import Data.Variant (Variant)
--- import Data.Variant (contract) as Variant
--- import Data.Variant.Internal (class VariantTags)
--- import Prim.Row (class Union)
--- import Prim.RowList (class RowToList)
--- import Type.Eval (class Eval)
--- import Type.Row (RProxy)
--- import WebRow.Utils.Data.Variant.Homogeneous (MapConst)
--- import WebRow.Utils.Data.Variant.Homogeneous (parse, recordGet) as Variant.Homogeneous
--- 
--- type Language = Variant (LanguageRow Unit)
--- 
--- parseAny ∷ String → Maybe Language
--- parseAny = Variant.Homogeneous.parse unit
--- 
--- parseSome
---   ∷ ∀ l missing tags
---   . RowToList l tags
---   ⇒ Union l missing (LanguageRow Unit)
---   ⇒ VariantTags tags
---   ⇒ String
---   → Maybe (Variant l)
--- parseSome = Variant.contract <=< parseAny
--- 
--- type Language =
---    { code ∷ String
---    , english ∷ String
---    , nativeName ∷ String
---    }
--- 
--- type LanguagesRow a =
---   ( aa ∷ a, ab ∷ a, ae ∷ a, af ∷ a, ak ∷ a, am ∷ a, an ∷ a, ar ∷ a
---   , as ∷ a, av ∷ a, ay ∷ a, az ∷ a, ba ∷ a, be ∷ a, bg ∷ a, bh ∷ a
---   , bi ∷ a, bm ∷ a, bn ∷ a, bo ∷ a, br ∷ a, bs ∷ a, ca ∷ a, ce ∷ a
---   , ch ∷ a, co ∷ a, cr ∷ a, cs ∷ a, cu ∷ a, cv ∷ a, cy ∷ a, da ∷ a
---   , de ∷ a, dv ∷ a, dz ∷ a, ee ∷ a, el ∷ a, en ∷ a, eo ∷ a, es ∷ a
---   , et ∷ a, eu ∷ a, fa ∷ a, ff ∷ a, fi ∷ a, fj ∷ a, fo ∷ a, fr ∷ a
---   , fy ∷ a, ga ∷ a, gd ∷ a, gl ∷ a, gn ∷ a, gu ∷ a, gv ∷ a, ha ∷ a
---   , he ∷ a, hi ∷ a, ho ∷ a, hr ∷ a, ht ∷ a, hu ∷ a, hy ∷ a, hz ∷ a
---   , ia ∷ a, id ∷ a, ie ∷ a, ig ∷ a, ii ∷ a, ik ∷ a, io ∷ a, is ∷ a
---   , it ∷ a, iu ∷ a, ja ∷ a, jv ∷ a, ka ∷ a, kg ∷ a, ki ∷ a, kj ∷ a
---   , kk ∷ a, kl ∷ a, km ∷ a, kn ∷ a, ko ∷ a, kr ∷ a, ks ∷ a, ku ∷ a
---   , kv ∷ a, kw ∷ a, ky ∷ a, la ∷ a, lb ∷ a, lg ∷ a, li ∷ a, ln ∷ a
---   , lo ∷ a, lt ∷ a, lu ∷ a, lv ∷ a, mg ∷ a, mh ∷ a, mi ∷ a, mk ∷ a
---   , ml ∷ a, mn ∷ a, mr ∷ a, ms ∷ a, mt ∷ a, my ∷ a, na ∷ a, nb ∷ a
---   , nd ∷ a, ne ∷ a, ng ∷ a, nl ∷ a, nn ∷ a, no ∷ a, nr ∷ a, nv ∷ a
---   , ny ∷ a, oc ∷ a, oj ∷ a, om ∷ a, or ∷ a, os ∷ a, pa ∷ a, pi ∷ a
---   , pl ∷ a, ps ∷ a, pt ∷ a, qu ∷ a, rm ∷ a, rn ∷ a, ro ∷ a, ru ∷ a
---   , rw ∷ a, sa ∷ a, sc ∷ a, sd ∷ a, se ∷ a, sg ∷ a, si ∷ a, sk ∷ a
---   , sl ∷ a, sm ∷ a, sn ∷ a, so ∷ a, sq ∷ a, sr ∷ a, ss ∷ a, st ∷ a
---   , su ∷ a, sv ∷ a, sw ∷ a, ta ∷ a, te ∷ a, tg ∷ a, th ∷ a, ti ∷ a
---   , tk ∷ a, tl ∷ a, tn ∷ a, to ∷ a, tr ∷ a, ts ∷ a, tt ∷ a, tw ∷ a
---   , ty ∷ a, ug ∷ a, uk ∷ a, ur ∷ a, uz ∷ a, ve ∷ a, vi ∷ a, vo ∷ a
---   , wa ∷ a, wo ∷ a, xh ∷ a, yi ∷ a, yo ∷ a, za ∷ a, zh ∷ a, zu ∷ a
---   )
--- 
--- names ∷ { | LanguagesRow Name }
--- names =
---   { aa: { code: "aa"
---         , english: "Afar"
---         , nativeName: "Afaraf"
---         }
---   , ab: { code: "ab"
---         , english: "Abkhaz"
---         , nativeName: "аҧсуа бызшәа"
---         }
---   , ae: { code: "ae"
---         , english: "Avestan"
---         , nativeName: "avesta"
---         }
---   , af: { code: "af"
---         , english: "Afrikaans"
---         , nativeName: "Afrikaans"
---         }
---   , ak: { code: "ak"
---         , english: "Akan"
---         , nativeName: "Akan"
---         }
---   , am: { code: "am"
---         , english: "Amharic"
---         , nativeName: "አማርኛ"
---         }
---   , an: { code: "an"
---         , english: "Aragonese"
---         , nativeName: "aragonés"
---         }
---   , ar: { code: "ar"
---         , english: "Arabic"
---         , nativeName: "اللغة العربية"
---         }
---   , as: { code: "as"
---         , english: "Assamese"
---         , nativeName: "অসমীয়া"
---         }
---   , av: { code: "av"
---         , english: "Avaric"
---         , nativeName: "авар мацӀ"
---         }
---   , ay: { code: "ay"
---         , english: "Aymara"
---         , nativeName: "aymar aru"
---         }
---   , az: { code: "az"
---         , english: "Azerbaijani"
---         , nativeName: "azərbaycan dili"
---         }
---   , ba: { code: "ba"
---         , english: "Bashkir"
---         , nativeName: "башҡорт теле"
---         }
---   , be: { code: "be"
---         , english: "Belarusian"
---         , nativeName: "беларуская мова"
---         }
---   , bg: { code: "bg"
---         , english: "Bulgarian"
---         , nativeName: "български език"
---         }
---   , bh: { code: "bh"
---         , english: "Bihari"
---         , nativeName: "भोजपुरी"
---         }
---   , bi: { code: "bi"
---         , english: "Bislama"
---         , nativeName: "Bislama"
---         }
---   , bm: { code: "bm"
---         , english: "Bambara"
---         , nativeName: "bamanankan"
---         }
---   , bn: { code: "bn"
---         , english: "Bengali"
---         , nativeName: "বাংলা"
---         }
---   , bo: { code: "bo"
---         , english: "Tibetan Standard"
---         , nativeName: "བོད་ཡིག"
---         }
---   , br: { code: "br"
---         , english: "Breton"
---         , nativeName: "brezhoneg"
---         }
---   , bs: { code: "bs"
---         , english: "Bosnian"
---         , nativeName: "bosanski jezik"
---         }
---   , ca: { code: "ca"
---         , english: "Catalan"
---         , nativeName: "Català"
---         }
---   , ce: { code: "ce"
---         , english: "Chechen"
---         , nativeName: "нохчийн мотт"
---         }
---   , ch: { code: "ch"
---         , english: "Chamorro"
---         , nativeName: "Chamoru"
---         }
---   , co: { code: "co"
---         , english: "Corsican"
---         , nativeName: "corsu"
---         }
---   , cr: { code: "cr"
---         , english: "Cree"
---         , nativeName: "ᓀᐦᐃᔭᐍᐏᐣ"
---         }
---   , cs: { code: "cs"
---         , english: "Czech"
---         , nativeName: "čeština"
---         }
---   , cu: { code: "cu"
---         , english: "Old Church Slavonic"
---         , nativeName: "ѩзыкъ словѣньскъ"
---         }
---   , cv: { code: "cv"
---         , english: "Chuvash"
---         , nativeName: "чӑваш чӗлхи"
---         }
---   , cy: { code: "cy"
---         , english: "Welsh"
---         , nativeName: "Cymraeg"
---         }
---   , da: { code: "da"
---         , english: "Danish"
---         , nativeName: "dansk"
---         }
---   , de: { code: "de"
---         , english: "German"
---         , nativeName: "Deutsch"
---         }
---   , dv: { code: "dv"
---         , english: "Divehi"
---         , nativeName: "Dhivehi"
---         }
---   , dz: { code: "dz"
---         , english: "Dzongkha"
---         , nativeName: "རྫོང་ཁ"
---         }
---   , ee: { code: "ee"
---         , english: "Ewe"
---         , nativeName: "Eʋegbe"
---         }
---   , el: { code: "el"
---         , english: "Greek"
---         , nativeName: "Ελληνικά"
---         }
---   , en: { code: "en"
---         , english: "English"
---         , nativeName: "English"
---         }
---   , eo: { code: "eo"
---         , english: "Esperanto"
---         , nativeName: "Esperanto"
---         }
---   , es: { code: "es"
---         , english: "Spanish"
---         , nativeName: "Español"
---         }
---   , et: { code: "et"
---         , english: "Estonian"
---         , nativeName: "eesti"
---         }
---   , eu: { code: "eu"
---         , english: "Basque"
---         , nativeName: "euskara"
---         }
---   , fa: { code: "fa"
---         , english: "Persian"
---         , nativeName: "فارسی"
---         }
---   , ff: { code: "ff"
---         , english: "Fula"
---         , nativeName: "Fulfulde"
---         }
---   , fi: { code: "fi"
---         , english: "Finnish"
---         , nativeName: "suomi"
---         }
---   , fj: { code: "fj"
---         , english: "Fijian"
---         , nativeName: "Vakaviti"
---         }
---   , fo: { code: "fo"
---         , english: "Faroese"
---         , nativeName: "føroyskt"
---         }
---   , fr: { code: "fr"
---         , english: "French"
---         , nativeName: "Français"
---         }
---   , fy: { code: "fy"
---         , english: "Western Frisian"
---         , nativeName: "Frysk"
---         }
---   , ga: { code: "ga"
---         , english: "Irish"
---         , nativeName: "Gaeilge"
---         }
---   , gd: { code: "gd"
---         , english: "Scottish Gaelic"
---         , nativeName: "Gàidhlig"
---         }
---   , gl: { code: "gl"
---         , english: "Galician"
---         , nativeName: "galego"
---         }
---   , gn: { code: "gn"
---         , english: "Guaraní"
---         , nativeName: "Avañe\"ẽ"
---         }
---   , gu: { code: "gu"
---         , english: "Gujarati"
---         , nativeName: "ગુજરાતી"
---         }
---   , gv: { code: "gv"
---         , english: "Manx"
---         , nativeName: "Gaelg"
---         }
---   , ha: { code: "ha"
---         , english: "Hausa"
---         , nativeName: "هَوُسَ"
---         }
---   , he: { code: "he"
---         , english: "Hebrew"
---         , nativeName: "עברית"
---         }
---   , hi: { code: "hi"
---         , english: "Hindi"
---         , nativeName: "हिन्दी"
---         }
---   , ho: { code: "ho"
---         , english: "Hiri Motu"
---         , nativeName: "Hiri Motu"
---         }
---   , hr: { code: "hr"
---         , english: "Croatian"
---         , nativeName: "hrvatski jezik"
---         }
---   , ht: { code: "ht"
---         , english: "Haitian"
---         , nativeName: "Kreyòl ayisyen"
---         }
---   , hu: { code: "hu"
---         , english: "Hungarian"
---         , nativeName: "magyar"
---         }
---   , hy: { code: "hy"
---         , english: "Armenian"
---         , nativeName: "Հայերեն"
---         }
---   , hz: { code: "hz"
---         , english: "Herero"
---         , nativeName: "Otjiherero"
---         }
---   , ia: { code: "ia"
---         , english: "Interlingua"
---         , nativeName: "Interlingua"
---         }
---   , id: { code: "id"
---         , english: "Indonesian"
---         , nativeName: "Bahasa Indonesia"
---         }
---   , ie: { code: "ie"
---         , english: "Interlingue"
---         , nativeName: "Interlingue"
---         }
---   , ig: { code: "ig"
---         , english: "Igbo"
---         , nativeName: "Asụsụ Igbo"
---         }
---   , ii: { code: "ii"
---         , english: "Nuosu"
---         , nativeName: "ꆈꌠ꒿ Nuosuhxop"
---         }
---   , ik: { code: "ik"
---         , english: "Inupiaq"
---         , nativeName: "Iñupiaq"
---         }
---   , io: { code: "io"
---         , english: "Ido"
---         , nativeName: "Ido"
---         }
---   , is: { code: "is"
---         , english: "Icelandic"
---         , nativeName: "Íslenska"
---         }
---   , it: { code: "it"
---         , english: "Italian"
---         , nativeName: "Italiano"
---         }
---   , iu: { code: "iu"
---         , english: "Inuktitut"
---         , nativeName: "ᐃᓄᒃᑎᑐᑦ"
---         }
---   , ja: { code: "ja"
---         , english: "Japanese"
---         , nativeName: "日本語"
---         }
---   , jv: { code: "jv"
---         , english: "Javanese"
---         , nativeName: "basa Jawa"
---         }
---   , ka: { code: "ka"
---         , english: "Georgian"
---         , nativeName: "ქართული"
---         }
---   , kg: { code: "kg"
---         , english: "Kongo"
---         , nativeName: "Kikongo"
---         }
---   , ki: { code: "ki"
---         , english: "Kikuyu"
---         , nativeName: "Gĩkũyũ"
---         }
---   , kj: { code: "kj"
---         , english: "Kwanyama"
---         , nativeName: "Kuanyama"
---         }
---   , kk: { code: "kk"
---         , english: "Kazakh"
---         , nativeName: "қазақ тілі"
---         }
---   , kl: { code: "kl"
---         , english: "Kalaallisut"
---         , nativeName: "kalaallisut"
---         }
---   , km: { code: "km"
---         , english: "Khmer"
---         , nativeName: "ខេមរភាសា"
---         }
---   , kn: { code: "kn"
---         , english: "Kannada"
---         , nativeName: "ಕನ್ನಡ"
---         }
---   , ko: { code: "ko"
---         , english: "Korean"
---         , nativeName: "한국어"
---         }
---   , kr: { code: "kr"
---         , english: "Kanuri"
---         , nativeName: "Kanuri"
---         }
---   , ks: { code: "ks"
---         , english: "Kashmiri"
---         , nativeName: "कश्मीरी"
---         }
---   , ku: { code: "ku"
---         , english: "Kurdish"
---         , nativeName: "Kurdî"
---         }
---   , kv: { code: "kv"
---         , english: "Komi"
---         , nativeName: "коми кыв"
---         }
---   , kw: { code: "kw"
---         , english: "Cornish"
---         , nativeName: "Kernewek"
---         }
---   , ky: { code: "ky"
---         , english: "Kyrgyz"
---         , nativeName: "Кыргызча"
---         }
---   , la: { code: "la"
---         , english: "Latin"
---         , nativeName: "latine"
---         }
---   , lb: { code: "lb"
---         , english: "Luxembourgish"
---         , nativeName: "Lëtzebuergesch"
---         }
---   , lg: { code: "lg"
---         , english: "Ganda"
---         , nativeName: "Luganda"
---         }
---   , li: { code: "li"
---         , english: "Limburgish"
---         , nativeName: "Limburgs"
---         }
---   , ln: { code: "ln"
---         , english: "Lingala"
---         , nativeName: "Lingála"
---         }
---   , lo: { code: "lo"
---         , english: "Lao"
---         , nativeName: "ພາສາ"
---         }
---   , lt: { code: "lt"
---         , english: "Lithuanian"
---         , nativeName: "lietuvių kalba"
---         }
---   , lu: { code: "lu"
---         , english: "Luba-Katanga"
---         , nativeName: "Tshiluba"
---         }
---   , lv: { code: "lv"
---         , english: "Latvian"
---         , nativeName: "latviešu valoda"
---         }
---   , mg: { code: "mg"
---         , english: "Malagasy"
---         , nativeName: "fiteny malagasy"
---         }
---   , mh: { code: "mh"
---         , english: "Marshallese"
---         , nativeName: "Kajin M̧ajeļ"
---         }
---   , mi: { code: "mi"
---         , english: "Māori"
---         , nativeName: "te reo Māori"
---         }
---   , mk: { code: "mk"
---         , english: "Macedonian"
---         , nativeName: "македонски јазик"
---         }
---   , ml: { code: "ml"
---         , english: "Malayalam"
---         , nativeName: "മലയാളം"
---         }
---   , mn: { code: "mn"
---         , english: "Mongolian"
---         , nativeName: "Монгол хэл"
---         }
---   , mr: { code: "mr"
---         , english: "Marathi"
---         , nativeName: "मराठी"
---         }
---   , ms: { code: "ms"
---         , english: "Malay"
---         , nativeName: "Bahasa Malaysia"
---         }
---   , mt: { code: "mt"
---         , english: "Maltese"
---         , nativeName: "Malti"
---         }
---   , my: { code: "my"
---         , english: "Burmese"
---         , nativeName: "ဗမာစာ"
---         }
---   , na: { code: "na"
---         , english: "Nauru"
---         , nativeName: "Ekakairũ Naoero"
---         }
---   , nb: { code: "nb"
---         , english: "Norwegian Bokmål"
---         , nativeName: "Norsk bokmål"
---         }
---   , nd: { code: "nd"
---         , english: "Northern Ndebele"
---         , nativeName: "isiNdebele"
---         }
---   , ne: { code: "ne"
---         , english: "Nepali"
---         , nativeName: "नेपाली"
---         }
---   , ng: { code: "ng"
---         , english: "Ndonga"
---         , nativeName: "Owambo"
---         }
---   , nl: { code: "nl"
---         , english: "Dutch"
---         , nativeName: "Nederlands"
---         }
---   , nn: { code: "nn"
---         , english: "Norwegian Nynorsk"
---         , nativeName: "Norsk nynorsk"
---         }
---   , no: { code: "no"
---         , english: "Norwegian"
---         , nativeName: "Norsk"
---         }
---   , nr: { code: "nr"
---         , english: "Southern Ndebele"
---         , nativeName: "isiNdebele"
---         }
---   , nv: { code: "nv"
---         , english: "Navajo"
---         , nativeName: "Diné bizaad"
---         }
---   , ny: { code: "ny"
---         , english: "Chichewa"
---         , nativeName: "chiCheŵa"
---         }
---   , oc: { code: "oc"
---         , english: "Occitan"
---         , nativeName: "occitan"
---         }
---   , oj: { code: "oj"
---         , english: "Ojibwe"
---         , nativeName: "ᐊᓂᔑᓈᐯᒧᐎᓐ"
---         }
---   , om: { code: "om"
---         , english: "Oromo"
---         , nativeName: "Afaan Oromoo"
---         }
---   , or: { code: "or"
---         , english: "Oriya"
---         , nativeName: "ଓଡ଼ିଆ"
---         }
---   , os: { code: "os"
---         , english: "Ossetian"
---         , nativeName: "ирон æвзаг"
---         }
---   , pa: { code: "pa"
---         , english: "Panjabi"
---         , nativeName: "ਪੰਜਾਬੀ"
---         }
---   , pi: { code: "pi"
---         , english: "Pāli"
---         , nativeName: "पाऴि"
---         }
---   , pl: { code: "pl"
---         , english: "Polish"
---         , nativeName: "język polski"
---         }
---   , ps: { code: "ps"
---         , english: "Pashto"
---         , nativeName: "پښتو"
---         }
---   , pt: { code: "pt"
---         , english: "Portuguese"
---         , nativeName: "Português"
---         }
---   , qu: { code: "qu"
---         , english: "Quechua"
---         , nativeName: "Runa Simi"
---         }
---   , rm: { code: "rm"
---         , english: "Romansh"
---         , nativeName: "rumantsch grischun"
---         }
---   , rn: { code: "rn"
---         , english: "Kirundi"
---         , nativeName: "Ikirundi"
---         }
---   , ro: { code: "ro"
---         , english: "Romanian"
---         , nativeName: "Română"
---         }
---   , ru: { code: "ru"
---         , english: "Russian"
---         , nativeName: "Русский"
---         }
---   , rw: { code: "rw"
---         , english: "Kinyarwanda"
---         , nativeName: "Ikinyarwanda"
---         }
---   , sa: { code: "sa"
---         , english: "Sanskrit"
---         , nativeName: "संस्कृतम्"
---         }
---   , sc: { code: "sc"
---         , english: "Sardinian"
---         , nativeName: "sardu"
---         }
---   , sd: { code: "sd"
---         , english: "Sindhi"
---         , nativeName: "सिन्धी"
---         }
---   , se: { code: "se"
---         , english: "Northern Sami"
---         , nativeName: "Davvisámegiella"
---         }
---   , sg: { code: "sg"
---         , english: "Sango"
---         , nativeName: "yângâ tî sängö"
---         }
---   , si: { code: "si"
---         , english: "Sinhala"
---         , nativeName: "සිංහල"
---         }
---   , sk: { code: "sk"
---         , english: "Slovak"
---         , nativeName: "slovenčina"
---         }
---   , sl: { code: "sl"
---         , english: "Slovene"
---         , nativeName: "slovenski jezik"
---         }
---   , sm: { code: "sm"
---         , english: "Samoan"
---         , nativeName: "gagana fa\"a Samoa"
---         }
---   , sn: { code: "sn"
---         , english: "Shona"
---         , nativeName: "chiShona"
---         }
---   , so: { code: "so"
---         , english: "Somali"
---         , nativeName: "Soomaaliga"
---         }
---   , sq: { code: "sq"
---         , english: "Albanian"
---         , nativeName: "Shqip"
---         }
---   , sr: { code: "sr"
---         , english: "Serbian"
---         , nativeName: "српски језик"
---         }
---   , ss: { code: "ss"
---         , english: "Swati"
---         , nativeName: "SiSwati"
---         }
---   , st: { code: "st"
---         , english: "Southern Sotho"
---         , nativeName: "Sesotho"
---         }
---   , su: { code: "su"
---         , english: "Sundanese"
---         , nativeName: "Basa Sunda"
---         }
---   , sv: { code: "sv"
---         , english: "Swedish"
---         , nativeName: "svenska"
---         }
---   , sw: { code: "sw"
---         , english: "Swahili"
---         , nativeName: "Kiswahili"
---         }
---   , ta: { code: "ta"
---         , english: "Tamil"
---         , nativeName: "தமிழ்"
---         }
---   , te: { code: "te"
---         , english: "Telugu"
---         , nativeName: "తెలుగు"
---         }
---   , tg: { code: "tg"
---         , english: "Tajik"
---         , nativeName: "тоҷикӣ"
---         }
---   , th: { code: "th"
---         , english: "Thai"
---         , nativeName: "ไทย"
---         }
---   , ti: { code: "ti"
---         , english: "Tigrinya"
---         , nativeName: "ትግርኛ"
---         }
---   , tk: { code: "tk"
---         , english: "Turkmen"
---         , nativeName: "Türkmen"
---         }
---   , tl: { code: "tl"
---         , english: "Tagalog"
---         , nativeName: "Wikang Tagalog"
---         }
---   , tn: { code: "tn"
---         , english: "Tswana"
---         , nativeName: "Setswana"
---         }
---   , to: { code: "to"
---         , english: "Tonga"
---         , nativeName: "faka Tonga"
---         }
---   , tr: { code: "tr"
---         , english: "Turkish"
---         , nativeName: "Türkçe"
---         }
---   , ts: { code: "ts"
---         , english: "Tsonga"
---         , nativeName: "Xitsonga"
---         }
---   , tt: { code: "tt"
---         , english: "Tatar"
---         , nativeName: "татар теле"
---         }
---   , tw: { code: "tw"
---         , english: "Twi"
---         , nativeName: "Twi"
---         }
---   , ty: { code: "ty"
---         , english: "Tahitian"
---         , nativeName: "Reo Tahiti"
---         }
---   , ug: { code: "ug"
---         , english: "Uyghur"
---         , nativeName: "ئۇيغۇرچە‎"
---         }
---   , uk: { code: "uk"
---         , english: "Ukrainian"
---         , nativeName: "Українська"
---         }
---   , ur: { code: "ur"
---         , english: "Urdu"
---         , nativeName: "اردو"
---         }
---   , uz: { code: "uz"
---         , english: "Uzbek"
---         , nativeName: "Ўзбек"
---         }
---   , ve: { code: "ve"
---         , english: "Venda"
---         , nativeName: "Tshivenḓa"
---         }
---   , vi: { code: "vi"
---         , english: "Vietenglishse"
---         , nativeName: "Tiếng Việt"
---         }
---   , vo: { code: "vo"
---         , english: "Volapük"
---         , nativeName: "Volapük"
---         }
---   , wa: { code: "wa"
---         , english: "Walloon"
---         , nativeName: "walon"
---         }
---   , wo: { code: "wo"
---         , english: "Wolof"
---         , nativeName: "Wollof"
---         }
---   , xh: { code: "xh"
---         , english: "Xhosa"
---         , nativeName: "isiXhosa"
---         }
---   , yi: { code: "yi"
---         , english: "Yiddish"
---         , nativeName: "ייִדיש"
---         }
---   , yo: { code: "yo"
---         , english: "Yoruba"
---         , nativeName: "Yorùbá"
---         }
---   , za: { code: "za"
---         , english: "Zhuang"
---         , nativeName: "Saɯ cueŋƅ"
---         }
---   , zh: { code: "zh"
---         , english: "Chinese"
---         , nativeName: "中文"
---         }
---   , zu: { code: "zu"
---         , english: "Zulu"
---         , nativeName: "isiZulu"
---         }
---   }
--- 
--- 
+import Prelude
+
+import Data.Maybe (Maybe(..))
+import Data.Symbol (class IsSymbol, SProxy)
+import Data.Variant (class Contractable, Variant, contract, inj)
+import Data.Variant.Internal (VariantRep(..))
+import Foreign.Object (fromHomogeneous, lookup) as Object
+import Prim.Row (class Cons) as Row
+import Record (get) as Record
+import Unsafe.Coerce (unsafeCoerce)
+import WebRow.Contrib.Data.Variant (tag) as Variant
+
+type Languages = LanguageBase LanguageNames
+
+code ∷ ∀ r. Contractable Languages r ⇒ Variant r → LanguageCode
+code v = LanguageCode (Variant.tag v)
+
+toString ∷ LanguageCode → String
+toString (LanguageCode c) = c
+
+get
+  ∷ ∀ code langs_ langs__ langs
+  . IsSymbol code
+  ⇒ Row.Cons code LanguageNames langs_ Languages
+  ⇒ Row.Cons code LanguageNames langs__ langs
+  ⇒ SProxy code
+  → Variant langs
+get c =
+  let
+    lang = Record.get c languages
+  in
+    inj c lang
+
+parseAny ∷ String → Maybe (Variant Languages)
+parseAny =
+  let
+    all = Object.fromHomogeneous languages
+  in \c →
+    case Object.lookup c all of
+      Just lang → Just $ unsafeCoerce $ VariantRep { type: c, value: lang }
+      Nothing → Nothing
+
+parse
+  ∷ ∀ langs
+  . Contractable Languages langs
+  ⇒ String
+  → Maybe (Variant langs)
+parse = contract <=< parseAny
+
+newtype LanguageCode = LanguageCode String
+derive instance eqLanguageCode ∷ Eq LanguageCode
+instance showLanguageCode ∷ Show LanguageCode where
+  show (LanguageCode c) = "(LanguageCode " <> show c <> ")"
+
+type LanguageNames =
+   { english ∷ String
+   , nativeName ∷ String
+   }
+
+type LanguageBase a =
+  ( aa ∷ a, ab ∷ a, ae ∷ a, af ∷ a, ak ∷ a, am ∷ a, an ∷ a, ar ∷ a
+  , as ∷ a, av ∷ a, ay ∷ a, az ∷ a, ba ∷ a, be ∷ a, bg ∷ a, bh ∷ a
+  , bi ∷ a, bm ∷ a, bn ∷ a, bo ∷ a, br ∷ a, bs ∷ a, ca ∷ a, ce ∷ a
+  , ch ∷ a, co ∷ a, cr ∷ a, cs ∷ a, cu ∷ a, cv ∷ a, cy ∷ a, da ∷ a
+  , de ∷ a, dv ∷ a, dz ∷ a, ee ∷ a, el ∷ a, en ∷ a, eo ∷ a, es ∷ a
+  , et ∷ a, eu ∷ a, fa ∷ a, ff ∷ a, fi ∷ a, fj ∷ a, fo ∷ a, fr ∷ a
+  , fy ∷ a, ga ∷ a, gd ∷ a, gl ∷ a, gn ∷ a, gu ∷ a, gv ∷ a, ha ∷ a
+  , he ∷ a, hi ∷ a, ho ∷ a, hr ∷ a, ht ∷ a, hu ∷ a, hy ∷ a, hz ∷ a
+  , ia ∷ a, id ∷ a, ie ∷ a, ig ∷ a, ii ∷ a, ik ∷ a, io ∷ a, is ∷ a
+  , it ∷ a, iu ∷ a, ja ∷ a, jv ∷ a, ka ∷ a, kg ∷ a, ki ∷ a, kj ∷ a
+  , kk ∷ a, kl ∷ a, km ∷ a, kn ∷ a, ko ∷ a, kr ∷ a, ks ∷ a, ku ∷ a
+  , kv ∷ a, kw ∷ a, ky ∷ a, la ∷ a, lb ∷ a, lg ∷ a, li ∷ a, ln ∷ a
+  , lo ∷ a, lt ∷ a, lu ∷ a, lv ∷ a, mg ∷ a, mh ∷ a, mi ∷ a, mk ∷ a
+  , ml ∷ a, mn ∷ a, mr ∷ a, ms ∷ a, mt ∷ a, my ∷ a, na ∷ a, nb ∷ a
+  , nd ∷ a, ne ∷ a, ng ∷ a, nl ∷ a, nn ∷ a, no ∷ a, nr ∷ a, nv ∷ a
+  , ny ∷ a, oc ∷ a, oj ∷ a, om ∷ a, or ∷ a, os ∷ a, pa ∷ a, pi ∷ a
+  , pl ∷ a, ps ∷ a, pt ∷ a, qu ∷ a, rm ∷ a, rn ∷ a, ro ∷ a, ru ∷ a
+  , rw ∷ a, sa ∷ a, sc ∷ a, sd ∷ a, se ∷ a, sg ∷ a, si ∷ a, sk ∷ a
+  , sl ∷ a, sm ∷ a, sn ∷ a, so ∷ a, sq ∷ a, sr ∷ a, ss ∷ a, st ∷ a
+  , su ∷ a, sv ∷ a, sw ∷ a, ta ∷ a, te ∷ a, tg ∷ a, th ∷ a, ti ∷ a
+  , tk ∷ a, tl ∷ a, tn ∷ a, to ∷ a, tr ∷ a, ts ∷ a, tt ∷ a, tw ∷ a
+  , ty ∷ a, ug ∷ a, uk ∷ a, ur ∷ a, uz ∷ a, ve ∷ a, vi ∷ a, vo ∷ a
+  , wa ∷ a, wo ∷ a, xh ∷ a, yi ∷ a, yo ∷ a, za ∷ a, zh ∷ a, zu ∷ a
+  )
+
+languages ∷ { | Languages }
+languages =
+  { aa: { english: "Afar"
+        , nativeName: "Afaraf"
+        }
+  , ab: { english: "Abkhaz"
+        , nativeName: "аҧсуа бызшәа"
+        }
+  , ae: { english: "Avestan"
+        , nativeName: "avesta"
+        }
+  , af: { english: "Afrikaans"
+        , nativeName: "Afrikaans"
+        }
+  , ak: { english: "Akan"
+        , nativeName: "Akan"
+        }
+  , am: { english: "Amharic"
+        , nativeName: "አማርኛ"
+        }
+  , an: { english: "Aragonese"
+        , nativeName: "aragonés"
+        }
+  , ar: { english: "Arabic"
+        , nativeName: "اللغة العربية"
+        }
+  , as: { english: "Assamese"
+        , nativeName: "অসমীয়া"
+        }
+  , av: { english: "Avaric"
+        , nativeName: "авар мацӀ"
+        }
+  , ay: { english: "Aymara"
+        , nativeName: "aymar aru"
+        }
+  , az: { english: "Azerbaijani"
+        , nativeName: "azərbaycan dili"
+        }
+  , ba: { english: "Bashkir"
+        , nativeName: "башҡорт теле"
+        }
+  , be: { english: "Belarusian"
+        , nativeName: "беларуская мова"
+        }
+  , bg: { english: "Bulgarian"
+        , nativeName: "български език"
+        }
+  , bh: { english: "Bihari"
+        , nativeName: "भोजपुरी"
+        }
+  , bi: { english: "Bislama"
+        , nativeName: "Bislama"
+        }
+  , bm: { english: "Bambara"
+        , nativeName: "bamanankan"
+        }
+  , bn: { english: "Bengali"
+        , nativeName: "বাংলা"
+        }
+  , bo: { english: "Tibetan Standard"
+        , nativeName: "བོད་ཡིག"
+        }
+  , br: { english: "Breton"
+        , nativeName: "brezhoneg"
+        }
+  , bs: { english: "Bosnian"
+        , nativeName: "bosanski jezik"
+        }
+  , ca: { english: "Catalan"
+        , nativeName: "Català"
+        }
+  , ce: { english: "Chechen"
+        , nativeName: "нохчийн мотт"
+        }
+  , ch: { english: "Chamorro"
+        , nativeName: "Chamoru"
+        }
+  , co: { english: "Corsican"
+        , nativeName: "corsu"
+        }
+  , cr: { english: "Cree"
+        , nativeName: "ᓀᐦᐃᔭᐍᐏᐣ"
+        }
+  , cs: { english: "Czech"
+        , nativeName: "čeština"
+        }
+  , cu: { english: "Old Church Slavonic"
+        , nativeName: "ѩзыкъ словѣньскъ"
+        }
+  , cv: { english: "Chuvash"
+        , nativeName: "чӑваш чӗлхи"
+        }
+  , cy: { english: "Welsh"
+        , nativeName: "Cymraeg"
+        }
+  , da: { english: "Danish"
+        , nativeName: "dansk"
+        }
+  , de: { english: "German"
+        , nativeName: "Deutsch"
+        }
+  , dv: { english: "Divehi"
+        , nativeName: "Dhivehi"
+        }
+  , dz: { english: "Dzongkha"
+        , nativeName: "རྫོང་ཁ"
+        }
+  , ee: { english: "Ewe"
+        , nativeName: "Eʋegbe"
+        }
+  , el: { english: "Greek"
+        , nativeName: "Ελληνικά"
+        }
+  , en: { english: "English"
+        , nativeName: "English"
+        }
+  , eo: { english: "Esperanto"
+        , nativeName: "Esperanto"
+        }
+  , es: { english: "Spanish"
+        , nativeName: "Español"
+        }
+  , et: { english: "Estonian"
+        , nativeName: "eesti"
+        }
+  , eu: { english: "Basque"
+        , nativeName: "euskara"
+        }
+  , fa: { english: "Persian"
+        , nativeName: "فارسی"
+        }
+  , ff: { english: "Fula"
+        , nativeName: "Fulfulde"
+        }
+  , fi: { english: "Finnish"
+        , nativeName: "suomi"
+        }
+  , fj: { english: "Fijian"
+        , nativeName: "Vakaviti"
+        }
+  , fo: { english: "Faroese"
+        , nativeName: "føroyskt"
+        }
+  , fr: { english: "French"
+        , nativeName: "Français"
+        }
+  , fy: { english: "Western Frisian"
+        , nativeName: "Frysk"
+        }
+  , ga: { english: "Irish"
+        , nativeName: "Gaeilge"
+        }
+  , gd: { english: "Scottish Gaelic"
+        , nativeName: "Gàidhlig"
+        }
+  , gl: { english: "Galician"
+        , nativeName: "galego"
+        }
+  , gn: { english: "Guaraní"
+        , nativeName: "Avañe\"ẽ"
+        }
+  , gu: { english: "Gujarati"
+        , nativeName: "ગુજરાતી"
+        }
+  , gv: { english: "Manx"
+        , nativeName: "Gaelg"
+        }
+  , ha: { english: "Hausa"
+        , nativeName: "هَوُسَ"
+        }
+  , he: { english: "Hebrew"
+        , nativeName: "עברית"
+        }
+  , hi: { english: "Hindi"
+        , nativeName: "हिन्दी"
+        }
+  , ho: { english: "Hiri Motu"
+        , nativeName: "Hiri Motu"
+        }
+  , hr: { english: "Croatian"
+        , nativeName: "hrvatski jezik"
+        }
+  , ht: { english: "Haitian"
+        , nativeName: "Kreyòl ayisyen"
+        }
+  , hu: { english: "Hungarian"
+        , nativeName: "magyar"
+        }
+  , hy: { english: "Armenian"
+        , nativeName: "Հայերեն"
+        }
+  , hz: { english: "Herero"
+        , nativeName: "Otjiherero"
+        }
+  , ia: { english: "Interlingua"
+        , nativeName: "Interlingua"
+        }
+  , id: { english: "Indonesian"
+        , nativeName: "Bahasa Indonesia"
+        }
+  , ie: { english: "Interlingue"
+        , nativeName: "Interlingue"
+        }
+  , ig: { english: "Igbo"
+        , nativeName: "Asụsụ Igbo"
+        }
+  , ii: { english: "Nuosu"
+        , nativeName: "ꆈꌠ꒿ Nuosuhxop"
+        }
+  , ik: { english: "Inupiaq"
+        , nativeName: "Iñupiaq"
+        }
+  , io: { english: "Ido"
+        , nativeName: "Ido"
+        }
+  , is: { english: "Icelandic"
+        , nativeName: "Íslenska"
+        }
+  , it: { english: "Italian"
+        , nativeName: "Italiano"
+        }
+  , iu: { english: "Inuktitut"
+        , nativeName: "ᐃᓄᒃᑎᑐᑦ"
+        }
+  , ja: { english: "Japanese"
+        , nativeName: "日本語"
+        }
+  , jv: { english: "Javanese"
+        , nativeName: "basa Jawa"
+        }
+  , ka: { english: "Georgian"
+        , nativeName: "ქართული"
+        }
+  , kg: { english: "Kongo"
+        , nativeName: "Kikongo"
+        }
+  , ki: { english: "Kikuyu"
+        , nativeName: "Gĩkũyũ"
+        }
+  , kj: { english: "Kwanyama"
+        , nativeName: "Kuanyama"
+        }
+  , kk: { english: "Kazakh"
+        , nativeName: "қазақ тілі"
+        }
+  , kl: { english: "Kalaallisut"
+        , nativeName: "kalaallisut"
+        }
+  , km: { english: "Khmer"
+        , nativeName: "ខេមរភាសា"
+        }
+  , kn: { english: "Kannada"
+        , nativeName: "ಕನ್ನಡ"
+        }
+  , ko: { english: "Korean"
+        , nativeName: "한국어"
+        }
+  , kr: { english: "Kanuri"
+        , nativeName: "Kanuri"
+        }
+  , ks: { english: "Kashmiri"
+        , nativeName: "कश्मीरी"
+        }
+  , ku: { english: "Kurdish"
+        , nativeName: "Kurdî"
+        }
+  , kv: { english: "Komi"
+        , nativeName: "коми кыв"
+        }
+  , kw: { english: "Cornish"
+        , nativeName: "Kernewek"
+        }
+  , ky: { english: "Kyrgyz"
+        , nativeName: "Кыргызча"
+        }
+  , la: { english: "Latin"
+        , nativeName: "latine"
+        }
+  , lb: { english: "Luxembourgish"
+        , nativeName: "Lëtzebuergesch"
+        }
+  , lg: { english: "Ganda"
+        , nativeName: "Luganda"
+        }
+  , li: { english: "Limburgish"
+        , nativeName: "Limburgs"
+        }
+  , ln: { english: "Lingala"
+        , nativeName: "Lingála"
+        }
+  , lo: { english: "Lao"
+        , nativeName: "ພາສາ"
+        }
+  , lt: { english: "Lithuanian"
+        , nativeName: "lietuvių kalba"
+        }
+  , lu: { english: "Luba-Katanga"
+        , nativeName: "Tshiluba"
+        }
+  , lv: { english: "Latvian"
+        , nativeName: "latviešu valoda"
+        }
+  , mg: { english: "Malagasy"
+        , nativeName: "fiteny malagasy"
+        }
+  , mh: { english: "Marshallese"
+        , nativeName: "Kajin M̧ajeļ"
+        }
+  , mi: { english: "Māori"
+        , nativeName: "te reo Māori"
+        }
+  , mk: { english: "Macedonian"
+        , nativeName: "македонски јазик"
+        }
+  , ml: { english: "Malayalam"
+        , nativeName: "മലയാളം"
+        }
+  , mn: { english: "Mongolian"
+        , nativeName: "Монгол хэл"
+        }
+  , mr: { english: "Marathi"
+        , nativeName: "मराठी"
+        }
+  , ms: { english: "Malay"
+        , nativeName: "Bahasa Malaysia"
+        }
+  , mt: { english: "Maltese"
+        , nativeName: "Malti"
+        }
+  , my: { english: "Burmese"
+        , nativeName: "ဗမာစာ"
+        }
+  , na: { english: "Nauru"
+        , nativeName: "Ekakairũ Naoero"
+        }
+  , nb: { english: "Norwegian Bokmål"
+        , nativeName: "Norsk bokmål"
+        }
+  , nd: { english: "Northern Ndebele"
+        , nativeName: "isiNdebele"
+        }
+  , ne: { english: "Nepali"
+        , nativeName: "नेपाली"
+        }
+  , ng: { english: "Ndonga"
+        , nativeName: "Owambo"
+        }
+  , nl: { english: "Dutch"
+        , nativeName: "Nederlands"
+        }
+  , nn: { english: "Norwegian Nynorsk"
+        , nativeName: "Norsk nynorsk"
+        }
+  , no: { english: "Norwegian"
+        , nativeName: "Norsk"
+        }
+  , nr: { english: "Southern Ndebele"
+        , nativeName: "isiNdebele"
+        }
+  , nv: { english: "Navajo"
+        , nativeName: "Diné bizaad"
+        }
+  , ny: { english: "Chichewa"
+        , nativeName: "chiCheŵa"
+        }
+  , oc: { english: "Occitan"
+        , nativeName: "occitan"
+        }
+  , oj: { english: "Ojibwe"
+        , nativeName: "ᐊᓂᔑᓈᐯᒧᐎᓐ"
+        }
+  , om: { english: "Oromo"
+        , nativeName: "Afaan Oromoo"
+        }
+  , or: { english: "Oriya"
+        , nativeName: "ଓଡ଼ିଆ"
+        }
+  , os: { english: "Ossetian"
+        , nativeName: "ирон æвзаг"
+        }
+  , pa: { english: "Panjabi"
+        , nativeName: "ਪੰਜਾਬੀ"
+        }
+  , pi: { english: "Pāli"
+        , nativeName: "पाऴि"
+        }
+  , pl: { english: "Polish"
+        , nativeName: "język polski"
+        }
+  , ps: { english: "Pashto"
+        , nativeName: "پښتو"
+        }
+  , pt: { english: "Portuguese"
+        , nativeName: "Português"
+        }
+  , qu: { english: "Quechua"
+        , nativeName: "Runa Simi"
+        }
+  , rm: { english: "Romansh"
+        , nativeName: "rumantsch grischun"
+        }
+  , rn: { english: "Kirundi"
+        , nativeName: "Ikirundi"
+        }
+  , ro: { english: "Romanian"
+        , nativeName: "Română"
+        }
+  , ru: { english: "Russian"
+        , nativeName: "Русский"
+        }
+  , rw: { english: "Kinyarwanda"
+        , nativeName: "Ikinyarwanda"
+        }
+  , sa: { english: "Sanskrit"
+        , nativeName: "संस्कृतम्"
+        }
+  , sc: { english: "Sardinian"
+        , nativeName: "sardu"
+        }
+  , sd: { english: "Sindhi"
+        , nativeName: "सिन्धी"
+        }
+  , se: { english: "Northern Sami"
+        , nativeName: "Davvisámegiella"
+        }
+  , sg: { english: "Sango"
+        , nativeName: "yângâ tî sängö"
+        }
+  , si: { english: "Sinhala"
+        , nativeName: "සිංහල"
+        }
+  , sk: { english: "Slovak"
+        , nativeName: "slovenčina"
+        }
+  , sl: { english: "Slovene"
+        , nativeName: "slovenski jezik"
+        }
+  , sm: { english: "Samoan"
+        , nativeName: "gagana fa\"a Samoa"
+        }
+  , sn: { english: "Shona"
+        , nativeName: "chiShona"
+        }
+  , so: { english: "Somali"
+        , nativeName: "Soomaaliga"
+        }
+  , sq: { english: "Albanian"
+        , nativeName: "Shqip"
+        }
+  , sr: { english: "Serbian"
+        , nativeName: "српски језик"
+        }
+  , ss: { english: "Swati"
+        , nativeName: "SiSwati"
+        }
+  , st: { english: "Southern Sotho"
+        , nativeName: "Sesotho"
+        }
+  , su: { english: "Sundanese"
+        , nativeName: "Basa Sunda"
+        }
+  , sv: { english: "Swedish"
+        , nativeName: "svenska"
+        }
+  , sw: { english: "Swahili"
+        , nativeName: "Kiswahili"
+        }
+  , ta: { english: "Tamil"
+        , nativeName: "தமிழ்"
+        }
+  , te: { english: "Telugu"
+        , nativeName: "తెలుగు"
+        }
+  , tg: { english: "Tajik"
+        , nativeName: "тоҷикӣ"
+        }
+  , th: { english: "Thai"
+        , nativeName: "ไทย"
+        }
+  , ti: { english: "Tigrinya"
+        , nativeName: "ትግርኛ"
+        }
+  , tk: { english: "Turkmen"
+        , nativeName: "Türkmen"
+        }
+  , tl: { english: "Tagalog"
+        , nativeName: "Wikang Tagalog"
+        }
+  , tn: { english: "Tswana"
+        , nativeName: "Setswana"
+        }
+  , to: { english: "Tonga"
+        , nativeName: "faka Tonga"
+        }
+  , tr: { english: "Turkish"
+        , nativeName: "Türkçe"
+        }
+  , ts: { english: "Tsonga"
+        , nativeName: "Xitsonga"
+        }
+  , tt: { english: "Tatar"
+        , nativeName: "татар теле"
+        }
+  , tw: { english: "Twi"
+        , nativeName: "Twi"
+        }
+  , ty: { english: "Tahitian"
+        , nativeName: "Reo Tahiti"
+        }
+  , ug: { english: "Uyghur"
+        , nativeName: "ئۇيغۇرچە‎"
+        }
+  , uk: { english: "Ukrainian"
+        , nativeName: "Українська"
+        }
+  , ur: { english: "Urdu"
+        , nativeName: "اردو"
+        }
+  , uz: { english: "Uzbek"
+        , nativeName: "Ўзбек"
+        }
+  , ve: { english: "Venda"
+        , nativeName: "Tshivenḓa"
+        }
+  , vi: { english: "Vietenglishse"
+        , nativeName: "Tiếng Việt"
+        }
+  , vo: { english: "Volapük"
+        , nativeName: "Volapük"
+        }
+  , wa: { english: "Walloon"
+        , nativeName: "walon"
+        }
+  , wo: { english: "Wolof"
+        , nativeName: "Wollof"
+        }
+  , xh: { english: "Xhosa"
+        , nativeName: "isiXhosa"
+        }
+  , yi: { english: "Yiddish"
+        , nativeName: "ייִדיש"
+        }
+  , yo: { english: "Yoruba"
+        , nativeName: "Yorùbá"
+        }
+  , za: { english: "Zhuang"
+        , nativeName: "Saɯ cueŋƅ"
+        }
+  , zh: { english: "Chinese"
+        , nativeName: "中文"
+        }
+  , zu: { english: "Zulu"
+        , nativeName: "isiZulu"
+        }
+  }
+
+

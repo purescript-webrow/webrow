@@ -6,6 +6,7 @@ module WebRow.Routing
   , context
   , printRoute
   , printFullRoute
+  , redirect
   , route
   , _routing
   , runRouting
@@ -21,7 +22,6 @@ import Data.Map (fromFoldableWith) as Map
 import Data.Newtype (un)
 import Data.String (Pattern(..), Replacement(..), replaceAll) as String
 import Data.Variant (SProxy(..), Variant)
-import Debug.Trace (traceM)
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Request (Request) as HTTPure
 import Polyform.Batteries.UrlEncoded (Decoded(..))
@@ -33,9 +33,10 @@ import Run.Reader (READER, askAt)
 import Type.Row (type (+))
 import WebRow.Contrib.Run.Reader (runReaders)
 import WebRow.HTTP (HTTPExcept)
+import WebRow.HTTP (redirect) as HTTP.Response
 import WebRow.HTTP.Request (Request)
 import WebRow.HTTP.Response.Except (notFound)
-import WebRow.Routing.Types (Context, Domain, FullUrl(..), RelativeUrl(..))
+import WebRow.Routing.Types (Context, Domain, FullUrl(..), RelativeUrl(..), fromRelativeUrl)
 import WebRow.Routing.Types (Context, Domain, FullUrl(..), RelativeUrl(..), fromRelativeUrl, fromFullUrl) as Exports
 
 _routing = SProxy ∷ SProxy "routing"
@@ -90,3 +91,17 @@ runRouting domain routeDuplex request action = do
 
 route ∷ ∀ eff route. Run (Routing route + eff) route
 route = askAt _routing <#> _.route
+
+redirect
+  ∷ ∀ a eff route
+  . route
+  → Run
+      ( HTTPExcept
+      + Routing route
+      + eff
+      )
+      a
+redirect r = do
+  url ← printRoute r
+  HTTP.Response.redirect (fromRelativeUrl url)
+
