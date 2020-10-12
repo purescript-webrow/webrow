@@ -1,7 +1,6 @@
 module WebRow.Contrib.Routing.Duplex where
 
 import Prelude
-
 import Routing.Duplex (RouteDuplex(..), RouteDuplex')
 import Routing.Duplex.Parser (RouteParser(..), RouteResult(..))
 import Routing.Duplex.Printer (RoutePrinter(..))
@@ -25,4 +24,3 @@ params = RouteDuplex printer parser
 
   printer ∷ RouteParams → RoutePrinter
   printer p = RoutePrinter \state → state { params = p }
-

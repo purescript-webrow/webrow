@@ -5,11 +5,9 @@ module WebRow.HTTP.Response
   , found
   , ok
   , run
-  )
-  where
+  ) where
 
 import Prelude
-
 import HTTPure (Response, header) as HTTPure
 import HTTPure (empty) as HTTPure.Headers
 import HTTPure.Body (class Body) as HTTPure
@@ -26,33 +24,37 @@ import WebRow.HTTP.Response.Types (HTTPResponse(..), Parts)
 import WebRow.HTTP.Response.Types (HTTPResponse(..), Parts) as Types
 import WebRow.Routing.Types (Url(..))
 
-run
-  ∷ ∀ body eff
-  . HTTPure.Body body
-  ⇒ Run (SetHeader + HTTPExcept + eff) (HTTPResponse body)
-  → Run eff HTTPure.Response
+run ∷
+  ∀ body eff.
+  HTTPure.Body body ⇒
+  Run (SetHeader + HTTPExcept + eff) (HTTPResponse body) →
+  Run eff HTTPure.Response
 run action = action'
   where
-    action' = runHTTPExcept <<< map fromResponse <<< runSetHeader $ action
-    runHTTPExcept = catchAt _httpExcept (fromException >>> pure)
+  action' = runHTTPExcept <<< map fromResponse <<< runSetHeader $ action
 
-    fromResponse (HTTPResponse parts) = fromParts parts
-    fromException (HTTPException parts) = fromParts parts
-    fromParts
-      ∷ ∀ b
-      . HTTPure.Body b
-      ⇒ Parts b → HTTPure.Response
-    fromParts { body, headers, status } =
-      { status
-      , headers
-      , writeBody: Body.write body
-      }
+  runHTTPExcept = catchAt _httpExcept (fromException >>> pure)
+
+  fromResponse (HTTPResponse parts) = fromParts parts
+
+  fromException (HTTPException parts) = fromParts parts
+
+  fromParts ∷
+    ∀ b.
+    HTTPure.Body b ⇒
+    Parts b → HTTPure.Response
+  fromParts { body, headers, status } =
+    { status
+    , headers
+    , writeBody: Body.write body
+    }
 
 ok ∷ ∀ eff. String → Run eff (HTTPResponse String)
-ok body = pure $
-  HTTPResponse { body, headers: HTTPure.Headers.empty, status: HTTPure.Status.ok }
+ok body =
+  pure
+    $ HTTPResponse { body, headers: HTTPure.Headers.empty, status: HTTPure.Status.ok }
 
 found ∷ ∀ eff. Url → Run eff (HTTPResponse String)
-found (Url location) = pure $
-  HTTPResponse { body: "", headers: HTTPure.header "location" location, status: HTTPure.Status.found }
-
+found (Url location) =
+  pure
+    $ HTTPResponse { body: "", headers: HTTPure.header "location" location, status: HTTPure.Status.found }

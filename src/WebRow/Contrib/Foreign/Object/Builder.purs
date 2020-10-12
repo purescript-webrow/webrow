@@ -1,12 +1,12 @@
 module WebRow.Contrib.Foreign.Object.Builder where
 
 import Prelude
-
 import Foreign.Object (Object)
 import Record.Unsafe (unsafeSet) as Record.Unsafe
 import Unsafe.Coerce (unsafeCoerce)
 
-newtype Builder a = Builder (Object a → Object a)
+newtype Builder a
+  = Builder (Object a → Object a)
 
 instance semigroupBuilder ∷ Semigroup (Builder a) where
   append (Builder b1) (Builder b2) = Builder (b1 <<< b2)

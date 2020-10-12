@@ -4,12 +4,9 @@ module WebRow.Applets.Registration
   , confirmation
   , registerEmail
   , router
-
-  )
-  where
+  ) where
 
 import Prelude
-
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
@@ -42,110 +39,123 @@ import WebRow.Mailer (send) as Mailer
 import WebRow.Routing (FullUrl)
 import WebRow.Types (WebRow)
 
-type AllMessages messages =
-  ( Messages
-  + InvalidEmailFormat
-  + MissingValue
-  + messages
-  )
-
-type RegistartionRow messages routes session mails eff =
-  ( WebRow
-      (AllMessages + messages)
-      session
-      (RouteRow + routes)
-  + Crypto
-  + Mailer (emailVerification ∷ FullUrl | mails)
-  + Registration
-  + eff
-  )
-
-router
-  :: ∀ eff mails messages responses routes routes' session
-  . ( Variant routes
-    → Run
-        (RegistartionRow messages routes' session mails eff)
-        (Variant (ResponseRow + responses))
+type AllMessages messages
+  = ( Messages
+        + InvalidEmailFormat
+        + MissingValue
+        + messages
     )
-  → Variant (RouteRow + routes)
-  → Run
+
+type RegistartionRow messages routes session mails eff
+  = ( WebRow
+        (AllMessages + messages)
+        session
+        (RouteRow + routes)
+        + Crypto
+        + Mailer ( emailVerification ∷ FullUrl | mails )
+        + Registration
+        + eff
+    )
+
+router ::
+  ∀ eff mails messages responses routes routes' session.
+  ( Variant routes →
+    Run
       (RegistartionRow messages routes' session mails eff)
       (Variant (ResponseRow + responses))
+  ) →
+  Variant (RouteRow + routes) →
+  Run
+    (RegistartionRow messages routes' session mails eff)
+    (Variant (ResponseRow + responses))
 router = on _registration (map (inj _registration) <$> localRouter)
 
-localRouter
-  ∷ ∀ eff mails messages routes session
-  . Routes.Route
-  → Run (RegistartionRow messages routes session mails eff) Response
+localRouter ∷
+  ∀ eff mails messages routes session.
+  Routes.Route →
+  Run (RegistartionRow messages routes session mails eff) Response
 localRouter = case _ of
-    Routes.RegisterEmail → registerEmail
-    Routes.Confirmation email → confirmation email
+  Routes.RegisterEmail → registerEmail
+  Routes.Confirmation email → confirmation email
 
 _emailVerification = SProxy ∷ SProxy "emailVerification"
 
-registerEmail
-  :: ∀ eff mails messages routes session
-  . Run
+registerEmail ::
+  ∀ eff mails messages routes session.
+  Run
     ( Crypto
-    + Mailer (emailVerification ∷ FullUrl | mails)
-    + Registration
-    + WebRow
-      (AllMessages messages)
-      session
-      (RouteRow routes)
-    + eff
+        + Mailer ( emailVerification ∷ FullUrl | mails )
+        + Registration
+        + WebRow
+          (AllMessages messages)
+          session
+          (RouteRow routes)
+        + eff
     )
     Response
-registerEmail = method >>= case _ of
-  HTTPure.Post → fromBody >>= Forms.Uni.validate emailTakenForm >>= case _ of
-    Tuple (Just email@(Email e)) form → do
-      signedEmail ← Crypto.sign e
-      confirmationLink ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
-      void $ Mailer.send ({ to: email, context: inj _emailVerification confirmationLink })
-      pure $ RegisterEmailResponse $ EmailSent email confirmationLink
-    Tuple _ form → do
-      pure $ RegisterEmailResponse $ EmailValidationFailed form
-  HTTPure.Get → do
-    form ← Forms.Uni.default emailTakenForm
-    pure $ ConfirmationResponse $ InitialPasswordForm form
-  method → methodNotAllowed'
+registerEmail =
+  method
+    >>= case _ of
+        HTTPure.Post →
+          fromBody >>= Forms.Uni.validate emailTakenForm
+            >>= case _ of
+                Tuple (Just email@(Email e)) form → do
+                  signedEmail ← Crypto.sign e
+                  confirmationLink ← Routes.printFullRoute $ Routes.Confirmation (SignedEmail signedEmail)
+                  void $ Mailer.send ({ to: email, context: inj _emailVerification confirmationLink })
+                  pure $ RegisterEmailResponse $ EmailSent email confirmationLink
+                Tuple _ form → do
+                  pure $ RegisterEmailResponse $ EmailValidationFailed form
+        HTTPure.Get → do
+          form ← Forms.Uni.default emailTakenForm
+          pure $ ConfirmationResponse $ InitialPasswordForm form
+        method → methodNotAllowed'
 
-confirmation
-  :: ∀ eff messages routes session
-  . SignedEmail
-  → Run
+confirmation ::
+  ∀ eff messages routes session.
+  SignedEmail →
+  Run
     ( Crypto
-    + Registration
-    + WebRow
-      (AllMessages messages)
-      session
-      routes
-    + eff
+        + Registration
+        + WebRow
+          (AllMessages messages)
+          session
+          routes
+        + eff
     )
     Response
 confirmation signedEmail = do
-  validateEmail signedEmail >>= case _ of
-    Left err → pure err
-    Right email → method >>= case _ of
-      HTTPure.Post → fromBody >>= Forms.Uni.validate passwordForm >>= case _ of
-        Tuple (Just password) _ → do
-          register email password
-          pure $ ConfirmationResponse $ ConfirmationSucceeded email password
-        Tuple _ form → do
-          pure $ ConfirmationResponse $ PasswordValidationFailed form
-      HTTPure.Get → do
-        form ← Forms.Uni.default passwordForm
-        pure $ ConfirmationResponse $ InitialPasswordForm form
-      _ → methodNotAllowed'
+  validateEmail signedEmail
+    >>= case _ of
+        Left err → pure err
+        Right email →
+          method
+            >>= case _ of
+                HTTPure.Post →
+                  fromBody >>= Forms.Uni.validate passwordForm
+                    >>= case _ of
+                        Tuple (Just password) _ → do
+                          register email password
+                          pure $ ConfirmationResponse $ ConfirmationSucceeded email password
+                        Tuple _ form → do
+                          pure $ ConfirmationResponse $ PasswordValidationFailed form
+                HTTPure.Get → do
+                  form ← Forms.Uni.default passwordForm
+                  pure $ ConfirmationResponse $ InitialPasswordForm form
+                _ → methodNotAllowed'
   where
-    validateEmail = un SignedEmail >>> Crypto.unsign >=> case _ of
-      Left _ → pure $ Left (ConfirmationResponse InvalidEmailSignature)
-      Right emailStr → do
-        let
-          email = Email emailStr
-        Effects.emailTaken email >>= if _
-          then pure $ Left (ConfirmationResponse $ EmailRegisteredInbetween email)
-          else pure $ Right email
+  validateEmail =
+    un SignedEmail >>> Crypto.unsign
+      >=> case _ of
+          Left _ → pure $ Left (ConfirmationResponse InvalidEmailSignature)
+          Right emailStr → do
+            let
+              email = Email emailStr
+            Effects.emailTaken email
+              >>= if _ then
+                  pure $ Left (ConfirmationResponse $ EmailRegisteredInbetween email)
+                else
+                  pure $ Right email
 
 -- -- type ChangeEmailPayload = { current ∷ String, new ∷ String }
 -- -- 

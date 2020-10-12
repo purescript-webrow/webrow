@@ -1,7 +1,6 @@
 module WebRow.Forms.Bi.Form where
 
 import Prelude
-
 import Data.Maybe (Maybe)
 import Data.Tuple (Tuple)
 import Polyform (Dual(..))
@@ -12,7 +11,8 @@ import WebRow.Forms.BuilderM (eval) as BuilderM
 import WebRow.Forms.Layout (Layout)
 import WebRow.Forms.Payload (UrlDecoded)
 
-newtype Form m layout o = Form
+newtype Form m layout o
+  = Form
   { dual ∷ Reporter.Dual m layout UrlDecoded o
   , default ∷ m layout
   }
@@ -24,23 +24,24 @@ build (Builder (BuilderD b)) =
   in
     Form { dual: Dual dualD, default }
 
-default
-  ∷ ∀ m msg o widget. Form m (Layout msg widget) o
-  → m (Layout msg widget)
+default ∷
+  ∀ m msg o widget.
+  Form m (Layout msg widget) o →
+  m (Layout msg widget)
 default (Form { default: d }) = d
 
-serialize
-  ∷ ∀ m msg o widget
-  . Applicative m
-  ⇒ Form m (Layout msg widget) o
-  → o
-  → m (Tuple UrlDecoded (Layout msg widget))
+serialize ∷
+  ∀ m msg o widget.
+  Applicative m ⇒
+  Form m (Layout msg widget) o →
+  o →
+  m (Tuple UrlDecoded (Layout msg widget))
 serialize (Form { dual }) o = Reporter.Dual.runSerializer dual o
 
-validate
-  ∷ ∀ m msg o widget
-  . Monad m
-  ⇒ Form m (Layout msg widget) o
-  → UrlDecoded
-  → m (Tuple (Maybe o) (Layout msg widget))
+validate ∷
+  ∀ m msg o widget.
+  Monad m ⇒
+  Form m (Layout msg widget) o →
+  UrlDecoded →
+  m (Tuple (Maybe o) (Layout msg widget))
 validate (Form { dual }) input = Reporter.Dual.runReporter dual input

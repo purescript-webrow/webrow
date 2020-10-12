@@ -1,7 +1,6 @@
 module WebRow.Selda.Effect where
 
 import Prelude
-
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT)
 import Data.Either (either)
@@ -19,33 +18,35 @@ import Run.Reader as Run.Reader
 import Selda.Query.Class (runSelda)
 import WebRow.Selda.Class (SeldaPG)
 
-type SELDA = FProxy SeldaPG
+type SELDA
+  = FProxy SeldaPG
 
-type Selda eff = ( selda ∷ SELDA | eff )
+type Selda eff
+  = ( selda ∷ SELDA | eff )
 
 _selda = SProxy ∷ SProxy "selda"
 
 liftSelda ∷ ∀ eff. SeldaPG ~> Run ( selda ∷ SELDA | eff )
 liftSelda m = Run.lift _selda m
 
-interpretSeldaPG
-  ∷ ∀ e r eff a
-  . Run ( selda ∷ SELDA | Effects PGError Connection e r eff ) a
-  → Run ( | Effects PGError Connection e r eff ) a
+interpretSeldaPG ∷
+  ∀ e r eff a.
+  Run ( selda ∷ SELDA | Effects PGError Connection e r eff ) a →
+  Run ( | Effects PGError Connection e r eff ) a
 interpretSeldaPG = Run.interpret (Run.on _selda hoistSelda Run.send)
 
-hoistSelda
-  ∷ ∀ dbErr dbConn e r eff
-  . ExceptT dbErr (ReaderT dbConn Aff)
-  ~> Run (Effects dbErr dbConn e r eff)
+hoistSelda ∷
+  ∀ dbErr dbConn e r eff.
+  ExceptT dbErr (ReaderT dbConn Aff)
+    ~> Run (Effects dbErr dbConn e r eff)
 hoistSelda m = do
   conn ← Run.Reader.ask <#> _.dbConn
   ea ← Run.liftAff $ runSelda conn m
   either (Run.Except.liftExcept <<< Except <<< inj _selda) pure ea
 
-type Effects dbErr dbConn e r eff =
-  ( aff ∷ AFF
-  , except ∷ EXCEPT (Variant ( selda ∷ dbErr | e ))
-  , reader ∷ READER { dbConn ∷ dbConn | r }
-  | eff
-  )
+type Effects dbErr dbConn e r eff
+  = ( aff ∷ AFF
+    , except ∷ EXCEPT (Variant ( selda ∷ dbErr | e ))
+    , reader ∷ READER { dbConn ∷ dbConn | r }
+    | eff
+    )

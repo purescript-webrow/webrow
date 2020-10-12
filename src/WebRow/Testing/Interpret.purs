@@ -1,7 +1,6 @@
 module WebRow.Testing.Interpret where
 
 import Prelude
-
 import Data.List (List)
 import Data.List (singleton) as List
 import Data.Tuple (Tuple)
@@ -18,13 +17,13 @@ import WebRow.Message (Message, MessageF(..), _message)
 handleMessage ∷ ∀ m msgs. Monad m ⇒ MessageF msgs ~> m
 handleMessage (MessageF v next) = pure $ next (unsafeStringify v)
 
-runMessage ∷ ∀ eff msg . Run (Message msg + eff) ~> Run eff
+runMessage ∷ ∀ eff msg. Run (Message msg + eff) ~> Run eff
 runMessage = Run.interpret (Run.on _message handleMessage Run.send)
 
 _mailQueue = SProxy ∷ SProxy "mailQueue"
 
-
-type MailQueue mails eff = (mailQueue ∷ WRITER (List (Mail mails)) | eff)
+type MailQueue mails eff
+  = ( mailQueue ∷ WRITER (List (Mail mails)) | eff )
 
 handleMail ∷ ∀ eff mails. MailerF mails ~> Run (MailQueue mails + eff)
 handleMail (Mailer.SendF mail next) = do

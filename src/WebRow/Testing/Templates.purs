@@ -1,7 +1,6 @@
 module WebRow.Testing.Templates where
 
 import Prelude
-
 import Data.Array (head) as Array
 import Data.Either (Either(..))
 import Data.Foldable (for_)
@@ -21,9 +20,11 @@ import WebRow.Forms.Widgets (TextInputProps(..), _textInput)
 html ∷ Html Unit → String
 html body = S.render $ M.html ! A.lang "en" $ body
 
-type FormLayout widgets = Forms.Layout (Forms.TextInput + widgets)
+type FormLayout widgets
+  = Forms.Layout (Forms.TextInput + widgets)
 
-type RenderWidgets widgets = Variant widgets → Html Unit
+type RenderWidgets widgets
+  = Variant widgets → Html Unit
 
 formBody ∷ ∀ widgets. RenderWidgets widgets → FormLayout widgets → Html Unit
 formBody renderExtra (Forms.Section { closed, errors, layout }) = do
@@ -34,25 +35,28 @@ formBody renderExtra (Forms.Section { closed, errors, layout }) = do
     Nothing → pure unit
   for_ layout (formBody renderExtra)
 
-formBody renderExtra (Forms.Widget widget) = M.div $ do
-  renderWidget widget
+formBody renderExtra (Forms.Widget widget) =
+  M.div
+    $ do
+        renderWidget widget
   where
   renderWidget =
     renderExtra
-    # on _textInput \(TextInputProps { name, payload, result, type_ }) → do
-      for_ result case _ of
-        Left errors → for_ errors \msg →
-          M.p $ M.text msg
-        otherwise → pure unit
-      M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (payload >>= Array.head))
+      # on _textInput \(TextInputProps { name, payload, result, type_ }) → do
+          for_ result case _ of
+            Left errors →
+              for_ errors \msg →
+                M.p $ M.text msg
+            otherwise → pure unit
+          M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (payload >>= Array.head))
 
 form ∷ ∀ widgets. RenderWidgets widgets → FormLayout widgets → Html Unit
 form renderExtra l = do
-  M.form ! A.method "post" $ do
-    formBody renderExtra l
-    M.input ! A.type' "submit" ! A.value "submit"
+  M.form ! A.method "post"
+    $ do
+        formBody renderExtra l
+        M.input ! A.type' "submit" ! A.value "submit"
 
 -- { dangerouslySetInnerHTML: { __html : "<a href=\"https://google.com\">UNSAFE</a>" }}
-
 form' ∷ FormLayout () → Html Unit
 form' = form case_

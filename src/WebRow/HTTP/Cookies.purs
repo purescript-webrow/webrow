@@ -11,11 +11,9 @@ module WebRow.HTTP.Cookies
   , run
   , set
   , setJson
-  )
-  where
+  ) where
 
 import Prelude
-
 import Data.Argonaut (Json)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Foldable (for_)
@@ -37,7 +35,8 @@ import WebRow.HTTP.Request (Request)
 import WebRow.HTTP.Request (headers) as Request
 import WebRow.HTTP.Response (setHeader, SetHeader) as Response
 
-type Cookies r = (cookies ∷ STATE CookieStore | r)
+type Cookies r
+  = ( cookies ∷ STATE CookieStore | r )
 
 _cookies = SProxy ∷ SProxy "cookies"
 
@@ -45,20 +44,16 @@ cookies ∷ ∀ eff. Run (Cookies + eff) CookieStore
 cookies = getAt _cookies
 
 lookup ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Value))
-lookup name =
-  CookieStore.lookup name <$> cookies
+lookup name = CookieStore.lookup name <$> cookies
 
 lookup' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Values))
-lookup' name =
-  CookieStore.lookup' name <$> cookies
+lookup' name = CookieStore.lookup' name <$> cookies
 
 lookupJson ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Json))
-lookupJson name =
-  CookieStore.lookupJson name <$> cookies
+lookupJson name = CookieStore.lookupJson name <$> cookies
 
 lookupJson' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe (NonEmptyArray Json)))
-lookupJson' name =
-  CookieStore.lookupJson' name <$> cookies
+lookupJson' name = CookieStore.lookupJson' name <$> cookies
 
 -- | TODO: We should handle here cookie errors like "to large cookies" etc.
 set ∷ ∀ eff. Name → SetValue → Run (Cookies + eff) Boolean
@@ -80,16 +75,16 @@ setJson name v = do
     Nothing → pure false
 
 delete ∷ ∀ eff. Name → Run (Cookies + eff) Boolean
-delete name = set name { value: "", attributes: attributes _{ expires = Just epoch }}
+delete name = set name { value: "", attributes: attributes _ { expires = Just epoch } }
 
 -- | Useful for testing when we want
 -- | to provide store directly and not
 -- | print and parse headers.
-runOnStore
-  ∷ ∀ a eff
-  . CookieStore
-  → Run (Cookies + Response.SetHeader + eff) a
-  → Run (Response.SetHeader + eff) a
+runOnStore ∷
+  ∀ a eff.
+  CookieStore →
+  Run (Cookies + Response.SetHeader + eff) a →
+  Run (Response.SetHeader + eff) a
 runOnStore c action = do
   (Tuple cs a) ← runStateAt _cookies c action
   let
@@ -98,12 +93,11 @@ runOnStore c action = do
     Response.setHeader k v
   pure a
 
-run
-  ∷ ∀ a eff
-  . Run (Cookies + Crypto + Request + Response.SetHeader + eff) a
-  → Run (Crypto + Request + Response.SetHeader + eff) a
+run ∷
+  ∀ a eff.
+  Run (Cookies + Crypto + Request + Response.SetHeader + eff) a →
+  Run (Crypto + Request + Response.SetHeader + eff) a
 run action = do
   s ← secret
   hs ← Request.headers
   runOnStore (cookieStore s hs) action
-

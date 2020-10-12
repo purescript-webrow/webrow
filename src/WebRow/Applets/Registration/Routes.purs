@@ -1,7 +1,6 @@
 module WebRow.Applets.Registration.Routes where
 
 import Prelude hiding ((/))
-
 import Data.Generic.Rep (class Generic)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Prim.Row (class Lacks) as Row
@@ -20,27 +19,29 @@ import WebRow.Routing (printFullRoute) as Route
 data Route
   = RegisterEmail
   | Confirmation SignedEmail
-  -- | ChangeEmail
-  -- | ChangeEmailConfirmation { payload ∷ String }
+
+-- | ChangeEmail
+-- | ChangeEmailConfirmation { payload ∷ String }
 derive instance genericRoute ∷ Generic Route _
 
 -- | ( registartion ∷ Route | routes)
-type RouteRow routes = Namespace Route routes
+type RouteRow routes
+  = Namespace Route routes
 
 localDuplex ∷ RouteDuplex' Route
-localDuplex = DG.sum
-  { "RegisterEmail": noArgs
-  , "Confirmation": "confirmation" / (_Newtype $ D.param "email" ∷ RouteDuplex' SignedEmail)
-  , "ChangeEmail": "change-email" / noArgs
-  , "ChangeEmailConfirmation": "change-email" / "confirmation" ? { payload: string }
-  }
+localDuplex =
+  DG.sum
+    { "RegisterEmail": noArgs
+    , "Confirmation": "confirmation" / (_Newtype $ D.param "email" ∷ RouteDuplex' SignedEmail)
+    , "ChangeEmail": "change-email" / noArgs
+    , "ChangeEmailConfirmation": "change-email" / "confirmation" ? { payload: string }
+    }
 
-routeBuilder
-  ∷ ∀ routes
-  . Row.Lacks "registration" routes
-  ⇒ Record.Builder.Builder { | routes } { registration ∷ RouteDuplex' Route | routes }
+routeBuilder ∷
+  ∀ routes.
+  Row.Lacks "registration" routes ⇒
+  Record.Builder.Builder { | routes } { registration ∷ RouteDuplex' Route | routes }
 routeBuilder = Record.Builder.insert _registration localDuplex
 
 printFullRoute ∷ ∀ eff routes. Route → Run (Routing' (RouteRow routes) + eff) FullUrl
 printFullRoute = Route.printFullRoute <<< namespace
-

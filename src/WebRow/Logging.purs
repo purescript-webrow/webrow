@@ -1,7 +1,5 @@
 module WebRow.Logging
   ( module Level
-  )
-  where
+  ) where
 
 import WebRow.Logging.Level (Level(..)) as Level
-

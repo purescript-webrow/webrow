@@ -18,11 +18,13 @@ data RegisterEmailResponse
   | EmailValidationFailed FormLayout
   | InitialEmailForm FormLayout
 
-data ChangeEmailResponse = ChangeEmailInitialForm FormLayout
+data ChangeEmailResponse
+  = ChangeEmailInitialForm FormLayout
 
 data Response
   = ConfirmationResponse ConfirmationResponse
   | RegisterEmailResponse RegisterEmailResponse
   | ChangeEmailResponse ChangeEmailResponse
 
-type ResponseRow responses = Namespace Response responses
+type ResponseRow responses
+  = Namespace Response responses

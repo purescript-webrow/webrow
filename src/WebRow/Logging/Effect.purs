@@ -1,7 +1,6 @@
 module WebRow.Logging.Effect where
 
 import Prelude
-
 import Control.Logger.Journald (Level(..))
 import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
@@ -14,7 +13,8 @@ data LoggerF a
 
 derive instance functorLoggerF ∷ Functor LoggerF
 
-type LOGGER = FProxy LoggerF
+type LOGGER
+  = FProxy LoggerF
 
 _logger = SProxy ∷ SProxy "logger"
 
@@ -30,16 +30,16 @@ warning = log Warning
 err ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
 err = log Err
 
-runLoggerConsole
-  ∷ ∀ a eff
-  . Run ( aff ∷ AFF , logger ∷ LOGGER | eff ) a
-  → Run ( aff ∷ AFF                   | eff ) a
+runLoggerConsole ∷
+  ∀ a eff.
+  Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) a →
+  Run ( aff ∷ AFF | eff ) a
 runLoggerConsole = Run.interpret (Run.on _logger handleLoggerConsole Run.send)
 
-handleLoggerConsole
-  ∷ ∀ a eff
-  . LoggerF a
-  → Run ( aff ∷ AFF | eff ) a
+handleLoggerConsole ∷
+  ∀ a eff.
+  LoggerF a →
+  Run ( aff ∷ AFF | eff ) a
 handleLoggerConsole (Log lvl msg next) = do
   Run.liftAff $ Console.log $ (show lvl) <> ": " <> show msg
   pure next

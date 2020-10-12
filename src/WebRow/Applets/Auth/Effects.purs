@@ -1,7 +1,6 @@
 module WebRow.Applets.Auth.Effects where
 
 import Prelude
-
 import Data.Maybe (Maybe)
 import Run (FProxy, Run)
 import Run (lift) as Run
@@ -13,19 +12,21 @@ data AuthF user a
 
 derive instance functorAuthF ∷ Functor (AuthF user)
 
-type AUTH user = FProxy (AuthF user)
+type AUTH user
+  = FProxy (AuthF user)
 
-type Auth user r = (auth ∷ AUTH user | r)
+type Auth user r
+  = ( auth ∷ AUTH user | r )
 
-type User user = { email ∷ Email | user }
+type User user
+  = { email ∷ Email | user }
 
-authenticate
-  ∷ ∀ eff user
-  . Email
-  → Password
-  → Run ( auth ∷ AUTH user | eff ) (Maybe (User user))
+authenticate ∷
+  ∀ eff user.
+  Email →
+  Password →
+  Run ( auth ∷ AUTH user | eff ) (Maybe (User user))
 authenticate email password = Run.lift _auth (Authenticate email password identity)
-
 
 -- data AuthF user a
 --   = CurrentUser (Maybe (User user) → a)
@@ -40,4 +41,3 @@ authenticate email password = Run.lift _auth (Authenticate email password identi
 -- 
 -- checkPassword ∷ ∀ eff user. Email → Password → Run ( auth ∷ AUTH user | eff ) Boolean
 -- checkPassword email password = Run.lift _auth (CheckPassword email password identity)
-

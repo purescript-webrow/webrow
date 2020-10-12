@@ -13,7 +13,8 @@ data Response
   = LoginResponse LoginResponse
   | LogoutResponse
 
-type ResponseRow responses = Namespace Response responses
+type ResponseRow responses
+  = Namespace Response responses
 
 -- response
 --   ∷ ∀ a eff res widgets
@@ -25,7 +26,6 @@ type ResponseRow responses = Namespace Response responses
 --   = ∀ res eff a widgets
 --   . (Forms.Layout widgets)
 --   → Run (response ∷ RESPONSE ( auth ∷ (Response widgets) | res ) | eff) a
-
 -- loginFormValidationFailed ∷ forall widgets. Response widgets
 -- loginFormValidationFailed = LoginResponse <<< LoginFormValidationFailed
 -- 

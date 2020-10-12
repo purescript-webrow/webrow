@@ -1,7 +1,6 @@
 module WebRow.Applets.Registration.Forms where
 
 import Prelude
-
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.String (Pattern(..), contains) as String
@@ -18,38 +17,48 @@ import WebRow.Forms.Uni (build) as Uni
 import WebRow.Forms.Uni (build, emailInputBuilder, passwordInputBuilder, sectionValidator, textInputBuilder) as Forms.Uni
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Mailer (Email(..))
+
 -- import WebRow.Forms.Dual ((~))
 -- import WebRow.Forms.Dual (Form(..), textInput) as Forms.Dual
 -- import WebRow.Forms.Fields.Duals (email) as Fields.Duals
 -- import WebRow.Forms.Fields.Validators (email) as Fields.Validators
 -- import WebRow.Forms.Plain (input, passwordField, sectionValidator) as Forms.Plain
+type Widgets
+  = (TextInput + ())
 
-type Widgets = (TextInput + ())
-type FormLayout = Forms.Layout Widgets
+type FormLayout
+  = Forms.Layout Widgets
 
 _emailTaken = SProxy ∷ SProxy "emailTaken"
 
-type EmailTaken r = (emailTaken ∷ Email | r)
+type EmailTaken r
+  = ( emailTaken ∷ Email | r )
 
 emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { name: "email", policy: validator }
   where
-    validator = Validator.checkM
+  validator =
+    Validator.checkM
       (Batteries.error _emailTaken)
       (map not <$> Effects.emailTaken)
 
 _passwordsMismatch = SProxy ∷ SProxy "passwordsMismatch"
 
-type PasswordsInput = { password1 ∷ String, password2 ∷ String }
+type PasswordsInput
+  = { password1 ∷ String, password2 ∷ String }
 
-type PasswordsMismatch r = (passwordsMismatch ∷ PasswordsInput | r)
+type PasswordsMismatch r
+  = ( passwordsMismatch ∷ PasswordsInput | r )
 
 passwordForm = Forms.Uni.build $ Forms.Uni.sectionValidator validator <<< passwordsForm
   where
-    validator = Validator.liftFn (Password <<< _.password1) <<< Validator.check
-      (Batteries.error _passwordsMismatch)
-      (\r → r.password1 == r.password2)
+  validator =
+    Validator.liftFn (Password <<< _.password1)
+      <<< Validator.check
+          (Batteries.error _passwordsMismatch)
+          (\r → r.password1 == r.password2)
 
-    passwordsForm = { password1: _, password2: _ }
+  passwordsForm =
+    { password1: _, password2: _ }
       <$> Forms.Uni.passwordInputBuilder {}
       <*> Forms.Uni.passwordInputBuilder {}
 

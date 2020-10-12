@@ -10,11 +10,9 @@ module WebRow.Routing
   , route
   , _routing
   , runRouting
-  )
-  where
+  ) where
 
 import Prelude
-
 import Data.Array (singleton) as Array
 import Data.Either (Either(..))
 import Data.Lazy (defer) as L
@@ -47,11 +45,14 @@ _routing = SProxy ∷ SProxy "routing"
 -- | `data RoutingF = PrintRouteF ..  | PrintFullRouteF ... | RedirectF ...
 -- |
 -- | Then we can abstract over i18n and simple routes in generic applets.
-type ROUTING route = READER (Context route)
+type ROUTING route
+  = READER (Context route)
 
-type Routing route eff = (routing ∷ ROUTING route | eff)
+type Routing route eff
+  = ( routing ∷ ROUTING route | eff )
 
-type Routing' routes eff = Routing (Variant routes) eff
+type Routing' routes eff
+  = Routing (Variant routes) eff
 
 printRoute ∷ ∀ v eff. v → Run ( routing ∷ ROUTING v | eff ) RelativeUrl
 printRoute v = map RelativeUrl $ askAt _routing <#> _.routeDuplex <#> flip D.print v
@@ -62,33 +63,38 @@ printFullRoute v = map FullUrl $ (<>) <$> (askAt _routing <#> _.domain) <*> (map
 context ∷ ∀ v. Domain → D.RouteDuplex' v → String → Either D.RouteError (Context v)
 context domain routeDuplex@(RouteDuplex _ dec) = go
   where
-    replacePlus = String.replaceAll (String.Pattern "+") (String.Replacement " ")
-    go url =
-      let
-        routeState@{ params } = D.parsePath (replacePlus url)
-        query = L.defer \_ →
-          Decoded
-          <<< Map.fromFoldableWith append
-          <<< map (map Array.singleton)
-          $ params
-        ctx =
-          { route: _
-          , query
-          , routeDuplex
-          , domain
-          }
-      in
-        ctx <$> case D.runRouteParser routeState dec of
-          D.Fail err → Left err
-          D.Success _ res → Right res
+  replacePlus = String.replaceAll (String.Pattern "+") (String.Replacement " ")
 
-runRouting
-  ∷ ∀ eff route
-  . Domain
-  → RouteDuplex' route
-  → HTTPure.Request
-  → Run (HTTPExcept + Request + Routing route + eff)
-  ~> Run (HTTPExcept + eff)
+  go url =
+    let
+      routeState@{ params } = D.parsePath (replacePlus url)
+
+      query =
+        L.defer \_ →
+          Decoded
+            <<< Map.fromFoldableWith append
+            <<< map (map Array.singleton)
+            $ params
+
+      ctx =
+        { route: _
+        , query
+        , routeDuplex
+        , domain
+        }
+    in
+      ctx
+        <$> case D.runRouteParser routeState dec of
+            D.Fail err → Left err
+            D.Success _ res → Right res
+
+runRouting ∷
+  ∀ eff route.
+  Domain →
+  RouteDuplex' route →
+  HTTPure.Request →
+  Run (HTTPExcept + Request + Routing route + eff)
+    ~> Run (HTTPExcept + eff)
 runRouting domain routeDuplex request action = do
   case context domain routeDuplex request.url of
     Right routing → runReaders { request, routing } action
@@ -98,16 +104,15 @@ runRouting domain routeDuplex request action = do
 route ∷ ∀ eff route. Run (Routing route + eff) route
 route = askAt _routing <#> _.route
 
-redirect
-  ∷ ∀ a eff route
-  . route
-  → Run
-      ( HTTPExcept
-      + Routing route
-      + eff
-      )
-      a
+redirect ∷
+  ∀ a eff route.
+  route →
+  Run
+    ( HTTPExcept
+        + Routing route
+        + eff
+    )
+    a
 redirect r = do
   url ← printRoute r
   HTTP.Response.redirect (fromRelativeUrl url)
-

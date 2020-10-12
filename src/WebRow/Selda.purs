@@ -1,7 +1,6 @@
 module WebRow.Selda where
 
 import Prelude
-
 import Control.Monad.Reader (ask)
 import Data.Either (either)
 import Data.Maybe (Maybe, maybe)

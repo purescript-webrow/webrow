@@ -8,11 +8,9 @@ module WebRow.Crypto
   , unsign
   , Crypto
   , module Types
-  )
-  where
+  ) where
 
 import Prelude
-
 import Data.Argonaut (Json)
 import Data.Either (Either(..))
 import HTTPure (empty) as Headers
@@ -28,43 +26,43 @@ import WebRow.HTTP.Response.Except (HTTPExcept, internalServerError)
 
 _crypto = SProxy ∷ SProxy "crypto"
 
-type Crypto r = (crypto ∷ READER Secret | r)
+type Crypto r
+  = ( crypto ∷ READER Secret | r )
 
 secret ∷ ∀ eff. Run (Crypto + eff) Secret
 secret = askAt _crypto
 
 -- | TODO: Should we handle errors through custom exception?
-signJson
-  ∷ ∀ eff
-  . Json
-  → Run (Crypto + HTTPExcept + eff) String
+signJson ∷
+  ∀ eff.
+  Json →
+  Run (Crypto + HTTPExcept + eff) String
 signJson json = do
   sec ← askAt _crypto
   case Jwt.sign sec json of
     Left e → internalServerError Headers.empty "Serious problem..."
     Right s → pure s
 
-sign
-  ∷ ∀ eff
-  . String
-  → Run (Crypto + HTTPExcept + eff) String
+sign ∷
+  ∀ eff.
+  String →
+  Run (Crypto + HTTPExcept + eff) String
 sign str = do
   sec ← askAt _crypto
   case String.sign sec str of
     Left e → internalServerError Headers.empty "Serious problem..."
     Right s → pure s
 
-unsignJson
-  ∷ ∀ eff
-  . String
-  → Run (Crypto + eff) (Either UnsignError Json)
-unsignJson json =
-  askAt _crypto <#> \s → Jwt.unsign s json
+unsignJson ∷
+  ∀ eff.
+  String →
+  Run (Crypto + eff) (Either UnsignError Json)
+unsignJson json = askAt _crypto <#> \s → Jwt.unsign s json
 
-unsign
-  ∷ ∀ eff
-  . String
-  → Run (Crypto + eff) (Either UnsignError String)
+unsign ∷
+  ∀ eff.
+  String →
+  Run (Crypto + eff) (Either UnsignError String)
 unsign json = do
   askAt _crypto <#> \s → String.unsign s json
 

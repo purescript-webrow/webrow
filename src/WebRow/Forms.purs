@@ -3,8 +3,7 @@ module WebRow.Forms
   , module Layout
   , module Uni
   , module Widgets
-  )
-  where
+  ) where
 
 import WebRow.Forms.Bi (Bi) as Bi
 import WebRow.Forms.Uni (Layout, Uni) as Uni

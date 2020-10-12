@@ -10,8 +10,7 @@ module WebRow.Forms.Bi
   , passwordInputBuilder
   , sectionDual
   , textInputBuilder
-  )
-  where
+  ) where
 
 -- | This module provides predefined field constructors and
 -- | aliases which use `Forms.Layout` for bidirectional forms.
@@ -19,9 +18,7 @@ module WebRow.Forms.Bi
 -- | If you don't like `Forms.Layout` there is a layout
 -- | agnostic definition of `Builder` and `Form` itself provided in
 -- | the submodules.
-
 import Prelude
-
 import Data.Either (Either(..))
 import Data.Exists (mkExists)
 import Data.Identity (Identity(..))
@@ -75,11 +72,14 @@ import WebRow.Message (message)
 -- |  Framework is going to also fill the input structure with the names
 -- |  which should be used for every form input during rendering to close
 -- |  the data flow loop correctly.
-type FieldDual eff info i o = Validator.Dual (MessageM info eff) (Errors info) i o
+type FieldDual eff info i o
+  = Validator.Dual (MessageM info eff) (Errors info) i o
 
-type Dual eff info widgets i o = Reporter.Dual (MessageM info eff) (Layout widgets) i o
+type Dual eff info widgets i o
+  = Reporter.Dual (MessageM info eff) (Layout widgets) i o
 
-newtype Builder eff info widgets i o = Builder
+newtype Builder eff info widgets i o
+  = Builder
   ( B.BuilderD
       (MessageM info eff)
       (Layout widgets)
@@ -88,7 +88,8 @@ newtype Builder eff info widgets i o = Builder
       o
   )
 
-newtype Bi eff info widgets o = Bi (Form.Form (MessageM info eff) (Layout widgets) o)
+newtype Bi eff info widgets o
+  = Bi (Form.Form (MessageM info eff) (Layout widgets) o)
 
 instance semigroupoidBuilder ∷ Semigroupoid (Builder eff info widgets) where
   compose (Builder bd1) (Builder bd2) =
@@ -112,154 +113,162 @@ instance categoryBuilder ∷ Category (Builder eff info widgets) where
 -- |  (so it doesn't care about field "names" in the HTML form).
 -- |
 -- | Returns a form `Builder` which can be composed into larger one easily.
-fieldBuilder
-  ∷ ∀ eff info inputs widgets o
-  . Monoid (inputs Unit)
-  ⇒ Traversable inputs
-  ⇒ { constructor ∷ Widget.Constructor (MessageM info eff) inputs widgets o
-    , defaults ∷ Widget.Payload inputs
-    , dual ∷ FieldDual eff info (Widget.Payload inputs) o
-    }
-  → Builder eff info widgets UrlDecoded o
-fieldBuilder { constructor, defaults, dual } = builder do
-  ns ∷ Widget.Names inputs ← Widget.names
-  let
-    constructor' = map Layout.Widget <<< constructor
+fieldBuilder ∷
+  ∀ eff info inputs widgets o.
+  Monoid (inputs Unit) ⇒
+  Traversable inputs ⇒
+  { constructor ∷ Widget.Constructor (MessageM info eff) inputs widgets o
+  , defaults ∷ Widget.Payload inputs
+  , dual ∷ FieldDual eff info (Widget.Payload inputs) o
+  } →
+  Builder eff info widgets UrlDecoded o
+fieldBuilder { constructor, defaults, dual } =
+  builder do
+    ns ∷ Widget.Names inputs ← Widget.names
+    let
+      constructor' = map Layout.Widget <<< constructor
 
-    fromSuccess ∷ Tuple (Widget.Payload inputs) o → MessageM info eff (Layout widgets)
-    fromSuccess (Tuple payload o) =
-      constructor' { payload, names: ns, result: Just (Right o) }
+      fromSuccess ∷ Tuple (Widget.Payload inputs) o → MessageM info eff (Layout widgets)
+      fromSuccess (Tuple payload o) = constructor' { payload, names: ns, result: Just (Right o) }
 
-    fromFailure ∷ Tuple (Widget.Payload inputs) (Errors info) → MessageM info eff (Layout widgets)
-    fromFailure (Tuple payload e) = do
-      -- | We are doing error rendering here
-      e' ← traverse message e
-      constructor' { payload, names: ns, result: Just (Left e') }
+      fromFailure ∷ Tuple (Widget.Payload inputs) (Errors info) → MessageM info eff (Layout widgets)
+      fromFailure (Tuple payload e) = do
+        -- | We are doing error rendering here
+        e' ← traverse message e
+        constructor' { payload, names: ns, result: Just (Left e') }
 
-    widgetDual ∷ Dual eff info widgets (Widget.Payload inputs) o
-    widgetDual = Reporter.Dual.liftValidatorDualWithM fromFailure fromSuccess dual
+      widgetDual ∷ Dual eff info widgets (Widget.Payload inputs) o
+      widgetDual = Reporter.Dual.liftValidatorDualWithM fromFailure fromSuccess dual
 
-    dropMissing ∷ List (Tuple Payload.Key (Maybe Payload.Value)) → List (Tuple Payload.Key Payload.Value)
-    dropMissing = List.catMaybes <<< map sequence
+      dropMissing ∷ List (Tuple Payload.Key (Maybe Payload.Value)) → List (Tuple Payload.Key Payload.Value)
+      dropMissing = List.catMaybes <<< map sequence
 
-    payloadDual ∷ Dual eff info widgets UrlDecoded (Widget.Payload inputs)
-    payloadDual = Dual.dual
-      ( Polyform.Reporter.liftFn ( Widget.payload ns ))
-      ( pure
-        <<< Query.Decoded
-        <<< Map.fromFoldable
-        <<< dropMissing
-        <<< List.zip (List.fromFoldable ns)
-        <<< List.fromFoldable
-      )
-  pure
-    { dualD: un Dual.Dual $ widgetDual <<< payloadDual
-    , default: constructor' { payload: defaults, names: ns, result: Nothing }
-    }
+      payloadDual ∷ Dual eff info widgets UrlDecoded (Widget.Payload inputs)
+      payloadDual =
+        Dual.dual
+          (Polyform.Reporter.liftFn (Widget.payload ns))
+          ( pure
+              <<< Query.Decoded
+              <<< Map.fromFoldable
+              <<< dropMissing
+              <<< List.zip (List.fromFoldable ns)
+              <<< List.fromFoldable
+          )
+    pure
+      { dualD: un Dual.Dual $ widgetDual <<< payloadDual
+      , default: constructor' { payload: defaults, names: ns, result: Nothing }
+      }
 
-builder
-  ∷ ∀ eff info i o widgets
-  . BuilderM
+builder ∷
+  ∀ eff info i o widgets.
+  BuilderM
     { default ∷ MessageM info eff (Layout widgets)
     , dualD ∷ Reporter.DualD (MessageM info eff) (Layout widgets) i o o
-    }
-  → Builder eff info widgets i o
+    } →
+  Builder eff info widgets i o
 builder = Builder <<< B.BuilderD
 
 -- | We reuse this row in Forms.Bi
-type TextInputInitialsBase (r ∷ # Type) =
-  ( default ∷ Opt String
-  , label ∷ Opt String
-  , type_ ∷ Opt String
-  , placeholder ∷ Opt String
-  , helpText ∷ Opt String
-  | r
-  )
+type TextInputInitialsBase (r ∷ # Type)
+  = ( default ∷ Opt String
+    , label ∷ Opt String
+    , type_ ∷ Opt String
+    , placeholder ∷ Opt String
+    , helpText ∷ Opt String
+    | r
+    )
 
-type TextInputInitials info eff o =
-  { | TextInputInitialsBase
-    + (dual ∷ FieldDual eff info (Maybe Payload.Value) o)
-  }
+type TextInputInitials info eff o
+  = {
+    | TextInputInitialsBase
+      + ( dual ∷ FieldDual eff info (Maybe Payload.Value) o )
+    }
 
-textInputBuilder
-  ∷ ∀ args eff info o r
-  . NoProblem.Closed.Coerce args (TextInputInitials info eff o)
-  ⇒ args
-  → Builder eff info (TextInput + r) UrlDecoded o
+textInputBuilder ∷
+  ∀ args eff info o r.
+  NoProblem.Closed.Coerce args (TextInputInitials info eff o) ⇒
+  args →
+  Builder eff info (TextInput + r) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
-    { constructor,  defaults: Identity (Just [ default ! "" ]), dual: dual' }
+    { constructor, defaults: Identity (Just [ default ! "" ]), dual: dual' }
   where
-    i@{ default, dual } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
-    dual' = dual <<< Validator.Dual.iso (un Identity) Identity
+  i@{ default, dual } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
 
-    constructor { payload: Identity payload, names: Identity name, result } = pure $ Widgets.textInput
-      { type_: i.type_ ! "text"
-      , helpText: i.helpText # NoProblem.toMaybe
-      , label: i.label # NoProblem.toMaybe
-      , payload
-      , placeholder: i.placeholder # NoProblem.toMaybe
-      , name
-      , result: map (mkExists <<< Identity) <$> result
-      }
+  dual' = dual <<< Validator.Dual.iso (un Identity) Identity
 
-passwordInputBuilder
-  ∷ ∀ args eff info r
-  . Closed.Coerce args (PasswordInputInitials eff info)
-  ⇒ args
-  → Builder
+  constructor { payload: Identity payload, names: Identity name, result } =
+    pure
+      $ Widgets.textInput
+          { type_: i.type_ ! "text"
+          , helpText: i.helpText # NoProblem.toMaybe
+          , label: i.label # NoProblem.toMaybe
+          , payload
+          , placeholder: i.placeholder # NoProblem.toMaybe
+          , name
+          , result: map (mkExists <<< Identity) <$> result
+          }
+
+passwordInputBuilder ∷
+  ∀ args eff info r.
+  Closed.Coerce args (PasswordInputInitials eff info) ⇒
+  args →
+  Builder
     eff
     (MissingValue + info)
     (TextInput + r)
     UrlDecoded
     String
-passwordInputBuilder args = textInputBuilder
-  { placeholder
-  , helpText
-  , label
-  , dual: Batteries.value
-  , type_: "password"
-  }
-  where
-    i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ (PasswordInputInitials eff info)
-
-closeSection ∷ ∀ eff i info o widgets. Variant info → Builder eff info widgets i o → Builder eff info widgets i o
-closeSection title (Builder (B.BuilderD bd)) = builder do
-  { default: d, dualD } ← bd
-  pure
-    { default: d >>= close
-    , dualD: un Polyform.Dual (Reporter.Dual.lmapM close (Polyform.Dual dualD))
+passwordInputBuilder args =
+  textInputBuilder
+    { placeholder
+    , helpText
+    , label
+    , dual: Batteries.value
+    , type_: "password"
     }
   where
-    close s = do
-      t ← message title
-      pure $ Layout.closeSection t s
+  i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ (PasswordInputInitials eff info)
 
-sectionDual
-  ∷ ∀ eff i info o widgets
-  . FieldDual eff info i o
-  → Builder eff info widgets i o
+closeSection ∷ ∀ eff i info o widgets. Variant info → Builder eff info widgets i o → Builder eff info widgets i o
+closeSection title (Builder (B.BuilderD bd)) =
+  builder do
+    { default: d, dualD } ← bd
+    pure
+      { default: d >>= close
+      , dualD: un Polyform.Dual (Reporter.Dual.lmapM close (Polyform.Dual dualD))
+      }
+  where
+  close s = do
+    t ← message title
+    pure $ Layout.closeSection t s
+
+sectionDual ∷
+  ∀ eff i info o widgets.
+  FieldDual eff info i o →
+  Builder eff info widgets i o
 sectionDual dual = builder $ pure { default: pure mempty, dualD }
   where
-    dual' = Validator.Dual.lmapM (traverse message) dual
-    Polyform.Dual dualD = Reporter.Dual.liftValidatorDualWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) dual'
+  dual' = Validator.Dual.lmapM (traverse message) dual
 
-default
-  ∷ ∀ eff info o widgets
-  . Bi eff info widgets o
-  → MessageM info eff (Layout widgets)
+  Polyform.Dual dualD = Reporter.Dual.liftValidatorDualWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) dual'
+
+default ∷
+  ∀ eff info o widgets.
+  Bi eff info widgets o →
+  MessageM info eff (Layout widgets)
 default (Bi form) = Form.default form
 
-serialize
-  ∷ ∀ eff info o widgets
-  . Bi eff info widgets o
-  → o
-  → MessageM info eff (Tuple UrlDecoded (Layout widgets))
+serialize ∷
+  ∀ eff info o widgets.
+  Bi eff info widgets o →
+  o →
+  MessageM info eff (Tuple UrlDecoded (Layout widgets))
 serialize (Bi form) = Form.serialize form
 
-validate
-  ∷ ∀ eff info o widgets
-  . Bi eff info widgets o
-  → UrlDecoded
-  → MessageM info eff (Tuple (Maybe o) (Layout widgets))
+validate ∷
+  ∀ eff info o widgets.
+  Bi eff info widgets o →
+  UrlDecoded →
+  MessageM info eff (Tuple (Maybe o) (Layout widgets))
 validate (Bi form) = Form.validate form

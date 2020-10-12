@@ -12,27 +12,28 @@ import WebRow.Forms.Widget (Widget)
 
 _textInput = SProxy ∷ SProxy "textInput"
 
-type TextInputPropsR =
-  { label ∷ Maybe String
-  , payload ∷ Maybe Payload.Value
-  , placeholder ∷ Maybe String
-  , helpText ∷ Maybe String
-  , name ∷ String
-  , result ∷ Maybe
-      (Either (Array String) (Exists Identity))
-  , type_ ∷ String
-  }
+type TextInputPropsR
+  = { label ∷ Maybe String
+    , payload ∷ Maybe Payload.Value
+    , placeholder ∷ Maybe String
+    , helpText ∷ Maybe String
+    , name ∷ String
+    , result ∷
+        Maybe
+          (Either (Array String) (Exists Identity))
+    , type_ ∷ String
+    }
 
-newtype TextInputProps = TextInputProps TextInputPropsR
+newtype TextInputProps
+  = TextInputProps TextInputPropsR
 
-type TextInput r =
-  ( textInput ∷ TextInputProps
-  | r
-  )
+type TextInput r
+  = ( textInput ∷ TextInputProps
+    | r
+    )
 
-textInput
-  ∷ ∀ r
-  . TextInputPropsR
-  → Widget (TextInput + r)
+textInput ∷
+  ∀ r.
+  TextInputPropsR →
+  Widget (TextInput + r)
 textInput args = Variant.inj _textInput (TextInputProps args)
-

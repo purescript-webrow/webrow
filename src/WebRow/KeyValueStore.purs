@@ -1,7 +1,6 @@
 module WebRow.KeyValueStore
   ( module Types
-  )
-  where
+  ) where
 
 import WebRow.KeyValueStore.Types (hoist, Key, KeyValueStore) as Types
 

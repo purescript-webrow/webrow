@@ -1,7 +1,6 @@
 module WebRow.Testing.HTTP.Cookies where
 
 import Prelude
-
 import Data.Array.NonEmpty (singleton) as Array.NonEmpty
 import Data.JSDate (JSDate)
 import Data.Map (filter, toUnfoldable) as Map
@@ -17,10 +16,10 @@ import WebRow.Testing.HTTP.Types (ClientCookies)
 -- | by just taking filtering function for cookies.
 dropExpired ∷ Maybe JSDate → ClientCookies → ClientCookies
 dropExpired Nothing = identity
+
 dropExpired (Just now) = Map.filter valid
   where
-    valid { attributes: Cookies.Attributes { expires }} =
-      fromMaybe false ((now < _) <$> expires)
+  valid { attributes: Cookies.Attributes { expires } } = fromMaybe false ((now < _) <$> expires)
 
 toRequestCookies ∷ ClientCookies -> RequestCookies
 toRequestCookies =

@@ -1,7 +1,6 @@
 module WebRow.Applets.Auth.Forms where
 
 import Prelude
-
 import Data.Either (note)
 import Data.Validation.Semigroup (V(..))
 import Polyform.Batteries (error) as Batteries
@@ -20,37 +19,47 @@ import WebRow.Mailer (Email)
 
 _authFailed = SProxy ∷ SProxy "authFailed"
 
-type Widgets = (TextInput + ())
-type LoginLayout = Forms.Layout Widgets
+type Widgets
+  = (TextInput + ())
 
-type AuthPayload = { email ∷ Email, password ∷ Password }
-type AuthFailed r = (authFailed ∷ AuthPayload | r)
+type LoginLayout
+  = Forms.Layout Widgets
 
-loginForm :: forall eff errs user.
+type AuthPayload
+  = { email ∷ Email, password ∷ Password }
+
+type AuthFailed r
+  = ( authFailed ∷ AuthPayload | r )
+
+loginForm ::
+  forall eff errs user.
   Forms.Uni
     (Effects.Auth user + eff)
     (AuthFailed + InvalidEmailFormat + MissingValue + errs)
     (TextInput + ())
     (User user)
-loginForm = Uni.build
-  $ autheticateBuilder
-  <<< ({ email: _, password: _ } <$> emailFormBuilder <*> passwordFormBuilder)
+loginForm =
+  Uni.build
+    $ autheticateBuilder
+    <<< ({ email: _, password: _ } <$> emailFormBuilder <*> passwordFormBuilder)
   where
-    autheticateBuilder
-      ∷ ∀ errs' widgets'
-      . Uni.Builder
-          (Effects.Auth user + eff)
-          (AuthFailed + errs')
-          widgets'
-          AuthPayload
-          (User user)
-    autheticateBuilder = Uni.sectionValidator $ Validator.liftFnMV \r → ado
-      res ← Effects.authenticate r.email r.password
-      in
-        V (note (Batteries.error _authFailed r) res)
+  autheticateBuilder ∷
+    ∀ errs' widgets'.
+    Uni.Builder
+      (Effects.Auth user + eff)
+      (AuthFailed + errs')
+      widgets'
+      AuthPayload
+      (User user)
+  autheticateBuilder =
+    Uni.sectionValidator
+      $ Validator.liftFnMV \r → ado
+          res ← Effects.authenticate r.email r.password
+          in V (note (Batteries.error _authFailed r) res)
 
-    passwordFormBuilder = Password <$> Uni.passwordInputBuilder
-      { name: "password", policy: identity }
+  passwordFormBuilder =
+    Password
+      <$> Uni.passwordInputBuilder
+          { name: "password", policy: identity }
 
-    emailFormBuilder = Uni.emailInputBuilder { name: "email" }
-
+  emailFormBuilder = Uni.emailInputBuilder { name: "email" }

@@ -1,7 +1,6 @@
 module WebRow.HTTP.Cookies.Headers where
 
 import Prelude
-
 import Control.Monad.Error.Class (throwError)
 import Data.Array (catMaybes, filter)
 import Data.Array.NonEmpty (singleton) as Array.NonEmpty
@@ -23,18 +22,20 @@ import WebRow.HTTP.Cookies.Types (Attributes(..), Name, RequestCookies, SameSite
 import WebRow.HTTP.Response (SetHeader, setHeader) as HTTP.Response
 
 requestCookies ∷ HTTPure.Headers → RequestCookies
-requestCookies hs
-  = fromMaybe mempty
-  $ hush <<< parseCookies
-  =<< HTTPure.lookup hs cookieHeaderKey
+requestCookies hs =
+  fromMaybe mempty
+    $ hush
+    <<< parseCookies
+    =<< HTTPure.lookup hs cookieHeaderKey
 
-setCookie
-  ∷ ∀ eff
-  . Name
-  → SetValue
-  → Run (EffRow + Crypto + HTTP.Response.SetHeader + eff) Unit
+setCookie ∷
+  ∀ eff.
+  Name →
+  SetValue →
+  Run (EffRow + Crypto + HTTP.Response.SetHeader + eff) Unit
 setCookie name { value, attributes } = do
-  let h = setCookieHeaderValue name value attributes
+  let
+    h = setCookieHeaderValue name value attributes
   HTTP.Response.setHeader setCookieHeaderKey h
 
 cookieHeaderKey ∷ String
@@ -44,8 +45,7 @@ setCookieHeaderKey ∷ String
 setCookieHeaderKey = "Set-Cookie"
 
 setCookieHeader ∷ Name → Value → Attributes → Tuple String String
-setCookieHeader n v attrs =
-  Tuple setCookieHeaderKey (setCookieHeaderValue n v attrs)
+setCookieHeader n v attrs = Tuple setCookieHeaderKey (setCookieHeaderValue n v attrs)
 
 -- | XXX: Add cookie size check here
 setCookieHeaderValue ∷ Name → Value → Attributes → String
@@ -60,34 +60,34 @@ setCookieHeaderValue key value (Attributes { comment, expires, path, maxAge, dom
   , if secure then Just "Secure" else Nothing
   , if httpOnly then Just "HttpOnly" else Nothing
   ]
-  # catMaybes
-  # joinWith ";"
- where
+    # catMaybes
+    # joinWith ";"
+  where
   assign k v = k <> "=" <> v
+
   sameSiteSer ∷ SameSite → String
   sameSiteSer Strict = "Strict"
+
   sameSiteSer Lax = "Lax"
 
 parseCookies ∷ String → Either String RequestCookies
 parseCookies s =
   splitPairs s
-  <#> map toCookieMap
-  <#> Object.fromFoldableWith append
+    <#> map toCookieMap
+    <#> Object.fromFoldableWith append
 
 splitPairs ∷ String → Either String (Array (Tuple Name String))
 splitPairs =
   split (Pattern ";")
-  >>> map trim
-  >>> filter ((/=) "")
-  >>> map (split (Pattern "=") >>> toPair)
-  >>> sequence
+    >>> map trim
+    >>> filter ((/=) "")
+    >>> map (split (Pattern "=") >>> toPair)
+    >>> sequence
 
 toPair ∷ Array String → Either String (Tuple Name String)
 toPair kv = case kv of
-  [key, value] →
-    pure $ Tuple (unsafeDecodeURIComponent key) (unsafeDecodeURIComponent value)
-  parts →
-    throwError ("Invalid cookie-pair: " <> joinWith " " parts)
+  [ key, value ] → pure $ Tuple (unsafeDecodeURIComponent key) (unsafeDecodeURIComponent value)
+  parts → throwError ("Invalid cookie-pair: " <> joinWith " " parts)
 
 toCookieMap ∷ Tuple Name String → Tuple Name Values
 toCookieMap (Tuple name value) = Tuple name (Array.NonEmpty.singleton value)

@@ -7,48 +7,61 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Foreign.Object (Object)
 
-type Name = String
-type Value = String
-type Values = NonEmptyArray Value
+type Name
+  = String
 
-type ResponseCookie =
-  { value ∷ Value
-  , attributes ∷ Attributes
-  }
-type SetValue = ResponseCookie
+type Value
+  = String
 
-type RequestCookies = Object Values
-type ResponseCookies = Map Name ResponseCookie
+type Values
+  = NonEmptyArray Value
 
-data SameSite = Strict | Lax
+type ResponseCookie
+  = { value ∷ Value
+    , attributes ∷ Attributes
+    }
 
-type AttributesRecord =
-  { comment ∷ Maybe String
-  , domain ∷ Maybe String
-  , expires ∷ Maybe JSDate
-  , httpOnly ∷ Boolean
-  , maxAge ∷ Maybe Int
-  , path ∷ Maybe String
-  , sameSite ∷ Maybe SameSite
-  , secure ∷ Boolean
-  }
+type SetValue
+  = ResponseCookie
 
-newtype Attributes = Attributes AttributesRecord
+type RequestCookies
+  = Object Values
+
+type ResponseCookies
+  = Map Name ResponseCookie
+
+data SameSite
+  = Strict
+  | Lax
+
+type AttributesRecord
+  = { comment ∷ Maybe String
+    , domain ∷ Maybe String
+    , expires ∷ Maybe JSDate
+    , httpOnly ∷ Boolean
+    , maxAge ∷ Maybe Int
+    , path ∷ Maybe String
+    , sameSite ∷ Maybe SameSite
+    , secure ∷ Boolean
+    }
+
+newtype Attributes
+  = Attributes AttributesRecord
+
 derive instance newtypeAttributes ∷ Newtype Attributes _
 
 defaultAttributes ∷ Attributes
-defaultAttributes = Attributes
-  { comment: Nothing
-  , domain: Nothing
-  , expires: Nothing
-  , httpOnly: false
-  , maxAge: Nothing
-  , path: Just "/"
-
-  , sameSite: Nothing
-  , secure: false
-  }
-
+defaultAttributes =
+  Attributes
+    { comment: Nothing
+    , domain: Nothing
+    , expires: Nothing
+    , httpOnly: false
+    , maxAge: Nothing
+    , path: Just "/"
+    , sameSite: Nothing
+    , secure: false
+    }
 
 attributes ∷ (AttributesRecord → AttributesRecord) → Attributes
 attributes f =

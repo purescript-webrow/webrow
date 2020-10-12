@@ -1,7 +1,6 @@
 module WebRow.Testing.Assertions where
 
 import Prelude
-
 import Run (Run, liftEffect)
 import Test.Spec.Assertions (shouldEqual) as Assertions
 import Type.Row (type (+))

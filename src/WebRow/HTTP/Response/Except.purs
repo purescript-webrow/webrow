@@ -1,7 +1,6 @@
 module WebRow.HTTP.Response.Except where
 
 import Prelude
-
 import Data.Variant (SProxy(..))
 import HTTPure (Headers, Status, header) as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
@@ -12,54 +11,58 @@ import Run.Except (EXCEPT, throwAt)
 import WebRow.HTTP.Types (Body)
 import WebRow.Routing.Types (Url(..))
 
-newtype HTTPException = HTTPException { body ∷ String, headers ∷ HTTPure.Headers, status ∷ HTTPure.Status }
+newtype HTTPException
+  = HTTPException { body ∷ String, headers ∷ HTTPure.Headers, status ∷ HTTPure.Status }
 
 _httpExcept = SProxy ∷ SProxy "httpExcept"
 
-type HTTPEXCEPT = EXCEPT HTTPException
+type HTTPEXCEPT
+  = EXCEPT HTTPException
 
-type HTTPExcept r = (httpExcept ∷ HTTPEXCEPT | r)
+type HTTPExcept r
+  = ( httpExcept ∷ HTTPEXCEPT | r )
 
-httpExcept ∷ ∀ a eff. HTTPException → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+httpExcept ∷ ∀ a eff. HTTPException → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 httpExcept = throwAt _httpExcept
 
-redirect ∷ ∀ a eff. Url → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
-redirect (Url url) = httpExcept $ HTTPException
-  { body: "", headers: HTTPure.header "Location" url, status: Status.temporaryRedirect }
+redirect ∷ ∀ a eff. Url → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
+redirect (Url url) =
+  httpExcept
+    $ HTTPException
+        { body: "", headers: HTTPure.header "Location" url, status: Status.temporaryRedirect }
 
-badRequest ∷ ∀ a eff. HTTPure.Headers → Body → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+badRequest ∷ ∀ a eff. HTTPure.Headers → Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 badRequest headers body = httpExcept (HTTPException { body, headers, status: Status.badRequest })
 
-badRequest' ∷ ∀ a eff. Body → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+badRequest' ∷ ∀ a eff. Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 badRequest' = badRequest HTTPure.Headers.empty
 
-badRequest'' ∷ ∀ a eff. Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+badRequest'' ∷ ∀ a eff. Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 badRequest'' = badRequest HTTPure.Headers.empty ""
 
-unauthorized ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+unauthorized ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 unauthorized headers = httpExcept (HTTPException { body: "", headers, status: Status.unauthorized })
 
-forbidden ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+forbidden ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 forbidden headers = httpExcept (HTTPException { body: "", headers, status: Status.forbidden })
 
-notFound ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+notFound ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 notFound headers = httpExcept (HTTPException { body: "", headers, status: Status.notFound })
 
-methodNotAllowed ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+methodNotAllowed ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 methodNotAllowed headers = httpExcept (HTTPException { body: "", headers, status: Status.methodNotAllowed })
 
-methodNotAllowed' ∷ ∀ a eff. Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+methodNotAllowed' ∷ ∀ a eff. Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 methodNotAllowed' = methodNotAllowed Headers.empty
 
-internalServerError ∷ ∀ a eff. HTTPure.Headers → Body → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+internalServerError ∷ ∀ a eff. HTTPure.Headers → Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 internalServerError headers body = httpExcept (HTTPException { body, headers, status: Status.internalServerError })
 
-notImplemented ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+notImplemented ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 notImplemented headers = httpExcept (HTTPException { body: "", headers, status: Status.notImplemented })
 
-badGateway ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+badGateway ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 badGateway headers = httpExcept (HTTPException { body: "", headers, status: Status.badGateway })
 
-serviceUnavailable ∷ ∀ a eff. HTTPure.Headers → Run (httpExcept ∷ EXCEPT HTTPException | eff) a
+serviceUnavailable ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 serviceUnavailable headers = httpExcept (HTTPException { body: "", headers, status: Status.serviceUnavailable })
-
