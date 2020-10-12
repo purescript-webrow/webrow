@@ -20,6 +20,7 @@ import HTTPure (Method(..))
 import HTTPure (Method(..), Request, fullPath) as HTTPure
 import HTTPure.Headers (empty) as Headers
 import Routing.Duplex (RouteDuplex', int, parse, print, root, segment, string) as D
+import Routing.Duplex.Generic (noArgs)
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
 import Run (Run, extract, runBaseAff, runBaseAff', runBaseEffect)
 import Run (expand, runBaseAff, runBaseAff', runBaseEffect) as Run
@@ -31,7 +32,6 @@ import Run.Streaming.Prelude (feed, head, take) as S.P
 import Run.Streaming.Prelude (fold) as S.Prelude
 import Run.Streaming.Pull (chain) as Pull
 import Test.Spec (Spec, describe, it, pending)
-import Test.Spec.Assertions (shouldEqual)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
@@ -40,35 +40,42 @@ import WebRow.Contrib.Run (AffRow, EffRow)
 import WebRow.Crypto (Crypto, _crypto, secret)
 import WebRow.Crypto (secret) as Crypto
 import WebRow.HTTP (HTTPExcept, HTTPResponse, Request, SetHeader, Cookies, notFound)
+import WebRow.HTTP (fullPath) as HTTP
 import WebRow.HTTP.Cookies (defaultAttributes)
 import WebRow.HTTP.Cookies (defaultAttributes, lookup, set) as Cookies
 import WebRow.HTTP.Request (_request)
 import WebRow.HTTP.Response (ok)
+import WebRow.Testing.Assertions (shouldEqual)
 import WebRow.Testing.HTTP (Client, HTTPSession, _httpSession, get, get_, request)
 import WebRow.Testing.HTTP (run, run') as Testing.HTTP
+import WebRow.Testing.HTTP.Response (Response(..))
 
 spec :: Spec Unit
 spec = do
   pure unit
-  -- describe "WebRow.HTTP" do
-  --   describe "Response" do
-  --     it "SetHeader" do
-  --       let
-  --         client = do
-  --           get_ "1"
-  --           get_ "2"
+  describe "WebRow.HTTP" do
+    describe "Response" do
+      it "SetHeader" do
+        let
+          client = do
+            response ← get "1"
+            case response of
+              HTTPResponse { parts: { body }} → shouldEqual body "TET"
+              otherwise → pure unit
+            get_ "2"
 
-  --         server req = do
-  --           cs ← Crypto.secret
-  --           c ← Lazy.force <$> Cookies.lookup "test"
-  --           liftEffect $ logShow c
-  --           void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
-  --           r ← liftEffect $ random
-  --           ok $ (req.url <> ":" <> show r)
+          server = do
+            path ← HTTP.fullPath
+            cs ← Crypto.secret
+            c ← Lazy.force <$> Cookies.lookup "test"
+            liftEffect $ logShow c
+            void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
+            r ← liftEffect $ random
+            ok $ "TEST" -- (req.url <> ":" <> show r)
 
-  --       httpSession <- runBaseAff' $ Testing.HTTP.run' {} pure server client
-  --       logShow $ unsafeStringify httpSession
-  --       pure unit
+        httpSession <- runBaseAff' $ Testing.HTTP.run' {} noArgs pure server client
+        logShow $ unsafeStringify httpSession
+        pure unit
 
     --  pending "feature complete"
     -- describe "Features" do

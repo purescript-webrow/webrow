@@ -40,11 +40,22 @@ spec = do
     describe "route duplex" do
       it "should print translated path" do
         let
+          path = print duplex ({ language: ur, route: NoArguments })
+        shouldEqual "/ur" path
+
+      it "should print empty prefix for default lang" do
+        let
           path = print duplex ({ language: la, route: NoArguments })
-        shouldEqual "/la" path
+        shouldEqual "/" path
 
       it "should parse translated path" do
         let
           lang = parse duplex ("/ur")
 
         shouldEqual (hush lang <#> _.language >>> languageCode) (Just (languageCode ur))
+
+      it "should parse default langauge path" do
+        let
+          lang = parse duplex ("/")
+
+        shouldEqual (hush lang <#> _.language >>> languageCode) (Just (languageCode la))

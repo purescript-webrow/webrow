@@ -41,6 +41,12 @@ import WebRow.Routing.Types (Context, Domain, FullUrl(..), RelativeUrl(..), from
 
 _routing = SProxy ∷ SProxy "routing"
 
+-- | TODO:
+-- | Do we want to use custom effect here like
+-- |
+-- | `data RoutingF = PrintRouteF ..  | PrintFullRouteF ... | RedirectF ...
+-- |
+-- | Then we can abstract over i18n and simple routes in generic applets.
 type ROUTING route = READER (Context route)
 
 type Routing route eff = (routing ∷ ROUTING route | eff)
