@@ -14,7 +14,6 @@ import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.I18N.ISO639.TwoLetter (LanguageNames)
 import WebRow.I18N.ISO639.TwoLetter (code, get) as TwoLetter
-import WebRow.I18N.Routing (I18NRoute(..), routeCode)
 import WebRow.I18N.Routing (duplex) as I18N.Routing
 
 type Latine r = (la ∷ LanguageNames | r)
@@ -32,8 +31,8 @@ ne = TwoLetter.get (SProxy ∷ SProxy "ne")
 ur ∷ Language
 ur = TwoLetter.get (SProxy ∷ SProxy "ur")
 
-duplex ∷ RouteDuplex' (I18NRoute Language NoArguments)
-duplex = root $ I18N.Routing.duplex noArgs
+duplex ∷ RouteDuplex' { language ∷ Language, route ∷ NoArguments }
+duplex = root $ I18N.Routing.duplex la noArgs
 
 spec ∷ Spec Unit
 spec = do
@@ -41,11 +40,11 @@ spec = do
     describe "route duplex" do
       it "should print translated path" do
         let
-          path = print duplex (Translated la NoArguments)
+          path = print duplex ({ language: la, route: NoArguments })
         shouldEqual "/la" path
 
       it "should parse translated path" do
         let
           lang = parse duplex ("/ur")
 
-        shouldEqual (hush lang >>= routeCode) (Just (TwoLetter.code ur))
+        shouldEqual (hush lang <#> _.language >>> TwoLetter.code) (Just (TwoLetter.code ur))
