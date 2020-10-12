@@ -13,7 +13,7 @@ import Run.Reader (askAt)
 import Type.Row (type (+))
 import WebRow.HTTP (HTTPExcept)
 import WebRow.HTTP (redirect) as HTTP.Response
-import WebRow.I18N.ISO639.TwoLetter (Languages, code, parse, toString)
+import WebRow.I18N.ISO639.TwoLetter (Languages, languageCode, parse, toString)
 import WebRow.Routing (FullUrl(..), ROUTING, RelativeUrl(..), Routing, _routing, fromRelativeUrl)
 import WebRow.Routing (printFullRoute, printRoute) as Routing
 
@@ -27,9 +27,9 @@ duplex default (RouteDuplex routePrinter routeParser) =
   RouteDuplex printer parser
   where
     RouteDuplex langPrinter langParser =
-      (as (code >>> toString) (parse >>> note "Invalid language code")) segment
+      (as (languageCode >>> toString) (parse >>> note "Invalid language code")) segment
 
-    printer { language, route: r } = if code language == code default
+    printer { language, route: r } = if languageCode language == languageCode default
       then routePrinter r
       else langPrinter language <> routePrinter r
 

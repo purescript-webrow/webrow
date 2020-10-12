@@ -13,7 +13,7 @@ import Test.Spec.Assertions (shouldEqual)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.I18N.ISO639.TwoLetter (LanguageNames)
-import WebRow.I18N.ISO639.TwoLetter (code, get) as TwoLetter
+import WebRow.I18N (languageCode, getLanguage)
 import WebRow.I18N.Routing (duplex) as I18N.Routing
 
 type Latine r = (la ∷ LanguageNames | r)
@@ -23,13 +23,13 @@ type Urdu r = (ur ∷ LanguageNames | r)
 type Language = Variant (Latine + Nepali + Urdu ())
 
 la ∷ Language
-la = TwoLetter.get (SProxy ∷ SProxy "la")
+la = getLanguage (SProxy ∷ SProxy "la")
 
 ne ∷ Language
-ne = TwoLetter.get (SProxy ∷ SProxy "ne")
+ne = getLanguage (SProxy ∷ SProxy "ne")
 
 ur ∷ Language
-ur = TwoLetter.get (SProxy ∷ SProxy "ur")
+ur = getLanguage (SProxy ∷ SProxy "ur")
 
 duplex ∷ RouteDuplex' { language ∷ Language, route ∷ NoArguments }
 duplex = root $ I18N.Routing.duplex la noArgs
@@ -47,4 +47,4 @@ spec = do
         let
           lang = parse duplex ("/ur")
 
-        shouldEqual (hush lang <#> _.language >>> TwoLetter.code) (Just (TwoLetter.code ur))
+        shouldEqual (hush lang <#> _.language >>> languageCode) (Just (languageCode ur))

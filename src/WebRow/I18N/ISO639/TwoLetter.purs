@@ -29,20 +29,20 @@ instance showLanguageNames ∷ Show LanguageNames where
 
 type Languages = LanguageBase LanguageNames
 
-code ∷ ∀ r. Contractable Languages r ⇒ Variant r → LanguageCode
-code v = LanguageCode (Variant.tag v)
+languageCode ∷ ∀ r. Contractable Languages r ⇒ Variant r → LanguageCode
+languageCode v = LanguageCode (Variant.tag v)
 
 toString ∷ LanguageCode → String
 toString (LanguageCode c) = c
 
-get
+getLanguage
   ∷ ∀ code langs_ langs__ langs
   . IsSymbol code
   ⇒ Row.Cons code LanguageNames langs_ Languages
   ⇒ Row.Cons code LanguageNames langs__ langs
   ⇒ SProxy code
   → Variant langs
-get c =
+getLanguage c =
   let
     lang = Record.get c languages
   in
