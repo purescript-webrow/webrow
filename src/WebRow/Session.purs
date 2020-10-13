@@ -8,7 +8,6 @@ import Data.Lazy (force) as Lazy
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Validation.Semigroup (toEither)
-import Effect (Effect)
 import Effect.Ref (Ref)
 import HTTPure (empty) as Headers
 import Polyform.Validator.Dual.Pure (Dual, runSerializer, runValidator) as Pure
@@ -70,38 +69,29 @@ cookieName = "session"
 
 runInStore ∷
   ∀ eff session.
-  Effect (SessionStore (Run (Cookies + EffRow + eff)) session) →
+  SessionStore (Run (Cookies + EffRow + eff)) session →
   Run (Cookies + EffRow + Session session + eff)
     ~> Run (Cookies + EffRow + eff)
-runInStore store = runInRunStore (Run.liftEffect store)
-
-runInRunStore ∷
-  ∀ eff session.
-  Run (Cookies + EffRow + eff) (SessionStore (Run (Cookies + EffRow + eff)) session) →
-  Run (Cookies + EffRow + Session session + eff)
-    ~> Run (Cookies + EffRow + eff)
-runInRunStore store action = do
-  s ← store
+runInStore store action = do
   let
     handleSession ∷
       SessionF session ~> Run (Cookies + EffRow + eff)
     handleSession (DeleteF next) = do
       void $ Cookies.delete cookieName
-      s.delete >>= next >>> pure
+      store.delete >>= next >>> pure
 
     handleSession (FetchF next) = do
       -- | TODO:
       -- | * Handle custom cookie attributes (expiration etc.).
       -- | * Should we raise here internalServerError when `set` returns `false`?
       -- | * Should we run testing cycle of test cookie setup?
-      void $ Cookies.set cookieName { value: s.key, attributes: Cookies.defaultAttributes }
-      s.fetch >>= next >>> pure
+      void $ Cookies.set cookieName { value: store.key, attributes: Cookies.defaultAttributes }
+      store.fetch >>= next >>> pure
 
     handleSession (SaveF v next) = do
-      void $ Cookies.set cookieName { value: s.key, attributes: Cookies.defaultAttributes }
-      a ← s.save v
+      void $ Cookies.set cookieName { value: store.key, attributes: Cookies.defaultAttributes }
+      a ← store.save v
       pure (next a)
-
   Run.interpret (Run.on _session handleSession Run.send) action
 
 runInMemoryStore ∷
@@ -113,9 +103,9 @@ runInMemoryStore ∷
 runInMemoryStore ref defaultSession action = do
   -- | This laziness is a myth let's drop this all together
   lazySessionKey ← Cookies.lookup cookieName
-  let
-    effSessionStore = SessionStore.InMemory.new ref defaultSession (Lazy.force lazySessionKey)
-  runInStore (SessionStore.hoist Run.liftEffect <$> effSessionStore) action
+  effSessionStore ← Run.liftEffect $
+    SessionStore.InMemory.new ref defaultSession (Lazy.force lazySessionKey)
+  runInStore (SessionStore.hoist Run.liftEffect $ effSessionStore) action
 
 -- | The whole session is stored in a cookie value so visible in the browser.
 -- | We don't need any key-value session store.
