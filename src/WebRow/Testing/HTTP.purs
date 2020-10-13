@@ -1,7 +1,9 @@
 module WebRow.Testing.HTTP where
 
 import Prelude
+
 import Data.Array (singleton) as Array
+import Data.Either (Either(..))
 import Data.Lazy (defer) as Lazy
 import Data.List (List(..), reverse) as List
 import Data.List (List)
@@ -40,12 +42,13 @@ import WebRow.HTTP.Cookies.Types (RequestCookies)
 import WebRow.HTTP.Request (Request)
 import WebRow.Routing (Routing, runRouting)
 import WebRow.Session (Session)
+import WebRow.Session (runInCookieValue) as Session
 import WebRow.Testing.HTTP.Cookies (toRequestCookies)
 import WebRow.Testing.HTTP.Response (Render) as Response
 import WebRow.Testing.HTTP.Response (Response) as Testing.HTTP
 import WebRow.Testing.HTTP.Response (runHTTPExcept, runRender, runSetHeader) as Testing.Response
 import WebRow.Testing.HTTP.Types (ClientCookies)
-import WebRow.Testing.Session (SessionStoreConfig)
+import WebRow.Testing.Session (SessionStoreConfig, SessionCookieConfig)
 import WebRow.Testing.Session (runInMemory) as Testing.Session
 
 -- | TODO: Upgrdae to polymorphic `body` type here when
@@ -179,25 +182,29 @@ run ∷
     eff
     eff_
     (S.Producer (Exchange res) + eff) ⇒
-  SessionStoreConfig session →
+  -- (Either (SessionStoreConfig session) (SessionCookieConfig session)) →
+  (SessionStoreConfig session) →
   RouteDuplex' routes →
   Response.Render (Server session routes res + eff) String res →
   Run (Server session routes res + eff) res →
   Run (AffRow + Client session res + EffRow + eff) Unit →
   Run (AffRow + EffRow + eff) (History res)
 run sessionStoreConfig routeDuplex render server client = do
-  Testing.Session.runInMemory sessionStoreConfig
+  let
+    runSession = Testing.Session.runInMemory sessionStoreConfig
+
+  runSession
     $ evalStateAt _httpSession (mempty ∷ ClientCookies)
-    $ httpSession
+    $ httpExchange
   where
   -- | This can be a bit unintuitive but we have to expand
   -- | row with another yield so the consumer `take' 100`
   -- | can swallow it.
-  -- go' = Run.expand go
-  httpSession = go # Pull.feed (S.P.take 100) # S.P.fold (flip List.Cons) List.Nil List.reverse
+  httpExchange ∷ Run (AffRow + EffRow + HTTPSession + Session session + eff) (List (Exchange res))
+  httpExchange = go # Pull.feed (S.P.take 100) # S.P.fold (flip List.Cons) List.Nil List.reverse
 
   -- | I don't really need this signature here but
-  -- | maybe it can be a small hint what is going on here.
+  -- | maybe it can be a small hint what is going on.
   go ∷
     Run
       ( AffRow

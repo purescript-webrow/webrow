@@ -9,9 +9,11 @@ import Test.Spec.Runner (runSpec)
 import Test.WebRow.Applets (spec) as Applets
 import Test.WebRow.HTTP (spec) as HTTP
 import Test.WebRow.I18N (spec) as I18N
+import Test.WebRow.Session (spec) as Session
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [consoleReporter] do
   I18N.spec
   Applets.spec
   HTTP.spec
+  Session.spec

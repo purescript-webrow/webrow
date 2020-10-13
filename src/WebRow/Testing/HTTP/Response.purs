@@ -1,10 +1,12 @@
 module WebRow.Testing.HTTP.Response where
 
 import Prelude
+
+import Data.Maybe (Maybe(..))
 import HTTPure (Headers, header) as HTTPure
+import HTTPure (Status)
 import HTTPure.Body (class Body) as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
-import Prim.Row (class Union) as Row
 import Run (Run)
 import Run (on, run, send) as Run
 import Run.Except (catchAt)
@@ -20,6 +22,14 @@ data Response body res
   | HTTPResponse { parts ∷ HTTP.Response.Parts body, ctx ∷ res }
 
 derive instance functorResponse ∷ Functor (Response body)
+
+status ∷ ∀ body res. Response body res → Maybe Status
+status (HTTPResponse { parts: { status: s }}) = Just s
+status _ = Nothing
+
+body ∷ ∀ body res. Response body res → Maybe body
+body (HTTPResponse { parts: { body: b }}) = Just b
+body _ = Nothing
 
 -- type Response' body res = Response body (Variant res)
 type Render eff body res

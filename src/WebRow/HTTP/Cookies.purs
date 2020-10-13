@@ -9,6 +9,7 @@ module WebRow.HTTP.Cookies
   , lookupJson
   , lookupJson'
   , run
+  , runOnStore
   , set
   , setJson
   ) where
@@ -26,7 +27,7 @@ import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.Contrib.Data.JSDate (epoch)
 import WebRow.Crypto (Crypto, secret)
-import WebRow.HTTP.Cookies.CookieStore (CookieStore) as Exports
+import WebRow.HTTP.Cookies.CookieStore (CookieStore(..)) as Exports
 import WebRow.HTTP.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHeaders)
 import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', lookupJson, lookupJson', set, setJson) as CookieStore
 import WebRow.HTTP.Cookies.Types (Attributes, Name, SetValue, Value, Values, attributes)

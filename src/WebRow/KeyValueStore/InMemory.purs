@@ -1,6 +1,7 @@
 module WebRow.KeyValueStore.InMemory where
 
 import Prelude
+
 import Data.Map (Map)
 import Data.Map (delete, insert, lookup) as Map
 import Effect (Effect)
@@ -24,7 +25,9 @@ forRef ref =
 
     delete k = (void $ Ref.modify (Map.delete k) ref) *> pure true
 
-    get k = Ref.read ref >>= (Map.lookup k >>> pure)
+    get k = do
+      m ← Ref.read ref
+      pure $ Map.lookup k m
 
     put k v = do
       void $ Ref.modify (Map.insert k v) ref

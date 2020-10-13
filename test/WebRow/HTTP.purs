@@ -1,11 +1,11 @@
 module Test.WebRow.HTTP where
 
 import Prelude hiding ((/))
-
 import Data.Array (snoc) as A
 import Data.Either (Either(..))
 import Data.Lazy (force) as Lazy
 import Data.Map (fromFoldable) as Map
+import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj)
 import Data.Variant (match) as Variant
@@ -45,23 +45,22 @@ import WebRow.HTTP.Cookies (defaultAttributes)
 import WebRow.HTTP.Cookies (defaultAttributes, lookup, set) as Cookies
 import WebRow.HTTP.Request (_request)
 import WebRow.HTTP.Response (ok)
+import WebRow.Session (fetch) as Session
 import WebRow.Testing.Assertions (shouldEqual)
 import WebRow.Testing.HTTP (Client, HTTPSession, _httpSession, get, get_, request)
 import WebRow.Testing.HTTP (run, run') as Testing.HTTP
 import WebRow.Testing.HTTP.Response (Response(..))
+import WebRow.Testing.HTTP.Response (body) as Response
 
 spec :: Spec Unit
 spec = do
-  pure unit
   describe "WebRow.HTTP" do
     describe "Response" do
       it "SetHeader" do
         let
           client = do
             response ← get "1"
-            case response of
-              HTTPResponse { parts: { body }} → shouldEqual body "TET"
-              otherwise → pure unit
+            Response.body response `shouldEqual` Just "TEST"
             get_ "2"
 
           server = do
@@ -72,19 +71,36 @@ spec = do
             void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
             r ← liftEffect $ random
             ok $ "TEST" -- (req.url <> ":" <> show r)
+        httpSession <- runBaseAff' $ Testing.HTTP.run' {} noArgs pure server client
+        logShow $ unsafeStringify httpSession
+        pure unit
+  describe "WebRow.Session" do
+    describe "In cookie handling" do
+      it "Should handle multiple cookie modifications" do
+        let
+          client = do
+            response ← get "1"
+            Response.body response `shouldEqual` Just "TEST"
+            get_ "2"
 
+          server = do
+            value ← Session.fetch
+            cs ← Crypto.secret
+            c ← Lazy.force <$> Cookies.lookup "test"
+            liftEffect $ logShow c
+            void $ Cookies.set "test" { value: "test", attributes: Cookies.defaultAttributes }
+            r ← liftEffect $ random
+            ok $ "TEST" -- (req.url <> ":" <> show r)
         httpSession <- runBaseAff' $ Testing.HTTP.run' {} noArgs pure server client
         logShow $ unsafeStringify httpSession
         pure unit
 
-    --  pending "feature complete"
-    -- describe "Features" do
-    --   it "runs in NodeJS" $ pure unit
-    --   it "runs in the browser" $ pure unit
-    --   it "supports streaming reporters" $ pure unit
-    --   it "supports async specs" do
-    --     res <- delay (Milliseconds 100.0) $> "Alligator"
-    --     res `shouldEqual` "Alligator"
-    --   it "is PureScript 0.12.x compatible" $ pure unit
-
-
+--  pending "feature complete"
+-- describe "Features" do
+--   it "runs in NodeJS" $ pure unit
+--   it "runs in the browser" $ pure unit
+--   it "supports streaming reporters" $ pure unit
+--   it "supports async specs" do
+--     res <- delay (Milliseconds 100.0) $> "Alligator"
+--     res `shouldEqual` "Alligator"
+--   it "is PureScript 0.12.x compatible" $ pure unit

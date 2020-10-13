@@ -1,12 +1,13 @@
 module WebRow.Testing.Session where
 
 import Prelude
-import Data.Lazy (defer)
-import Data.Lazy (force) as Lazy
+
+import Data.Argonaut (Json)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Effect (Effect)
 import Effect.Ref (Ref)
+import Polyform.Validator.Dual.Pure (Dual) as Pure
 import Run (Run)
 import Run (interpret, liftEffect, on, send) as Run
 import Type.Row (type (+))
@@ -15,7 +16,7 @@ import WebRow.Forms.Payload (Key)
 import WebRow.Session (Session, SessionF(..), _session)
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (hoist) as SessionStore
-import WebRow.Session.SessionStore.InMemory (lazy) as SessionStore.InMemory
+import WebRow.Session.SessionStore.InMemory (new) as SessionStore.InMemory
 
 type SessionStoreConfig session
   = { default ∷ session
@@ -48,7 +49,12 @@ runInMemory ∷
   Run (EffRow + eff) a
 runInMemory { default, key, ref } action = do
   let
-    ss = SessionStore.InMemory.lazy ref default (defer \_ → key)
+    ss = SessionStore.InMemory.new ref default key
 
-    ss' = map (SessionStore.hoist Run.liftEffect) $ Lazy.force ss
+    ss' = map (SessionStore.hoist Run.liftEffect) $ ss
   run ss' action
+
+type SessionCookieConfig session
+  = { default ∷ session
+    , dual ∷ ∀ err. Pure.Dual err Json session
+    }
