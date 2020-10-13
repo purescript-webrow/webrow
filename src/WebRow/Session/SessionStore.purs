@@ -1,6 +1,8 @@
 module WebRow.Session.SessionStore where
 
 import Prelude
+
+import Data.Lazy (Lazy, defer, force)
 import Data.Maybe (fromMaybe)
 import Prim.Row (class Union) as Row
 import Run (Run)
@@ -10,7 +12,7 @@ import WebRow.KeyValueStore (KeyValueStore, Key)
 type SessionStore m session
   = { delete ∷ m Boolean
     , fetch ∷ m session
-    , key ∷ Key
+    , key ∷ Lazy Key
     , save ∷ session → m Boolean
     }
 
@@ -41,7 +43,7 @@ new default kv =
         pure
           { delete: kv.delete k
           , fetch: kv.get k >>= fromMaybe default >>> pure
-          , key: k
+          , key: defer \_ → k
           , save: kv.put k
           }
 
@@ -49,12 +51,12 @@ forKey ∷
   ∀ m session.
   Monad m ⇒
   session →
-  Key →
+  Lazy Key →
   KeyValueStore m session →
   SessionStore m session
 forKey default k kv =
-  { delete: kv.delete k
-  , fetch: kv.get k >>= fromMaybe default >>> pure
+  { delete: kv.delete (force k)
+  , fetch: kv.get (force k) >>= fromMaybe default >>> pure
   , key: k
-  , save: kv.put k
+  , save: kv.put (force k)
   }

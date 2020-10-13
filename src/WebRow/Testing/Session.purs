@@ -3,6 +3,7 @@ module WebRow.Testing.Session where
 import Prelude
 
 import Data.Argonaut (Json)
+import Data.Lazy (defer)
 import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Effect (Effect)
@@ -49,7 +50,7 @@ runInMemory ∷
   Run (EffRow + eff) a
 runInMemory { default, key, ref } action = do
   let
-    ss = SessionStore.InMemory.new ref default key
+    ss = SessionStore.InMemory.new ref default (defer \_ → key)
 
     ss' = map (SessionStore.hoist Run.liftEffect) $ ss
   run ss' action

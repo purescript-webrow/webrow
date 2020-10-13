@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Argonaut (Json)
 import Data.Either (hush)
-import Data.Lazy (force) as Lazy
+import Data.Lazy (force)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Validation.Semigroup (toEither)
@@ -85,11 +85,11 @@ runInStore store action = do
       -- | * Handle custom cookie attributes (expiration etc.).
       -- | * Should we raise here internalServerError when `set` returns `false`?
       -- | * Should we run testing cycle of test cookie setup?
-      void $ Cookies.set cookieName { value: store.key, attributes: Cookies.defaultAttributes }
+      void $ Cookies.set cookieName { value: force store.key, attributes: Cookies.defaultAttributes }
       store.fetch >>= next >>> pure
 
     handleSession (SaveF v next) = do
-      void $ Cookies.set cookieName { value: store.key, attributes: Cookies.defaultAttributes }
+      void $ Cookies.set cookieName { value: force store.key, attributes: Cookies.defaultAttributes }
       a ← store.save v
       pure (next a)
   Run.interpret (Run.on _session handleSession Run.send) action
@@ -104,7 +104,7 @@ runInMemoryStore ref defaultSession action = do
   -- | This laziness is a myth let's drop this all together
   lazySessionKey ← Cookies.lookup cookieName
   effSessionStore ← Run.liftEffect $
-    SessionStore.InMemory.new ref defaultSession (Lazy.force lazySessionKey)
+    SessionStore.InMemory.new ref defaultSession lazySessionKey
   runInStore (SessionStore.hoist Run.liftEffect $ effSessionStore) action
 
 -- | The whole session is stored in a cookie value so visible in the browser.
@@ -119,7 +119,7 @@ runInCookieValue dual defaultSession =
   let
     fetchFromCookie = do
       default ← defaultSession
-      map (decode default) <$> Cookies.lookupJson cookieName
+      decode default <<< force <$> Cookies.lookupJson cookieName
       where
         decode default maybeRepr =
           fromMaybe default
@@ -131,7 +131,7 @@ runInCookieValue dual defaultSession =
       pure (next true)
 
     handleSession (FetchF next) = do
-      session ← Lazy.force <$> fetchFromCookie
+      session ← fetchFromCookie
       let
         json = Pure.runSerializer dual session
       -- | TODO:
@@ -142,7 +142,6 @@ runInCookieValue dual defaultSession =
       pure $ next session
 
     handleSession (SaveF v next) = do
-      lazySession ← fetchFromCookie
       let
         json = Pure.runSerializer dual v
       void $ Cookies.setJson cookieName { json, attributes: Cookies.defaultAttributes }
