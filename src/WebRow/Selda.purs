@@ -7,34 +7,36 @@ import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
-import Database.PostgreSQL (Connection, PGError, Query(..), execute) as PG
 import Database.PostgreSQL (PGError, Row0(..))
-import Database.PostgreSQL (class FromSQLRow, class ToSQLRow, Query, query) as PostgreSQL
+import Database.PostgreSQL (class FromSQLRow, class ToSQLRow, Connection, PGError, Pool, Query(..), ConnectResult, connect, execute, query) as PG
 import Effect.Aff (Aff)
 import Run (Run)
 import Run as Run
 import Run.Except (EXCEPT, throwAt)
-import Run.Reader (READER, askAt)
+import Run.State (STATE, getAt, modifyAt, putAt)
 import Selda (Col, FullQuery, Table)
 import Selda.PG.Class (class InsertRecordIntoTableReturning, BackendPGClass)
 import Selda.PG.Class (deleteFrom, insert, insert1, insert1_, query, query1, update) as PG.Class
 import Selda.Query.Class (class GenericDelete, class GenericInsert, class GenericQuery, class GenericUpdate)
 import Type.Row (type (+))
-import WebRow.Contrib.Run (AffRow)
+import WebRow.Contrib.Run (AffRow, EffRow)
 
 type SeldaPG
   = ExceptT PG.PGError (ReaderT PG.Connection Aff)
 
 -- | I'm not sure if this represtation is consistent.
--- | I want to allow some inspection but also compile
--- | those actions without coercing.
+-- | I want to allow some intronspection but also compile
+-- | those actions without coercing or experimenting with
+-- | `Exist` here.
 -- |
 -- | * Probably we could split query and keep `FullQuery`.
 -- | * We can add `∀ i o. Query i o` to `PgQueryF`.
 data SeldaF a
   = SeldaF (SeldaPG a)
-  | PgExecuteF String (Unit → a)
+  | PgExecuteF String a
   | PgQueryF (PG.Connection → Aff (Either PGError a))
+  | PgOpenTransactionF a
+  | PgCloseTransactionF a
 
 derive instance functorSeldaF ∷ Functor SeldaF
 
@@ -50,9 +52,9 @@ type PgError r
   = ( pgError ∷ EXCEPT PGError | r )
 
 type PgConnection r
-  = ( pgConnection ∷ READER { conn ∷ PG.Connection, inTransaction ∷ Boolean } | r )
+  = ( pg ∷ STATE { conn ∷ Maybe PG.ConnectResult, inTransaction ∷ Boolean, pool ∷ PG.Pool } | r )
 
-_pgConnection = SProxy ∷ SProxy "pgConnection"
+_pg = SProxy ∷ SProxy "pg"
 
 _pgError = SProxy ∷ SProxy "pgError"
 
@@ -101,40 +103,96 @@ update ∷
   Table t → ({ | r } → Col BackendPGClass Boolean) → ({ | r } → { | r }) → Run (Selda + eff) Unit
 update table cond set = Run.lift _selda (SeldaF (PG.Class.update table cond set))
 
+openTransaction ∷ ∀ eff. Run (Selda + eff) Unit
+openTransaction = Run.lift _selda (PgOpenTransactionF unit)
+
+closeTransaction ∷ ∀ eff. Run (Selda + eff) Unit
+closeTransaction = Run.lift _selda (PgCloseTransactionF unit)
+
+withTransaction ∷ ∀ a eff. Run (Selda + eff) a → Run (Selda + eff) a
+withTransaction block = do
+  openTransaction
+  r ← block
+  closeTransaction
+  pure r
+
 pgExecute ∷ ∀ eff. String → Run (Selda + eff) Unit
-pgExecute q = Run.lift _selda (PgExecuteF q identity)
+pgExecute q = Run.lift _selda (PgExecuteF q unit)
 
 pgQuery ∷
   ∀ eff i o.
-  PostgreSQL.ToSQLRow i ⇒
-  PostgreSQL.FromSQLRow o ⇒
-  PostgreSQL.Query i o →
+  PG.ToSQLRow i ⇒
+  PG.FromSQLRow o ⇒
+  PG.Query i o →
   i →
   Run (Selda + eff) (Array o)
-pgQuery q i = Run.lift _selda (PgQueryF (\conn → PostgreSQL.query conn q i))
+pgQuery q i = Run.lift _selda (PgQueryF (\conn → PG.query conn q i))
 
 run ∷
   ∀ eff.
-  Run (AffRow + PgConnection + PgError + Selda + eff)
-    ~> Run (AffRow + PgConnection + PgError + eff)
-run = Run.run (Run.on _selda handleSelda Run.send)
+  Run (AffRow + EffRow + PgConnection + PgError + Selda + eff)
+    ~> Run (AffRow + EffRow + PgConnection + PgError + eff)
+run action = do
+  a ← Run.run (Run.on _selda handleSelda Run.send) action
+  getAt _pg >>= _.conn
+    >>> case _ of
+        Just { connection, done } → do
+          inTransaction
+            >>= flip when do
+                execute "ROLLBACK TRANSACTION"
+                modifyAt _pg _ { inTransaction = false }
+          Run.liftEffect $ done
+          modifyAt _pg _ { conn = Nothing }
+        Nothing → pure unit
+  pure a
   where
-  handleSelda ∷ ∀ a. SeldaF a → Run (AffRow + PgConnection + PgError + eff) a
-  handleSelda action = do
-    { conn, inTransaction } ← askAt _pgConnection
-    case action of
-      SeldaF q → do
-        Run.liftAff (runReaderT (runExceptT q) conn)
+  inTransaction = getAt _pg <#> _.inTransaction
+
+  conn = do
+    pg ← getAt _pg
+    case pg.conn of
+      Nothing →
+        (Run.liftAff (PG.connect pg.pool))
           >>= case _ of
-              Right next → pure next
+              Right result → do
+                putAt _pg (pg { conn = Just result })
+                pure result.connection
               Left err → throwAt _pgError err
-      PgExecuteF q next → do
-        (Run.liftAff $ PG.execute conn (PG.Query q) Row0)
-          >>= case _ of
-              Just err → throwAt _pgError err
-              Nothing → pure (next unit)
-      PgQueryF q → do
-        (Run.liftAff (q conn))
-          >>= case _ of
-              Left err → throwAt _pgError err
-              Right next → pure next
+      Just { connection } → pure connection
+
+  execute q = do
+    c ← conn
+    (Run.liftAff $ PG.execute c (PG.Query q) Row0)
+      >>= case _ of
+          Just err → throwAt _pgError err
+          Nothing → pure unit
+
+  handleSelda ∷ ∀ a. SeldaF a → Run (AffRow + EffRow + PgConnection + PgError + eff) a
+  handleSelda = case _ of
+    SeldaF q → do
+      c ← conn
+      Run.liftAff (runReaderT (runExceptT q) c)
+        >>= case _ of
+            Right next → pure next
+            Left err → throwAt _pgError err
+    PgExecuteF q next → do
+      execute q
+      pure next
+    PgQueryF q → do
+      c ← conn
+      (Run.liftAff (q c))
+        >>= case _ of
+            Left err → throwAt _pgError err
+            Right next → pure next
+    PgOpenTransactionF next → do
+      inTransaction >>= not
+        >>> flip when do
+            execute "BEGIN TRANSACTION"
+            modifyAt _pg _ { inTransaction = true }
+      pure next
+    PgCloseTransactionF next → do
+      inTransaction
+        >>= flip when do
+            execute "END TRANSACTION"
+            modifyAt _pg _ { inTransaction = false }
+      pure next
