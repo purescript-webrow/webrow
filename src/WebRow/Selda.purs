@@ -13,7 +13,7 @@ import Effect.Aff (Aff)
 import Run (Run)
 import Run as Run
 import Run.Except (EXCEPT, throwAt)
-import Run.State (STATE, getAt, modifyAt, putAt)
+import Run.State (STATE, evalStateAt, getAt, modifyAt, putAt)
 import Selda (Col, FullQuery, Table)
 import Selda.PG.Class (class InsertRecordIntoTableReturning, BackendPGClass)
 import Selda.PG.Class (deleteFrom, insert, insert1, insert1_, query, query1, update) as PG.Class
@@ -50,11 +50,6 @@ _selda = SProxy ∷ SProxy "selda"
 
 type PgError r
   = ( pgError ∷ EXCEPT PGError | r )
-
-type PgConnection r
-  = ( pg ∷ STATE { conn ∷ Maybe PG.ConnectResult, inTransaction ∷ Boolean, pool ∷ PG.Pool } | r )
-
-_pg = SProxy ∷ SProxy "pg"
 
 _pgError = SProxy ∷ SProxy "pgError"
 
@@ -128,71 +123,80 @@ pgQuery ∷
   Run (Selda + eff) (Array o)
 pgQuery q i = Run.lift _selda (PgQueryF (\conn → PG.query conn q i))
 
+type Pg r
+  = ( pg ∷ STATE { conn ∷ Maybe PG.ConnectResult, inTransaction ∷ Boolean } | r )
+
+_pg = SProxy ∷ SProxy "pg"
+
 run ∷
   ∀ eff.
-  Run (AffRow + EffRow + PgConnection + PgError + Selda + eff)
-    ~> Run (AffRow + EffRow + PgConnection + PgError + eff)
-run action = do
-  a ← Run.run (Run.on _selda handleSelda Run.send) action
-  getAt _pg >>= _.conn
-    >>> case _ of
-        Just { connection, done } → do
-          inTransaction
-            >>= flip when do
-                execute "ROLLBACK TRANSACTION"
-                modifyAt _pg _ { inTransaction = false }
-          Run.liftEffect $ done
-          modifyAt _pg _ { conn = Nothing }
-        Nothing → pure unit
-  pure a
-  where
-  inTransaction = getAt _pg <#> _.inTransaction
+  PG.Pool →
+  Run (AffRow + EffRow + Pg + PgError + Selda + eff)
+    ~> Run (AffRow + EffRow + PgError + eff)
+run pool =
+  let
+    initial = { conn: Nothing, inTransaction: false }
 
-  conn = do
-    pg ← getAt _pg
-    case pg.conn of
-      Nothing →
-        (Run.liftAff (PG.connect pg.pool))
+    inTransaction = getAt _pg <#> _.inTransaction
+
+    conn = do
+      pg ← getAt _pg
+      case pg.conn of
+        Nothing →
+          (Run.liftAff (PG.connect pool))
+            >>= case _ of
+                Right result → do
+                  putAt _pg (pg { conn = Just result })
+                  pure result.connection
+                Left err → throwAt _pgError err
+        Just { connection } → pure connection
+
+    execute q = do
+      c ← conn
+      (Run.liftAff $ PG.execute c (PG.Query q) Row0)
+        >>= case _ of
+            Just err → throwAt _pgError err
+            Nothing → pure unit
+
+    handleSelda ∷ ∀ a. SeldaF a → Run (AffRow + EffRow + Pg + PgError + eff) a
+    handleSelda = case _ of
+      SeldaF q → do
+        c ← conn
+        Run.liftAff (runReaderT (runExceptT q) c)
           >>= case _ of
-              Right result → do
-                putAt _pg (pg { conn = Just result })
-                pure result.connection
+              Right next → pure next
               Left err → throwAt _pgError err
-      Just { connection } → pure connection
-
-  execute q = do
-    c ← conn
-    (Run.liftAff $ PG.execute c (PG.Query q) Row0)
-      >>= case _ of
-          Just err → throwAt _pgError err
-          Nothing → pure unit
-
-  handleSelda ∷ ∀ a. SeldaF a → Run (AffRow + EffRow + PgConnection + PgError + eff) a
-  handleSelda = case _ of
-    SeldaF q → do
-      c ← conn
-      Run.liftAff (runReaderT (runExceptT q) c)
-        >>= case _ of
-            Right next → pure next
-            Left err → throwAt _pgError err
-    PgExecuteF q next → do
-      execute q
-      pure next
-    PgQueryF q → do
-      c ← conn
-      (Run.liftAff (q c))
-        >>= case _ of
-            Left err → throwAt _pgError err
-            Right next → pure next
-    PgOpenTransactionF next → do
-      inTransaction >>= not
-        >>> flip when do
-            execute "BEGIN TRANSACTION"
-            modifyAt _pg _ { inTransaction = true }
-      pure next
-    PgCloseTransactionF next → do
-      inTransaction
-        >>= flip when do
-            execute "END TRANSACTION"
-            modifyAt _pg _ { inTransaction = false }
-      pure next
+      PgExecuteF q next → do
+        execute q
+        pure next
+      PgQueryF q → do
+        c ← conn
+        (Run.liftAff (q c))
+          >>= case _ of
+              Left err → throwAt _pgError err
+              Right next → pure next
+      PgOpenTransactionF next → do
+        inTransaction >>= not
+          >>> flip when do
+              execute "BEGIN TRANSACTION"
+              modifyAt _pg _ { inTransaction = true }
+        pure next
+      PgCloseTransactionF next → do
+        inTransaction
+          >>= flip when do
+              execute "END TRANSACTION"
+              modifyAt _pg _ { inTransaction = false }
+        pure next
+  in
+    \action →
+      evalStateAt _pg initial do
+        a ← Run.run (Run.on _selda handleSelda Run.send) action
+        getAt _pg >>= _.conn
+          >>> case _ of
+              Just { connection, done } → do
+                inTransaction
+                  >>= flip when do
+                      execute "ROLLBACK TRANSACTION"
+                Run.liftEffect $ done
+              Nothing → pure unit
+        pure a
