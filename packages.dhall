@@ -150,7 +150,7 @@ let postgresql-client =
   , repo =
       "https://github.com/rightfold/purescript-postgresql-client.git"
   , version =
-      "v3.0.0"
+      "master"
   }
 
 let selda =
@@ -172,7 +172,7 @@ let selda =
   , repo =
       "https://github.com/Kamirus/purescript-selda.git"
   , version =
-      "master"
+      "scope-as-backend"
   }
 
 let prettyprinter = 
@@ -318,13 +318,14 @@ let undefined-is-not-a-problem = ../purescript-undefined-is-not-a-problem/spago.
 --   }
 
 let additions =
-  { selda = selda
+  { selda = ../selda/spago.dhall as Location
   -- , polyform = polyform
   -- , polyform-batteries = polyform-batteries
   , homogeneous = homogeneous
   , literal = literal
   , oneof = oneof
   , polyform = ../polyform/spago.dhall as Location
+  , polyform-batteries-env = ../polyform-batteries-env/spago.dhall as Location
   , polyform-batteries = ../polyform-batteries/spago.dhall as Location
   , postgresql-client = postgresql-client
   , prettyprinter = prettyprinter
