@@ -2,15 +2,23 @@ module Test.WebRow.Selda where
 
 import Prelude
 
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except (catchError)
 import Data.Maybe (Maybe(..))
 import Database.PostgreSQL (Pool) as PG
+import Debug.Trace (traceM)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
+import Effect.Exception (error) as Effect.Exception
 import Effect.Exception (throw)
+import Global.Unsafe (unsafeStringify)
+import Run (liftAff, liftEffect) as Run
 import Run (runBaseAff')
-import Run (liftEffect) as Run
 import Run.Except (catchAt, throwAt)
-import Selda (Table(..), aggregate, count, selectFrom)
+import Selda (Table(..), aggregate, count, lit, restrict, selectFrom, (.==))
 import Test.Spec (SpecT, describe, it)
+import Test.Spec.Assertions (fail)
 import Type.Prelude (SProxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 import WebRow.Selda (_pgError, insert1_, pgExecute, query, query1, withTransaction)
@@ -55,57 +63,71 @@ spec pool = do
         );
       """
 
-  describe "WebRow.Selda" do
-    it "executes statements correctly" do
-      runBaseAff'
-        <<< catchAt _pgError (const $ pure unit)
-        <<< Selda.run pool $ do
-          pgExecute initDb
-          p ← query $ selectFrom people pure
-          p `shouldEqual` []
 
-          -- liftEffect $ log $ "NUMBER: " <> show number
-      pure unit
+  describe "WebRow.Selda" do
+    let
+      run action =
+        runBaseAff'
+        <<< catchAt _pgError (\e → Run.liftEffect $ throwError $ Effect.Exception.error (unsafeStringify e))
+        <<< Selda.run pool
+        $ action
+
+    it "executes statements correctly" do
+      run do
+        pgExecute initDb
+        p ← query $ selectFrom people pure
+        p `shouldEqual` []
 
     it "commits after transaction" do
-      runBaseAff'
-        <<< catchAt _pgError (unsafeCoerce >>> throw >>> Run.liftEffect)
-        <<< catchAt _testErr (const $ pure unit)
-        <<< Selda.run pool $ do
-          pgExecute initDb
-          void $ withTransaction $ do
-            insert1_ people { id: 1, name: "paluh", age: Nothing }
-          pure unit
+      run do
+        pgExecute initDb
+        traceM "AFTER INIT"
+        withTransaction $ do
+          insert1_ people { id: 1, name: "paluh", age: Nothing }
+        pure unit
 
-      runBaseAff'
-        <<< catchAt _pgError (unsafeCoerce >>> throw >>> Run.liftEffect)
-        <<< catchAt _testErr (const $ pure unit)
-        <<< Selda.run pool $ do
-          { n } <- query1 $ aggregate $ selectFrom people \r → pure { n: count r.id }
-          n `shouldEqual` 1
+      run do
+        n <- query1 $ aggregate $ selectFrom people \r → pure { n: count r.id }
+        n `shouldEqual` (Just { n: 1 })
+
+    it "rollbacks on aff exception" do
+      let
+        run' action =
+          let
+            action' = run action
+          in
+            action' `catchError` \e → do
+              traceM e
+              pure unit
+      run' do
+        pgExecute initDb
+        withTransaction $ do
+          void $ insert1_ people { id: 1, name: "foo", age: Nothing }
+
+        withTransaction $ do
+          insert1_ people { id: 2, name: "bar", age: Nothing }
+          Run.liftAff $ liftEffect $ throwError $ Effect.Exception.error "Aff throw before commit"
+
+      run' do
+        n <- query1 $ aggregate $ selectFrom people \r → pure { n: count r.id }
+        n `shouldEqual` (Just { n: 1 })
 
     it "rollbacks on error" do
-      runBaseAff'
-        <<< catchAt _pgError (\err → pure unit)
-        -- <<< catchAt _pgError (\err → Run.liftEffect do
-        --   log "WTF"
-        --   traceM err
-        --   throw $ unsafeCoerce err)
-        <<< catchAt _testErr (const $ pure unit)
-        <<< Selda.run pool $ do
-          pgExecute initDb
-          void $ withTransaction $ do
-            void $ insert1_ people { id: 1, name: "foo", age: Nothing }
+      let
+        run' action = run $ catchAt _testErr (const $ pure unit) $ action
 
-          void $ withTransaction $ do
-            void $ insert1_ people { id: 2, name: "bar", age: Nothing }
-            throwAt _testErr "throw before COMMIT"
-          pure unit
+      run' do
+        traceM "BEFORE INIT"
+        pgExecute initDb
+        withTransaction $ do
+          insert1_ people { id: 1, name: "foo", age: Nothing }
 
-      runBaseAff'
-        <<< catchAt _pgError (unsafeCoerce >>> throw >>> Run.liftEffect)
-        <<< catchAt _testErr (const $ pure unit)
-        <<< Selda.run pool $ do
-          { n } <- query1 $ aggregate $ selectFrom people \r → pure { n: count r.id }
-          n `shouldEqual` 1
+        withTransaction $ do
+          void $ insert1_ people { id: 2, name: "bar", age: Nothing }
+          throwAt _testErr "throw before COMMIT"
+
+      run' do
+        n <- query1 $ aggregate $ selectFrom people \r → pure { n: count r.id }
+        n `shouldEqual` (Just { n: 1 })
+
 

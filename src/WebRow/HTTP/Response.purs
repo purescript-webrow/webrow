@@ -4,10 +4,13 @@ module WebRow.HTTP.Response
   , module Types
   , found
   , ok
+  , okWithHeaders
   , run
   ) where
 
 import Prelude
+
+import HTTPure (Headers)
 import HTTPure (Response, header) as HTTPure
 import HTTPure (empty) as HTTPure.Headers
 import HTTPure.Body (class Body) as HTTPure
@@ -53,6 +56,11 @@ ok ∷ ∀ eff. String → Run eff (HTTPResponse String)
 ok body =
   pure
     $ HTTPResponse { body, headers: HTTPure.Headers.empty, status: HTTPure.Status.ok }
+
+okWithHeaders ∷ ∀ eff. Headers → String → Run eff (HTTPResponse String)
+okWithHeaders headers body =
+  pure
+    $ HTTPResponse { body, headers, status: HTTPure.Status.ok }
 
 found ∷ ∀ eff. Url → Run eff (HTTPResponse String)
 found (Url location) =

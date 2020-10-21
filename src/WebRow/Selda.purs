@@ -1,6 +1,7 @@
 module WebRow.Selda where
 
 import Prelude
+
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Either (Either(..))
@@ -9,6 +10,7 @@ import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
 import Database.PostgreSQL (PGError, Row0(..))
 import Database.PostgreSQL (class FromSQLRow, class ToSQLRow, Connection, PGError, Pool, Query(..), ConnectResult, connect, execute, query) as PG
+import Debug.Trace (traceM)
 import Effect.Aff (Aff)
 import Run (Run)
 import Run as Run
@@ -20,9 +22,6 @@ import Selda.PG.Class (deleteFrom, insert, insert1, insert1_, query, query1, upd
 import Selda.Query.Class (class GenericDelete, class GenericInsert, class GenericQuery, class GenericUpdate)
 import Type.Row (type (+))
 import WebRow.Contrib.Run (AffRow, EffRow)
-
-type SeldaPG
-  = ExceptT PG.PGError (ReaderT PG.Connection Aff)
 
 -- | I'm not sure if this represtation is consistent.
 -- | I want to allow some intronspection but also compile
@@ -37,6 +36,9 @@ data SeldaF a
   | PgQueryF (PG.Connection → Aff (Either PGError a))
   | PgOpenTransactionF a
   | PgCloseTransactionF a
+
+type SeldaPG
+  = ExceptT PG.PGError (ReaderT PG.Connection Aff)
 
 derive instance functorSeldaF ∷ Functor SeldaF
 
@@ -64,7 +66,7 @@ query q = do
 query1 ∷
   ∀ eff o i.
   GenericQuery BackendPGClass SeldaPG i o ⇒
-  FullQuery BackendPGClass { | i } → Run (Selda + eff) { | o }
+  FullQuery BackendPGClass { | i } → Run (Selda + eff) (Maybe { | o })
 query1 q = Run.lift _selda (SeldaF (PG.Class.query1 q))
 
 insert ∷
@@ -123,8 +125,7 @@ pgQuery ∷
   Run (Selda + eff) (Array o)
 pgQuery q i = Run.lift _selda (PgQueryF (\conn → PG.query conn q i))
 
-type Pg r
-  = ( pg ∷ STATE { conn ∷ Maybe PG.ConnectResult, inTransaction ∷ Boolean } | r )
+type Pg r = ( pg ∷ STATE { conn ∷ Maybe PG.ConnectResult, inTransaction ∷ Boolean } | r )
 
 _pg = SProxy ∷ SProxy "pg"
 
@@ -178,12 +179,14 @@ run pool =
       PgOpenTransactionF next → do
         inTransaction >>= not
           >>> flip when do
+              traceM "BEGIN"
               execute "BEGIN TRANSACTION"
               modifyAt _pg _ { inTransaction = true }
         pure next
       PgCloseTransactionF next → do
         inTransaction
           >>= flip when do
+              traceM "END"
               execute "END TRANSACTION"
               modifyAt _pg _ { inTransaction = false }
         pure next
@@ -191,12 +194,17 @@ run pool =
     \action →
       evalStateAt _pg initial do
         a ← Run.run (Run.on _selda handleSelda Run.send) action
+        i ← inTransaction
+        traceM "IN TRANSACTION"
+        traceM i
         getAt _pg >>= _.conn
           >>> case _ of
               Just { connection, done } → do
                 inTransaction
                   >>= flip when do
+                      traceM "ROLLBACK"
                       execute "ROLLBACK TRANSACTION"
+                traceM "CLOSING CONNECTION"
                 Run.liftEffect $ done
               Nothing → pure unit
         pure a
