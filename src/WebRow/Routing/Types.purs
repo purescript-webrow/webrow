@@ -34,4 +34,5 @@ type Context v
     , routeDuplex ∷ D.RouteDuplex' v
     , route ∷ v
     , query ∷ Lazy Decoded
+    , url ∷ RelativeUrl
     }

@@ -32,19 +32,19 @@ setHeader ∷
   Run ( setHeader ∷ SETHEADER | eff ) Unit
 setHeader k v = Run.lift _setHeader (SetHeaderF k v unit)
 
-setHeaderOnParts ∷ ∀ body. String → String → Parts body → Parts body
+setHeaderOnParts ∷ String → String → Parts → Parts
 setHeaderOnParts k v parts = parts { headers = HTTPure.header k v <> parts.headers }
 
-setHeaderOnHTTPException :: String -> String -> HTTPException -> HTTPException
+setHeaderOnHTTPException ∷ String → String → HTTPException → HTTPException
 setHeaderOnHTTPException k v (HTTPException parts) = HTTPException $ setHeaderOnParts k v parts
 
-setHeaderOnHTTPResponse :: forall body. String -> String -> HTTPResponse body -> HTTPResponse body
+setHeaderOnHTTPResponse ∷ String → String → HTTPResponse → HTTPResponse
 setHeaderOnHTTPResponse k v (HTTPResponse parts) = HTTPResponse $ setHeaderOnParts k v parts
 
 runSetHeader ∷
-  ∀ body eff.
-  Run (SetHeader + eff) (HTTPResponse body) →
-  Run (eff) (HTTPResponse body)
+  ∀ eff.
+  Run (SetHeader + eff) HTTPResponse →
+  Run (eff) HTTPResponse
 runSetHeader =
   Run.run
     $ Run.on _setHeader setOnResponse Run.send

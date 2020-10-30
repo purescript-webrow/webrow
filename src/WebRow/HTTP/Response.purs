@@ -9,11 +9,9 @@ module WebRow.HTTP.Response
   ) where
 
 import Prelude
-
 import HTTPure (Headers)
 import HTTPure (Response, header) as HTTPure
 import HTTPure (empty) as HTTPure.Headers
-import HTTPure.Body (class Body) as HTTPure
 import HTTPure.Body (write) as Body
 import HTTPure.Status (found, ok) as HTTPure.Status
 import Run (Run)
@@ -23,14 +21,13 @@ import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept)
 import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept, notFound) as Except
 import WebRow.HTTP.Response.Headers (runSetHeader, SetHeader)
 import WebRow.HTTP.Response.Headers (runSetHeader, setHeader, _setHeader, SetHeader, SetHeaderF(..)) as Headers
-import WebRow.HTTP.Response.Types (HTTPResponse(..), Parts)
+import WebRow.HTTP.Response.Types (Body(..), HTTPResponse(..), Parts)
 import WebRow.HTTP.Response.Types (HTTPResponse(..), Parts) as Types
 import WebRow.Routing.Types (Url(..))
 
 run ∷
-  ∀ body eff.
-  HTTPure.Body body ⇒
-  Run (SetHeader + HTTPExcept + eff) (HTTPResponse body) →
+  ∀ eff.
+  Run (SetHeader + HTTPExcept + eff) HTTPResponse →
   Run eff HTTPure.Response
 run action = action'
   where
@@ -42,27 +39,28 @@ run action = action'
 
   fromException (HTTPException parts) = fromParts parts
 
-  fromParts ∷
-    ∀ b.
-    HTTPure.Body b ⇒
-    Parts b → HTTPure.Response
+  fromParts ∷ Parts → HTTPure.Response
   fromParts { body, headers, status } =
     { status
     , headers
-    , writeBody: Body.write body
+    , writeBody:
+        case body of
+          BodyString string → Body.write string
+          BodyBuffer buffer → Body.write buffer
+          BodyStream stream → Body.write stream
     }
 
-ok ∷ ∀ eff. String → Run eff (HTTPResponse String)
+ok ∷ ∀ eff. String → Run eff HTTPResponse
 ok body =
   pure
-    $ HTTPResponse { body, headers: HTTPure.Headers.empty, status: HTTPure.Status.ok }
+    $ HTTPResponse { body: BodyString body, headers: HTTPure.Headers.empty, status: HTTPure.Status.ok }
 
-okWithHeaders ∷ ∀ eff. Headers → String → Run eff (HTTPResponse String)
+okWithHeaders ∷ ∀ eff. Headers → String → Run eff HTTPResponse
 okWithHeaders headers body =
   pure
-    $ HTTPResponse { body, headers, status: HTTPure.Status.ok }
+    $ HTTPResponse { body: BodyString body, headers, status: HTTPure.Status.ok }
 
-found ∷ ∀ eff. Url → Run eff (HTTPResponse String)
+found ∷ ∀ eff. Url → Run eff HTTPResponse
 found (Url location) =
   pure
-    $ HTTPResponse { body: "", headers: HTTPure.header "location" location, status: HTTPure.Status.found }
+    $ HTTPResponse { body: BodyString "", headers: HTTPure.header "location" location, status: HTTPure.Status.found }

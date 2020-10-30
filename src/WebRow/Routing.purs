@@ -10,6 +10,7 @@ module WebRow.Routing
   , route
   , _routing
   , runRouting
+  , url
   ) where
 
 import Prelude
@@ -65,9 +66,9 @@ context domain routeDuplex@(RouteDuplex _ dec) = go
   where
   replacePlus = String.replaceAll (String.Pattern "+") (String.Replacement " ")
 
-  go url =
+  go rawUrl =
     let
-      routeState@{ params } = D.parsePath (replacePlus url)
+      routeState@{ params } = D.parsePath (replacePlus rawUrl)
 
       query =
         L.defer \_ →
@@ -77,10 +78,11 @@ context domain routeDuplex@(RouteDuplex _ dec) = go
             $ params
 
       ctx =
-        { route: _
+        { domain
         , query
+        , route: _
         , routeDuplex
-        , domain
+        , url: RelativeUrl rawUrl
         }
     in
       ctx
@@ -104,6 +106,9 @@ runRouting domain routeDuplex request action = do
 route ∷ ∀ eff route. Run (Routing route + eff) route
 route = askAt _routing <#> _.route
 
+url ∷ ∀ eff route. Run (Routing route + eff) RelativeUrl
+url = askAt _routing <#> _.url
+
 redirect ∷
   ∀ a eff route.
   route →
@@ -113,6 +118,4 @@ redirect ∷
         + eff
     )
     a
-redirect r = do
-  url ← printRoute r
-  HTTP.Response.redirect (fromRelativeUrl url)
+redirect r = printRoute r >>= fromRelativeUrl >>> HTTP.Response.redirect

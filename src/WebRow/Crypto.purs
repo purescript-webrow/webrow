@@ -11,6 +11,7 @@ module WebRow.Crypto
   ) where
 
 import Prelude
+
 import Data.Argonaut (Json)
 import Data.Either (Either(..))
 import HTTPure (empty) as Headers
@@ -20,9 +21,10 @@ import Type.Row (type (+))
 import WebRow.Crypto.Jwt.Node (UnsignError)
 import WebRow.Crypto.Jwt.Node (sign, unsign) as Jwt
 import WebRow.Crypto.Jwt.Node.String (sign, unsign) as String
-import WebRow.Crypto.Types (Secret)
 import WebRow.Crypto.Types (Secret(..)) as Types
+import WebRow.Crypto.Types (Secret)
 import WebRow.HTTP.Response.Except (HTTPExcept, internalServerError)
+import WebRow.HTTP.Response.Types (Body(..))
 
 _crypto = SProxy ∷ SProxy "crypto"
 
@@ -40,7 +42,7 @@ signJson ∷
 signJson json = do
   sec ← askAt _crypto
   case Jwt.sign sec json of
-    Left e → internalServerError Headers.empty "Serious problem..."
+    Left e → internalServerError Headers.empty $ BodyString "Serious problem..."
     Right s → pure s
 
 sign ∷
@@ -50,7 +52,7 @@ sign ∷
 sign str = do
   sec ← askAt _crypto
   case String.sign sec str of
-    Left e → internalServerError Headers.empty "Serious problem..."
+    Left e → internalServerError Headers.empty $ BodyString "Serious problem..."
     Right s → pure s
 
 unsignJson ∷

@@ -15,7 +15,7 @@ import WebRow.HTTP.Response (found, ok)
 import WebRow.Routing (Routing', fromRelativeUrl, printRoute)
 import WebRow.Testing.Templates (form', html)
 
-render :: forall routes t7. Auth.Response -> Run (Routing' ( auth ∷ Auth.Routes.Route | routes ) + t7) (HTTPResponse String)
+render :: forall routes t7. Auth.Response -> Run (Routing' ( auth ∷ Auth.Routes.Route | routes ) + t7) HTTPResponse
 render = case _ of
   Auth.Responses.LoginResponse loginResponse → case loginResponse of
     Auth.Responses.LoginFormValidationFailed formLayout → ok $ html $ form' formLayout

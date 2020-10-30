@@ -1,7 +1,6 @@
 module WebRow.Session where
 
 import Prelude
-
 import Data.Argonaut (Json)
 import Data.Either (hush)
 import Data.Lazy (force)
@@ -18,6 +17,7 @@ import WebRow.Contrib.Run (EffRow)
 import WebRow.HTTP (HTTPExcept, internalServerError)
 import WebRow.HTTP.Cookies (Cookies)
 import WebRow.HTTP.Cookies (defaultAttributes, delete, lookup, lookupJson, set, setJson) as Cookies
+import WebRow.HTTP.Response.Types (Body(..))
 import WebRow.KeyValueStore.Types (Key)
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (hoist) as SessionStore
@@ -59,8 +59,10 @@ save ∷
 save session =
   Run.lift _session (SaveF session identity) >>= not
     >>> if _ then
-        -- | Collect more request info etc.
-        internalServerError Headers.empty "Serious problem on our side..."
+        -- | TODO:
+        -- | * Add loggin
+        -- | * Handle this through custom internal exception variant?
+        internalServerError Headers.empty $ BodyString "Serious problem on our side..."
       else
         pure unit
 
@@ -103,8 +105,9 @@ runInMemoryStore ∷
 runInMemoryStore ref defaultSession action = do
   -- | This laziness is a myth let's drop this all together
   lazySessionKey ← Cookies.lookup cookieName
-  effSessionStore ← Run.liftEffect $
-    SessionStore.InMemory.new ref defaultSession lazySessionKey
+  effSessionStore ←
+    Run.liftEffect
+      $ SessionStore.InMemory.new ref defaultSession lazySessionKey
   runInStore (SessionStore.hoist Run.liftEffect $ effSessionStore) action
 
 -- | The whole session is stored in a cookie value so visible in the browser.
@@ -121,9 +124,9 @@ runInCookieValue dual defaultSession =
       default ← defaultSession
       decode default <<< force <$> Cookies.lookupJson cookieName
       where
-        decode default maybeRepr =
-          fromMaybe default
-            $ (maybeRepr >>= Pure.runValidator dual >>> toEither >>> hush)
+      decode default maybeRepr =
+        fromMaybe default
+          $ (maybeRepr >>= Pure.runValidator dual >>> toEither >>> hush)
 
     handleSession ∷ SessionF session ~> Run (Cookies + EffRow + eff)
     handleSession (DeleteF next) = do
@@ -148,4 +151,3 @@ runInCookieValue dual defaultSession =
       pure (next true)
   in
     Run.interpret (Run.on _session handleSession Run.send)
-

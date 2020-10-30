@@ -1,18 +1,19 @@
 module WebRow.HTTP.Response.Except where
 
 import Prelude
+
 import Data.Variant (SProxy(..))
-import HTTPure (Headers, Status, header) as HTTPure
+import HTTPure (Headers, header) as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Headers (empty) as Headers
 import HTTPure.Status (badGateway, badRequest, forbidden, internalServerError, methodNotAllowed, notFound, notImplemented, serviceUnavailable, temporaryRedirect, unauthorized) as Status
 import Run (Run)
 import Run.Except (EXCEPT, throwAt)
-import WebRow.HTTP.Types (Body)
+import WebRow.HTTP.Response.Types (Body(..), Parts)
 import WebRow.Routing.Types (Url(..))
 
 newtype HTTPException
-  = HTTPException { body ∷ String, headers ∷ HTTPure.Headers, status ∷ HTTPure.Status }
+  = HTTPException Parts
 
 _httpExcept = SProxy ∷ SProxy "httpExcept"
 
@@ -29,7 +30,7 @@ redirect ∷ ∀ a eff. Url → Run ( httpExcept ∷ EXCEPT HTTPException | eff 
 redirect (Url url) =
   httpExcept
     $ HTTPException
-        { body: "", headers: HTTPure.header "Location" url, status: Status.temporaryRedirect }
+        { body: BodyString "", headers: HTTPure.header "Location" url, status: Status.temporaryRedirect }
 
 badRequest ∷ ∀ a eff. HTTPure.Headers → Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 badRequest headers body = httpExcept (HTTPException { body, headers, status: Status.badRequest })
@@ -38,19 +39,19 @@ badRequest' ∷ ∀ a eff. Body → Run ( httpExcept ∷ EXCEPT HTTPException | 
 badRequest' = badRequest HTTPure.Headers.empty
 
 badRequest'' ∷ ∀ a eff. Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-badRequest'' = badRequest HTTPure.Headers.empty ""
+badRequest'' = badRequest HTTPure.Headers.empty (BodyString "")
 
 unauthorized ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-unauthorized headers = httpExcept (HTTPException { body: "", headers, status: Status.unauthorized })
+unauthorized headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.unauthorized })
 
 forbidden ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-forbidden headers = httpExcept (HTTPException { body: "", headers, status: Status.forbidden })
+forbidden headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.forbidden })
 
 notFound ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-notFound headers = httpExcept (HTTPException { body: "", headers, status: Status.notFound })
+notFound headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.notFound })
 
 methodNotAllowed ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-methodNotAllowed headers = httpExcept (HTTPException { body: "", headers, status: Status.methodNotAllowed })
+methodNotAllowed headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.methodNotAllowed })
 
 methodNotAllowed' ∷ ∀ a eff. Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 methodNotAllowed' = methodNotAllowed Headers.empty
@@ -59,10 +60,10 @@ internalServerError ∷ ∀ a eff. HTTPure.Headers → Body → Run ( httpExcept
 internalServerError headers body = httpExcept (HTTPException { body, headers, status: Status.internalServerError })
 
 notImplemented ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-notImplemented headers = httpExcept (HTTPException { body: "", headers, status: Status.notImplemented })
+notImplemented headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.notImplemented })
 
 badGateway ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-badGateway headers = httpExcept (HTTPException { body: "", headers, status: Status.badGateway })
+badGateway headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.badGateway })
 
 serviceUnavailable ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-serviceUnavailable headers = httpExcept (HTTPException { body: "", headers, status: Status.serviceUnavailable })
+serviceUnavailable headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.serviceUnavailable })

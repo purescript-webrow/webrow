@@ -1,56 +1,24 @@
 module Test.WebRow.HTTP where
 
 import Prelude hiding ((/))
-import Data.Array (snoc) as A
-import Data.Either (Either(..))
 import Data.Lazy (force) as Lazy
-import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(..))
-import Data.Tuple (Tuple(..))
-import Data.Variant (Variant, inj)
-import Data.Variant (match) as Variant
-import Debug.Trace (traceM)
-import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (logShow)
 import Effect.Random (random)
-import Foreign.Object (fromHomogeneous) as Object
 import Global.Unsafe (unsafeStringify)
-import HTTPure (Method(..))
-import HTTPure (Method(..), Request, fullPath) as HTTPure
-import HTTPure.Headers (empty) as Headers
-import Routing.Duplex (RouteDuplex', int, parse, print, root, segment, string) as D
 import Routing.Duplex.Generic (noArgs)
-import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
-import Run (Run, extract, runBaseAff, runBaseAff', runBaseEffect)
-import Run (expand, runBaseAff, runBaseAff', runBaseEffect) as Run
-import Run.Reader (runReaderAt)
-import Run.State (execStateAt, runStateAt)
-import Run.Streaming (Producer, respond) as S
-import Run.Streaming (REQUEST)
-import Run.Streaming.Prelude (feed, head, take) as S.P
-import Run.Streaming.Prelude (fold) as S.Prelude
-import Run.Streaming.Pull (chain) as Pull
-import Test.Spec (Spec, describe, it, pending)
-import Type.Prelude (SProxy(..))
-import Type.Row (type (+))
-import Unsafe.Coerce (unsafeCoerce)
-import WebRow (method, ok) as W
-import WebRow.Contrib.Run (AffRow, EffRow)
-import WebRow.Crypto (Crypto, _crypto, secret)
+import Run (runBaseAff')
+import Test.Spec (Spec, describe, it)
 import WebRow.Crypto (secret) as Crypto
-import WebRow.HTTP (HTTPExcept, HTTPResponse, Request, SetHeader, Cookies, notFound)
 import WebRow.HTTP (fullPath) as HTTP
-import WebRow.HTTP.Cookies (defaultAttributes)
 import WebRow.HTTP.Cookies (defaultAttributes, lookup, set) as Cookies
-import WebRow.HTTP.Request (_request)
 import WebRow.HTTP.Response (ok)
 import WebRow.Session (fetch) as Session
 import WebRow.Testing.Assertions (shouldEqual)
-import WebRow.Testing.HTTP (Client, HTTPSession, _httpSession, get, get_, request)
-import WebRow.Testing.HTTP (run, run') as Testing.HTTP
-import WebRow.Testing.HTTP.Response (Response(..))
-import WebRow.Testing.HTTP.Response (body) as Response
+import WebRow.Testing.HTTP (get, get_)
+import WebRow.Testing.HTTP (run') as Testing.HTTP
+import WebRow.Testing.HTTP.Response (bodyString) as Response
 
 spec :: Spec Unit
 spec = do
@@ -60,7 +28,7 @@ spec = do
         let
           client = do
             response ← get "1"
-            Response.body response `shouldEqual` Just "TEST"
+            Response.bodyString response `shouldEqual` Just "TEST"
             get_ "2"
 
           server = do
@@ -80,7 +48,7 @@ spec = do
         let
           client = do
             response ← get "1"
-            Response.body response `shouldEqual` Just "TEST"
+            Response.bodyString response `shouldEqual` Just "TEST"
             get_ "2"
 
           server = do

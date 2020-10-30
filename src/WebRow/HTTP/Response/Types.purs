@@ -2,13 +2,16 @@ module WebRow.HTTP.Response.Types where
 
 import Data.Newtype (class Newtype)
 import HTTPure (Headers, Status) as HTTPure
+import Node.Buffer (Buffer)
+import Node.Stream (Readable) as Stream
 
-type Parts body
-  = { body ∷ body, headers ∷ HTTPure.Headers, status ∷ HTTPure.Status }
+data Body = BodyStream (Stream.Readable ()) | BodyBuffer Buffer | BodyString String
+
+type Parts
+  = { body ∷ Body, headers ∷ HTTPure.Headers, status ∷ HTTPure.Status }
 
 -- | A tiny wrapper around response which enables
 -- | inspection during testing.
-newtype HTTPResponse body
-  = HTTPResponse (Parts body)
+newtype HTTPResponse = HTTPResponse Parts
 
-derive instance newtypeHTTPResponse ∷ Newtype (HTTPResponse body) _
+derive instance newtypeHTTPResponse ∷ Newtype HTTPResponse _

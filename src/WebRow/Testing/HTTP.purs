@@ -1,9 +1,7 @@
 module WebRow.Testing.HTTP where
 
 import Prelude
-
 import Data.Array (singleton) as Array
-import Data.Either (Either(..))
 import Data.Lazy (defer) as Lazy
 import Data.List (List(..), reverse) as List
 import Data.List (List)
@@ -42,19 +40,18 @@ import WebRow.HTTP.Cookies.Types (RequestCookies)
 import WebRow.HTTP.Request (Request)
 import WebRow.Routing (Routing, runRouting)
 import WebRow.Session (Session)
-import WebRow.Session (runInCookieValue) as Session
 import WebRow.Testing.HTTP.Cookies (toRequestCookies)
 import WebRow.Testing.HTTP.Response (Render) as Response
 import WebRow.Testing.HTTP.Response (Response) as Testing.HTTP
 import WebRow.Testing.HTTP.Response (runHTTPExcept, runRender, runSetHeader) as Testing.Response
 import WebRow.Testing.HTTP.Types (ClientCookies)
-import WebRow.Testing.Session (SessionStoreConfig, SessionCookieConfig)
+import WebRow.Testing.Session (SessionStoreConfig)
 import WebRow.Testing.Session (runInMemory) as Testing.Session
 
 -- | TODO: Upgrdae to polymorphic `body` type here when
 -- | monorphic implementation is working.
 type Response ctx
-  = Testing.HTTP.Response String ctx
+  = Testing.HTTP.Response ctx
 
 type Exchange ctx
   = { clientCookies ∷ ClientCookies
@@ -185,14 +182,13 @@ run ∷
   -- (Either (SessionStoreConfig session) (SessionCookieConfig session)) →
   (SessionStoreConfig session) →
   RouteDuplex' routes →
-  Response.Render (Server session routes res + eff) String res →
+  Response.Render (Server session routes res + eff) res →
   Run (Server session routes res + eff) res →
   Run (AffRow + Client session res + EffRow + eff) Unit →
   Run (AffRow + EffRow + eff) (History res)
 run sessionStoreConfig routeDuplex render server client = do
   let
     runSession = Testing.Session.runInMemory sessionStoreConfig
-
   runSession
     $ evalStateAt _httpSession (mempty ∷ ClientCookies)
     $ httpExchange
@@ -252,7 +248,7 @@ runAff ∷
     (S.Producer (Exchange res) + eff) ⇒
   SessionStoreConfig session →
   RouteDuplex' routes →
-  Response.Render (Server session routes res + ()) String res →
+  Response.Render (Server session routes res + ()) res →
   Run (Server session routes res + ()) res →
   Run (AffRow + Client session res + EffRow + ()) Unit →
   Aff (History res)
@@ -267,7 +263,7 @@ run' ∷
     (S.Producer (Exchange res) + eff) ⇒
   session →
   RouteDuplex' routes →
-  Response.Render (Server session routes res + eff) String res →
+  Response.Render (Server session routes res + eff) res →
   Run (Server session routes res + eff) res →
   Run (AffRow + Client session res + EffRow + eff) Unit →
   Run (AffRow + EffRow + eff) (History res)
@@ -285,7 +281,7 @@ runAff' ∷
     (S.Producer (Exchange res) + eff) ⇒
   session →
   RouteDuplex' routes →
-  Response.Render (Server session routes res + ()) String res →
+  Response.Render (Server session routes res + ()) res →
   Run (Server session routes res + ()) res →
   Run (AffRow + Client session res + EffRow + ()) Unit →
   Aff (History res)

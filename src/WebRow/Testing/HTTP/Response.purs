@@ -5,7 +5,6 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import HTTPure (Headers, header) as HTTPure
 import HTTPure (Status)
-import HTTPure.Body (class Body) as HTTPure
 import HTTPure.Headers (empty) as HTTPure.Headers
 import Run (Run)
 import Run (on, run, send) as Run
@@ -16,47 +15,48 @@ import WebRow.HTTP (HTTPException) as HTTP
 import WebRow.HTTP.Response (HTTPResponse(..), Parts) as HTTP.Response
 import WebRow.HTTP.Response (HTTPResponse, SetHeader, SetHeaderF(..), _httpExcept, _setHeader)
 import WebRow.HTTP.Response.Headers (setHeaderOnParts)
+import WebRow.HTTP.Response.Types (Body(..))
 
-data Response body res
+data Response res
   = HTTPException HTTP.HTTPException HTTPure.Headers
-  | HTTPResponse { parts ∷ HTTP.Response.Parts body, ctx ∷ res }
+  | HTTPResponse { parts ∷ HTTP.Response.Parts, ctx ∷ res }
 
-derive instance functorResponse ∷ Functor (Response body)
+derive instance functorResponse ∷ Functor Response
 
-status ∷ ∀ body res. Response body res → Maybe Status
-status (HTTPResponse { parts: { status: s }}) = Just s
+status ∷ ∀ res. Response res → Maybe Status
+status (HTTPResponse { parts: { status: s } }) = Just s
+
 status _ = Nothing
 
-body ∷ ∀ body res. Response body res → Maybe body
-body (HTTPResponse { parts: { body: b }}) = Just b
-body _ = Nothing
+bodyString ∷ ∀ res. Response res → Maybe String
+bodyString (HTTPResponse { parts: { body: BodyString b } }) = Just b
+
+bodyString _ = Nothing
 
 -- type Response' body res = Response body (Variant res)
-type Render eff body res
-  = res → Run eff (HTTPResponse body)
+type Render eff res
+  = res → Run eff HTTPResponse
 
 runRender ∷
-  ∀ body eff res.
-  HTTPure.Body body ⇒
-  Render eff body res →
+  ∀ eff res.
+  Render eff res →
   Run eff res →
-  Run eff (Response body res)
+  Run eff (Response res)
 runRender r rCtx = do
   ctx ← rCtx
   HTTP.Response.HTTPResponse parts ← r ctx
   pure $ HTTPResponse { parts, ctx }
 
 runHTTPExcept ∷
-  ∀ body eff res.
-  HTTPure.Body body ⇒
-  Run (HTTPExcept + eff) (Response body res) →
-  Run eff (Response body res)
+  ∀ eff res.
+  Run (HTTPExcept + eff) (Response res) →
+  Run eff (Response res)
 runHTTPExcept = catchAt _httpExcept (\e → pure $ HTTPException e HTTPure.Headers.empty)
 
 runSetHeader ∷
-  ∀ body res eff.
-  Run (SetHeader + eff) (Response body res) →
-  Run eff (Response body res)
+  ∀ res eff.
+  Run (SetHeader + eff) (Response res) →
+  Run eff (Response res)
 runSetHeader =
   Run.run
     $ Run.on _setHeader go Run.send
