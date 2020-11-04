@@ -12,6 +12,11 @@ import Run.Except (EXCEPT, throwAt)
 import WebRow.HTTP.Response.Types (Body(..), Parts)
 import WebRow.Routing.Types (Url(..))
 
+-- | TODO: We want to probably carry json payload
+-- | which can be passed to services like:
+-- | * sentry
+-- | * console
+-- | * systemd?
 newtype HTTPException
   = HTTPException Parts
 
@@ -58,6 +63,9 @@ methodNotAllowed' = methodNotAllowed Headers.empty
 
 internalServerError ∷ ∀ a eff. HTTPure.Headers → Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 internalServerError headers body = httpExcept (HTTPException { body, headers, status: Status.internalServerError })
+
+internalServerError' ∷ ∀ a eff. Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
+internalServerError' = internalServerError Headers.empty
 
 notImplemented ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 notImplemented headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.notImplemented })

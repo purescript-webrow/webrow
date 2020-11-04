@@ -1,10 +1,12 @@
-module WebRow.Logging.Level where
+module WebRow.Logger.Level where
 
 import Prelude
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
 
+-- | TODO: extract purescript-logging-level
+-- | because these names are taken from journald lib.
 data Level
   = Debug
   | Info

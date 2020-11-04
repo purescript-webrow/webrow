@@ -11,7 +11,6 @@ You can edit this file as you like.
   , "homogeneous"
   , "httpure"
   , "logging-journald"
-  , "oneof"
   , "optparse"
   , "polyform"
   , "polyform-batteries"

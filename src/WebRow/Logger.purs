@@ -1,15 +1,24 @@
-module WebRow.Logging.Effect where
+module WebRow.Logger
+  ( debug
+  , err
+  , info
+  , runToConsole
+  , warning
+  , LoggerF(..)
+  , module Level
+  ) where
 
 import Prelude
-import Control.Logger.Journald (Level(..))
+
 import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
 import Effect.Class.Console as Console
 import Run (Run, AFF)
 import Run as Run
+import WebRow.Logger.Level (Level(..))
+import WebRow.Logger.Level (Level(..)) as Level
 
-data LoggerF a
-  = Log Level String a
+data LoggerF a = LoggerF Level String a
 
 derive instance functorLoggerF ∷ Functor LoggerF
 
@@ -19,7 +28,10 @@ type LOGGER
 _logger = SProxy ∷ SProxy "logger"
 
 log ∷ ∀ eff. Level → String → Run ( logger ∷ LOGGER | eff ) Unit
-log lvl msg = Run.lift _logger (Log lvl msg unit)
+log lvl msg = Run.lift _logger (LoggerF lvl msg unit)
+
+debug ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
+debug = log Debug
 
 info ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
 info = log Info
@@ -30,16 +42,16 @@ warning = log Warning
 err ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
 err = log Err
 
-runLoggerConsole ∷
+runToConsole ∷
   ∀ a eff.
   Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) a →
   Run ( aff ∷ AFF | eff ) a
-runLoggerConsole = Run.interpret (Run.on _logger handleLoggerConsole Run.send)
-
-handleLoggerConsole ∷
-  ∀ a eff.
-  LoggerF a →
-  Run ( aff ∷ AFF | eff ) a
-handleLoggerConsole (Log lvl msg next) = do
-  Run.liftAff $ Console.log $ (show lvl) <> ": " <> show msg
-  pure next
+runToConsole = Run.interpret (Run.on _logger handleLoggerConsole Run.send)
+  where
+  handleLoggerConsole ∷
+    ∀ b.
+    LoggerF b →
+    Run ( aff ∷ AFF | eff ) b
+  handleLoggerConsole (LoggerF lvl msg next) = do
+    Run.liftAff $ Console.log $ (show lvl) <> ":> " <> show msg
+    pure next

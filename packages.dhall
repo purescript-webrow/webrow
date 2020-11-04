@@ -303,7 +303,7 @@ let oneof =
   , version =
       "master"
   }
-let undefined-is-not-a-problem = ../purescript-undefined-is-not-a-problem/spago.dhall as Location
+let undefined-is-not-a-problem = ../undefined-is-not-a-problem/spago.dhall as Location
 --   { dependencies =
 --     [ "effect"
 --     , "foreign"
