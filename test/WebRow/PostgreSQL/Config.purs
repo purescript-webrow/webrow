@@ -1,4 +1,4 @@
-module Test.WebRow.Selda.Config where
+module Test.WebRow.PostgreSQL.Config where
 
 import Prelude
 
@@ -7,8 +7,9 @@ import Data.Either (Either(..))
 import Data.Map (fromFoldable) as Map
 import Data.Newtype (un)
 import Data.Validation.Semigroup (V(..))
-import Database.PostgreSQL (Pool, newPool)
-import Database.PostgreSQL (PoolConfiguration) as PG
+import Database.PostgreSQL (Pool)
+import Database.PostgreSQL (new) as Pool
+import Database.PostgreSQL (Configuration) as PG
 import Dotenv (loadFile) as DotEnv
 import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -26,7 +27,7 @@ import Type.Row (type (+))
 poolConfiguration
   ∷ ∀ err m
   . Monad m
-  ⇒ Env.Validator m (IntExpected + MissingValue + err) Env.Env PG.PoolConfiguration
+  ⇒ Env.Validator m (IntExpected + MissingValue + err) Env.Env PG.Configuration
 poolConfiguration = { database: _, host: _, idleTimeoutMillis: _, max: _, password: _, port: _, user: _ }
   <$> Env.required "PG_DB" identity
   <*> Env.optional "PG_HOST" identity
@@ -37,7 +38,7 @@ poolConfiguration = { database: _, host: _, idleTimeoutMillis: _, max: _, passwo
   <*> Env.optional "PG_USER" identity
 
 pool ∷ ∀ err m. MonadEffect m ⇒ Env.Validator m (IntExpected + MissingValue + err) Env.Env Pool
-pool = poolConfiguration >>> liftFnM (newPool >>> liftEffect)
+pool = poolConfiguration >>> liftFnM (Pool.new >>> liftEffect)
 
 load :: Aff Pool
 load = do
