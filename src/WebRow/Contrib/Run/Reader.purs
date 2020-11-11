@@ -1,20 +1,40 @@
 module WebRow.Contrib.Run.Reader where
 
 import Prelude
+
 import Data.Either (Either(..))
-import Data.Functor.Variant (class VariantFMatchCases)
-import Prim.Row (class Union)
-import Prim.RowList (class RowToList, kind RowList)
-import Prim.RowList (Cons, Nil) as RL
+import Data.Functor.Variant (inj, class VariantFMatchCases)
 import Prim.Row (class Cons, class Lacks) as Row
-import Run (Run)
-import Run.Reader (Reader(..))
-import Run as Run
+import Prim.Row (class Union)
+import Prim.RowList (Cons, Nil) as RL
+import Prim.RowList (class RowToList, kind RowList)
 import Record (insert, get) as Record
+import Run (Run)
+import Run (on, onMatch, peel, run, send) as Run
+import Run.Reader (READER, Reader(..))
 import Type.Prelude (class IsSymbol, SProxy(..), RLProxy(..))
+import Unsafe.Coerce (unsafeCoerce)
+
+withReaderAt ∷
+  ∀ e1 e2 r_ r1 r2 s
+  . IsSymbol s
+  ⇒ Row.Cons s (READER e1) r_ r1
+  ⇒ Row.Cons s (READER e2) r_ r2
+  ⇒ SProxy s
+  → (e2 → e1)
+  → Run r1
+  ~> Run r2
+withReaderAt sym f r = Run.run (Run.on sym handle (Run.send >>> expand' sym)) r
+  where
+    expand' ∷ ∀ l b t t_. Row.Cons l b t_ t ⇒ SProxy l → Run t_ ~> Run t
+    expand' _ = unsafeCoerce
+
+    handle (Reader k) = Run.send (inj sym (Reader (k <<< f)))
+
+
 
 -- -- | Example usage
--- 
+--
 -- -- | This is for sure ugly but could be probably
 -- -- | constructed from plain value record `{ x: 8, y: "test" }`
 -- context = { x: 8, y: "test" }
