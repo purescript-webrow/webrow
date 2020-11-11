@@ -6,13 +6,14 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (catchError)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
-import Database.PostgreSQL (Pool, fromPool)
+import Database.PostgreSQL (PGError, Pool, fromPool)
 import Database.PostgreSQL.Aff (query) as PostgreSQL.Aff
 import Database.PostgreSQL.Pool (idleCount, totalCount) as Pool
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error) as Effect.Exception
 import Global.Unsafe (unsafeStringify)
+import Run (Run)
 import Run (liftAff, liftEffect) as Run
 import Run.Except (catchAt, throwAt)
 import Selda (Table(..))
@@ -20,11 +21,13 @@ import Test.Spec (SpecT, describe, it)
 import Test.Spec.Assertions (shouldEqual) as Assertions
 import Test.Spec.Assertions (shouldEqual) as Spec
 import Type.Prelude (SProxy(..))
-import WebRow.PostgreSQL (Query(..), Row0(..), Row1, Row3(..), _pgExcept)
+import Type.Row (type (+))
+import WebRow.Contrib.Run (AffRow, EffRow)
+import WebRow.PostgreSQL (Outside, Pg, Query(..), Row0(..), Row1, Row3(..), PgExcept, _pgExcept)
 import WebRow.PostgreSQL (run) as PG
 import WebRow.PostgreSQL.PG (execute, query) as PG
 import WebRow.PostgreSQL.PG (withTransaction)
-import WebRow.Resource (runBaseResource')
+import WebRow.Resource (Resource, runBaseResource')
 import WebRow.Testing.Assertions (shouldEqual)
 
 type PeopleRow = ( age ∷ Maybe Int, id ∷ Int, name ∷ String )
@@ -37,10 +40,12 @@ type PersonPGRow = Row3 Int String (Maybe Int)
 
 _testErr = SProxy ∷ SProxy "testErr"
 
-spec :: forall m. Monad m => Pool -> SpecT Aff Unit m Unit
-spec pool = do
-  let
-    initDb = """
+initDb ∷ ∀ eff mode. Run (Pg mode + eff) Unit
+initDb =
+  do
+    let
+      sql ∷ Query Row0 Row0
+      sql = Query """
         DROP TABLE IF EXISTS people;
         CREATE TABLE people (
           id INTEGER PRIMARY KEY,
@@ -66,24 +71,28 @@ spec pool = do
           "accountType" ACCOUNT_TYPE NOT NULL
         );
       """
+    PG.execute sql Row0
 
+
+runTest ∷ ∀ a. Pool → Run (AffRow + EffRow + Pg Outside + PgExcept + Resource + ()) a → Aff a
+runTest pool action =
+  runBaseResource'
+  <<< catchAt _pgExcept (\e → Run.liftEffect $ throwError $ Effect.Exception.error (unsafeStringify e))
+  <<< PG.run pool
+  $ do
+    initDb
+    action
+
+spec ∷ ∀ m. Monad m ⇒ Pool → SpecT Aff Unit m Unit
+spec pool = do
   describe "WebRow.PostgreSQL.PG" do
-    let
-      run action =
-        runBaseResource'
-        <<< catchAt _pgExcept (\e → Run.liftEffect $ throwError $ Effect.Exception.error (unsafeStringify e))
-        <<< PG.run pool
-        $ do
-          PG.execute (Query initDb) Row0
-          action
-
     it "executes statements correctly" do
-      run do
+      runTest pool do
         p ← PG.query (Query "SELECT id from people") Row0
         p `shouldEqual` ([] ∷ Array (Row1 Int))
 
     it "commits after transaction" do
-      run do
+      runTest pool do
         withTransaction $ do
           PG.execute (Query "INSERT into people (id, name, age) VALUES (1, 'foo', NULL)") Row0
 
@@ -103,7 +112,7 @@ spec pool = do
           <<< catchAt _testErr (const $ pure unit)
           <<< PG.run pool
           $ do
-            PG.execute (Query initDb) Row0
+            initDb
             action
 
       run' do
@@ -128,7 +137,7 @@ spec pool = do
               <<< catchAt _testErr (const $ pure unit)
               <<< PG.run pool
               $ do
-                PG.execute (Query initDb) Row0
+                initDb
                 action
 
       run' do
