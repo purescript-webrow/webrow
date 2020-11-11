@@ -1,210 +1,218 @@
-module WebRow.Selda where
+-- | This module:
+-- | * Exposes low level PostgreSql API (internally it is Reader + wrapping around Resource / Aff).
+-- | * Uses JS `Pool.query` as a default mode for quering DB.
+-- | * Provides a way for managing transaction in a safe manner.
+module WebRow.PostgreSQL.PG where
 
 import Prelude
-
-import Control.Monad.Except (ExceptT, runExceptT)
-import Control.Monad.Reader (ReaderT, runReaderT)
+import Control.Monad.Error.Class (catchError, throwError)
+import Control.Monad.Resource (Resource, acquire) as Resource
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
+import Data.Tuple (snd)
+import Data.Tuple.Nested ((/\), type (/\))
 import Data.Variant.Internal (FProxy)
-import Database.PostgreSQL (PGError, Row0(..))
-import Database.PostgreSQL (class FromSQLRow, class ToSQLRow, Connection, PGError, Pool, Query(..), ConnectResult, connect, execute, query) as PG
+import Database.PostgreSQL (class FromSQLRow, class FromSQLValue, class ToSQLRow, ConnectResult, Connection, PGError(..), Pool, Query(..), Row0(..), Row1, fromClient, fromPool) as PG
+import Database.PostgreSQL.Aff (command, connect, execute, query, scalar) as PG
 import Debug.Trace (traceM)
+import Effect (Effect)
 import Effect.Aff (Aff)
+import Effect.Aff.Class (liftAff) as Aff.Class
+import Effect.Class (liftEffect) as Effect.Class
+import Effect.Exception (error) as Effect.Exception
+import Effect.Ref (Ref)
+import Effect.Ref (new, read, write) as Ref
+import Prim.Row (class Cons) as Row
 import Run (Run)
 import Run as Run
-import Run.Except (EXCEPT, throwAt)
-import Run.State (STATE, evalStateAt, getAt, modifyAt, putAt)
-import Selda (Col, FullQuery, Table)
-import Selda.PG.Class (class InsertRecordIntoTableReturning, BackendPGClass)
-import Selda.PG.Class (deleteFrom, insert, insert1, insert1_, query, query1, update) as PG.Class
-import Selda.Query.Class (class GenericDelete, class GenericInsert, class GenericQuery, class GenericUpdate)
+import Run.Except (EXCEPT)
+import Run.Except (throwAt) as Run.Except
 import Type.Row (type (+))
-import WebRow.Contrib.Run (AffRow, EffRow)
+import Unsafe.Coerce (unsafeCoerce)
+import WebRow.Resource (Resource, liftResource)
 
--- | I'm not sure if this represtation is consistent.
--- | I want to allow some intronspection but also compile
--- | those actions without coercing or experimenting with
--- | `Exist` here.
--- |
--- | * Probably we could split query and keep `FullQuery`.
--- | * We can add `∀ i o. Query i o` to `PgQueryF`.
-data SeldaF a
-  = SeldaF (SeldaPG a)
-  | PgExecuteF String a
-  | PgQueryF (PG.Connection → Aff (Either PGError a))
-  | PgOpenTransactionF a
-  | PgCloseTransactionF a
+foreign import kind TransactionMode
 
-type SeldaPG
-  = ExceptT PG.PGError (ReaderT PG.Connection Aff)
+foreign import data Inside ∷ TransactionMode
 
-derive instance functorSeldaF ∷ Functor SeldaF
+foreign import data Outside ∷ TransactionMode
 
-type SELDA
-  = FProxy SeldaF
+-- | TODO:
+-- | This is somewhat unsafe meaning we can have
+-- | (mode ∷ Inside) but lack the connection value...
+-- | Should we really care about this incosistency?
+newtype Conn (mode ∷ TransactionMode)
+  = Conn (PG.Pool /\ (Maybe PG.Connection))
 
-type Selda eff
-  = ( selda ∷ SELDA | eff )
+-- | I'm not sure if it is possible to abstract away
+-- | whole pg interaction if I want to preserve
+-- | `withTransaction` (it seems that it should contain
+-- | `Run` value inside itself - is it possible?).
+-- | Because of this problem we provide only tiny a layer
+-- | above reader / Aff effect (to limit the damage).
+newtype PGF mode a
+  = PGF (Conn mode → Resource.Resource (Either PG.PGError a))
 
-_selda = SProxy ∷ SProxy "selda"
+derive instance pgFunctor ∷ Functor (PGF mode)
 
-type PgError r
-  = ( pgError ∷ EXCEPT PGError | r )
+type PG mode
+  = FProxy (PGF mode)
 
-_pgError = SProxy ∷ SProxy "pgError"
-
-query ∷
-  ∀ eff o i.
-  GenericQuery BackendPGClass SeldaPG i o ⇒
-  FullQuery BackendPGClass { | i } →
-  Run (Selda + eff) (Array { | o })
-query q = do
-  Run.lift _selda (SeldaF (PG.Class.query q))
-
-query1 ∷
-  ∀ eff o i.
-  GenericQuery BackendPGClass SeldaPG i o ⇒
-  FullQuery BackendPGClass { | i } → Run (Selda + eff) (Maybe { | o })
-query1 q = Run.lift _selda (SeldaF (PG.Class.query1 q))
-
-insert ∷
-  ∀ eff r t ret.
-  InsertRecordIntoTableReturning r t ret ⇒
-  Table t → Array { | r } → Run (Selda + eff) (Array { | ret })
-insert table xs = do
-  Run.lift _selda (SeldaF (PG.Class.insert table xs))
-
-insert1_ ∷
-  ∀ eff t r.
-  GenericInsert BackendPGClass SeldaPG t r ⇒
-  Table t → { | r } → Run (Selda + eff) Unit
-insert1_ table r = Run.lift _selda (SeldaF (PG.Class.insert1_ table r))
-
-insert1 ∷
-  ∀ eff r t ret.
-  InsertRecordIntoTableReturning r t ret ⇒
-  Table t → { | r } → Run (Selda + eff) { | ret }
-insert1 table r = Run.lift _selda (SeldaF (PG.Class.insert1 table r))
-
-deleteFrom ∷
-  ∀ eff t r.
-  GenericDelete BackendPGClass SeldaPG t r ⇒
-  Table t → ({ | r } → Col BackendPGClass Boolean) → Run (Selda + eff) Unit
-deleteFrom table r = Run.lift _selda (SeldaF (PG.Class.deleteFrom table r))
-
-update ∷
-  ∀ eff t r.
-  GenericUpdate BackendPGClass SeldaPG t r ⇒
-  Table t → ({ | r } → Col BackendPGClass Boolean) → ({ | r } → { | r }) → Run (Selda + eff) Unit
-update table cond set = Run.lift _selda (SeldaF (PG.Class.update table cond set))
-
-openTransaction ∷ ∀ eff. Run (Selda + eff) Unit
-openTransaction = Run.lift _selda (PgOpenTransactionF unit)
-
-closeTransaction ∷ ∀ eff. Run (Selda + eff) Unit
-closeTransaction = Run.lift _selda (PgCloseTransactionF unit)
-
-withTransaction ∷ ∀ a eff. Run (Selda + eff) a → Run (Selda + eff) a
-withTransaction block = do
-  openTransaction
-  r ← block
-  closeTransaction
-  pure r
-
-pgExecute ∷ ∀ eff. String → Run (Selda + eff) Unit
-pgExecute q = Run.lift _selda (PgExecuteF q unit)
-
-pgQuery ∷
-  ∀ eff i o.
-  PG.ToSQLRow i ⇒
-  PG.FromSQLRow o ⇒
-  PG.Query i o →
-  i →
-  Run (Selda + eff) (Array o)
-pgQuery q i = Run.lift _selda (PgQueryF (\conn → PG.query conn q i))
-
-type Pg r = ( pg ∷ STATE { conn ∷ Maybe PG.ConnectResult, inTransaction ∷ Boolean } | r )
+type Pg mode r
+  = ( pg ∷ PG mode | r )
 
 _pg = SProxy ∷ SProxy "pg"
 
-run ∷
-  ∀ eff.
-  PG.Pool →
-  Run (AffRow + EffRow + Pg + PgError + Selda + eff)
-    ~> Run (AffRow + EffRow + PgError + eff)
-run pool =
+connection ∷ ∀ mode r. Run (Pg mode + r) PG.Connection
+connection = Run.lift _pg (PGF (pure <<< wrap))
+  where
+  wrap (Conn (p /\ Nothing)) = Right (PG.fromPool p)
+
+  wrap (Conn (_ /\ (Just conn))) = Right conn
+
+pool ∷ ∀ mode r. Run (Pg mode + r) PG.Pool
+pool = Run.lift _pg (PGF (pure <<< wrap))
+  where
+  wrap (Conn (p /\ _)) = Right p
+
+liftPGAff ∷ ∀ a mode r. Aff (Either PG.PGError a) → Run (Pg mode + r) a
+liftPGAff action = Run.lift _pg (PGF $ const $ Aff.Class.liftAff action)
+
+liftAff ∷ ∀ a mode r. Aff a → Run (Pg mode + r) a
+liftAff action = liftPGAff (map Right action)
+
+liftEffect ∷ ∀ a mode r. Effect a → Run (Pg mode + r) a
+liftEffect action = liftAff $ Effect.Class.liftEffect action
+
+execute ::
+  ∀ i mode o r.
+  PG.ToSQLRow i ⇒
+  PG.Query i o →
+  i →
+  Run (Pg mode + r) Unit
+execute q i = do
+  conn <- connection
+  liftPGAff (map liftErr $ PG.execute conn q i)
+  where
+  liftErr Nothing = Right unit
+
+  liftErr (Just err) = Left err
+
+query ::
+  ∀ i mode o r.
+  PG.ToSQLRow i =>
+  PG.FromSQLRow o =>
+  PG.Query i o ->
+  i ->
+  Run (Pg mode + r) (Array o)
+query q i = do
+  conn <- connection
+  liftPGAff (PG.query conn q i)
+
+scalar ::
+  forall i mode o r.
+  PG.ToSQLRow i =>
+  PG.FromSQLValue o =>
+  PG.Query i (PG.Row1 o) ->
+  i ->
+  Run (Pg mode + r) (Maybe o)
+scalar q i = do
+  conn <- connection
+  liftPGAff (PG.scalar conn q i)
+
+command ::
+  forall i mode r.
+  PG.ToSQLRow i =>
+  PG.Query i Int ->
+  i ->
+  Run (Pg mode + r) Int
+command q i = do
+  conn <- connection
+  liftPGAff (PG.command conn q i)
+
+type Commited
+  = Boolean
+
+rollback ∷ Ref Commited → Either PG.PGError PG.ConnectResult → Aff Unit
+rollback _ (Left err) = pure unit
+
+rollback ref (Right { client, done }) = do
+  commited ← Effect.Class.liftEffect $ Ref.read ref
+  when (not commited)
+    $ do
+        void
+          $ (PG.execute (PG.fromClient client) (PG.Query "ROLLBACK TRANSACTION") PG.Row0)
+              `catchError`
+                (const $ pure Nothing)
+        -- | I'm swallowing rollback exceptions
+        -- | at the moment... Should I rethrow them?
+        -- case err of
+        --   Just e → rethrow e
+        --   Nothing → pure unit
+        pure unit
+  Effect.Class.liftEffect done
+  where
+  rethrow ∷ PG.PGError → Aff Unit
+  rethrow e =
+    throwError
+      $ case e of
+          PG.ClientError err _ → err
+          PG.ConversionError s → Effect.Exception.error s
+          PG.InternalError err -> err.error
+          PG.OperationalError err -> err.error
+          PG.ProgrammingError err -> err.error
+          PG.IntegrityError err -> err.error
+          PG.DataError err -> err.error
+          PG.NotSupportedError err -> err.error
+          PG.QueryCanceledError err -> err.error
+          PG.TransactionRollbackError err -> err.error
+
+withTransaction ∷ ∀ a r. Run (Pg Inside + r) a → Run (Pg Outside + r) a
+withTransaction action = do
+  p ← pool
+  ref ← liftEffect $ Ref.new false
+  { client } ← Run.lift _pg (PGF $ const $ snd <$> (Resource.acquire (connect p) (rollback ref)))
   let
-    initial = { conn: Nothing, inTransaction: false }
+    conn = Conn (p /\ (Just $ PG.fromClient client))
 
-    inTransaction = getAt _pg <#> _.inTransaction
+    -- | Run.expand definition is based on `Union` constraint
+    -- | We want to use Row.Cons here instead
+    expand' ∷ ∀ l b t t_. Row.Cons l b t_ t ⇒ SProxy l → Run t_ ~> Run t
+    expand' _ = unsafeCoerce
 
-    conn = do
-      pg ← getAt _pg
-      case pg.conn of
-        Nothing →
-          (Run.liftAff (PG.connect pool))
-            >>= case _ of
-                Right result → do
-                  putAt _pg (pg { conn = Just result })
-                  pure result.connection
-                Left err → throwAt _pgError err
-        Just { connection } → pure connection
+    handle (PGF k) = Run.send $ Run.inj _pg $ PGF \_ → k conn
+  a ← Run.run (Run.on _pg handle (Run.send >>> expand' _pg)) action
+  liftPGAff $ map liftErr $ PG.execute (PG.fromClient client) (PG.Query "COMMIT TRANSACTION") PG.Row0
+  void $ liftEffect $ Ref.write true ref
+  pure a
+  where
+  liftErr Nothing = Right unit
 
-    execute q = do
-      c ← conn
-      (Run.liftAff $ PG.execute c (PG.Query q) Row0)
-        >>= case _ of
-            Just err → throwAt _pgError err
-            Nothing → pure unit
+  liftErr (Just err) = Left err
 
-    handleSelda ∷ ∀ a. SeldaF a → Run (AffRow + EffRow + Pg + PgError + eff) a
-    handleSelda = case _ of
-      SeldaF q → do
-        c ← conn
-        Run.liftAff (runReaderT (runExceptT q) c)
-          >>= case _ of
-              Right next → pure next
-              Left err → throwAt _pgError err
-      PgExecuteF q next → do
-        execute q
-        pure next
-      PgQueryF q → do
-        c ← conn
-        (Run.liftAff (q c))
-          >>= case _ of
-              Left err → throwAt _pgError err
-              Right next → pure next
-      PgOpenTransactionF next → do
-        inTransaction >>= not
-          >>> flip when do
-              traceM "BEGIN"
-              execute "BEGIN TRANSACTION"
-              modifyAt _pg _ { inTransaction = true }
-        pure next
-      PgCloseTransactionF next → do
-        inTransaction
-          >>= flip when do
-              traceM "END"
-              execute "END TRANSACTION"
-              modifyAt _pg _ { inTransaction = false }
-        pure next
-  in
-    \action →
-      evalStateAt _pg initial do
-        a ← Run.run (Run.on _selda handleSelda Run.send) action
-        i ← inTransaction
-        traceM "IN TRANSACTION"
-        traceM i
-        getAt _pg >>= _.conn
-          >>> case _ of
-              Just { connection, done } → do
-                inTransaction
-                  >>= flip when do
-                      traceM "ROLLBACK"
-                      execute "ROLLBACK TRANSACTION"
-                traceM "CLOSING CONNECTION"
-                Run.liftEffect $ done
-              Nothing → pure unit
-        pure a
+  connect p = do
+    PG.connect p
+      >>= case _ of
+          err@(Left _) → pure err
+          res@(Right { client }) → do
+            PG.execute (PG.fromClient client) (PG.Query "BEGIN TRANSACTION") PG.Row0
+              >>= case _ of
+                  Just err → pure (Left err)
+                  Nothing → pure res
+
+type PgExcept r
+  = ( pgExcept ∷ EXCEPT PG.PGError | r )
+
+_pgExcept = SProxy ∷ SProxy "pgExcept"
+
+run ∷ ∀ a r. PG.Pool → Run (Pg Outside + PgExcept + Resource + r) a → Run (PgExcept + Resource + r) a
+run p action = Run.run (Run.on _pg handle Run.send) action
+  where
+  handle (PGF k) = do
+    let
+      conn = Conn (p /\ Nothing)
+    liftResource (k conn)
+      >>= case _ of
+          Right next → pure next
+          Left err → Run.Except.throwAt _pgExcept err

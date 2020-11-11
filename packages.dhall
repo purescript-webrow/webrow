@@ -1,308 +1,78 @@
-{-
-Welcome to your new Dhall package-set!
-
-Below are instructions for how to edit this file for most use
-cases, so that you don't need to know Dhall to use it.
-
-## Warning: Don't Move This Top-Level Comment!
-
-Due to how `dhall format` currently works, this comment's
-instructions cannot appear near corresponding sections below
-because `dhall format` will delete the comment. However,
-it will not delete a top-level comment like this one.
-
-## Use Cases
-
-Most will want to do one or both of these options:
-1. Override/Patch a package's dependency
-2. Add a package not already in the default package set
-
-This file will continue to work whether you use one or both options.
-Instructions for each option are explained below.
-
-### Overriding/Patching a package
-
-Purpose:
-- Change a package's dependency to a newer/older release than the
-    default package set's release
-- Use your own modified version of some dependency that may
-    include new API, changed API, removed API by
-    using your custom git repo of the library rather than
-    the package set's repo
-
-Syntax:
-Replace the overrides' "{=}" (an empty record) with the following idea
-The "//" or "⫽" means "merge these two records and
-  when they have the same value, use the one on the right:"
--------------------------------
-let override =
-  { packageName =
-      upstream.packageName // { updateEntity1 = "new value", updateEntity2 = "new value" }
-  , packageName =
-      upstream.packageName // { version = "v4.0.0" }
-  , packageName =
-      upstream.packageName // { repo = "https://www.example.com/path/to/new/repo.git" }
-  }
--------------------------------
-
-Example:
--------------------------------
-let overrides =
-  { halogen =
-      upstream.halogen // { version = "master" }
-  , halogen-vdom =
-      upstream.halogen-vdom // { version = "v4.0.0" }
-  }
--------------------------------
-
-### Additions
-
-Purpose:
-- Add packages that aren't already included in the default package set
-
-Syntax:
-Replace the additions' "{=}" (an empty record) with the following idea:
--------------------------------
-let additions =
-  { "package-name" =
-       { dependencies =
-           [ "dependency1"
-           , "dependency2"
-           ]
-       , repo =
-           "https://example.com/path/to/git/repo.git"
-       , version =
-           "tag ('v4.0.0') or branch ('master')"
-       }
-  , "package-name" =
-       { dependencies =
-           [ "dependency1"
-           , "dependency2"
-           ]
-       , repo =
-           "https://example.com/path/to/git/repo.git"
-       , version =
-           "tag ('v4.0.0') or branch ('master')"
-       }
-  , etc.
-  }
--------------------------------
-
-Example:
--------------------------------
-let additions =
-  { benchotron =
-      { dependencies =
-          [ "arrays"
-          , "exists"
-          , "profunctor"
-          , "strings"
-          , "quickcheck"
-          , "lcg"
-          , "transformers"
-          , "foldable-traversable"
-          , "exceptions"
-          , "node-fs"
-          , "node-buffer"
-          , "node-readline"
-          , "datetime"
-          , "now"
-          ],
-      , repo =
-          "https://github.com/hdgarrood/purescript-benchotron.git"
-      , version =
-          "v7.0.0"
-      }
-  }
--------------------------------
--}
-
-
 let upstream =
       https://github.com/purescript/package-sets/releases/download/psc-0.13.8-20201007/packages.dhall sha256:35633f6f591b94d216392c9e0500207bb1fec42dd355f4fecdfd186956567b6b
 
+let mkPackage =
+      https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.0-20190626/src/mkPackage.dhall sha256:0b197efa1d397ace6eb46b243ff2d73a3da5638d8d0ac8473e8e4a8fc528cf57
+
 let overrides = {=}
 
-let postgresql-client =
-  { dependencies =
-      [ "aff"
-      , "arrays"
-      , "bifunctors"
-      , "bytestrings"
-      , "datetime"
-      , "decimals"
-      , "effect"
-      , "either"
-      , "exceptions"
-      , "foldable-traversable"
-      , "foreign"
-      , "foreign-generic"
-      , "foreign-object"
-      , "js-date"
-      , "lists"
-      , "maybe"
-      , "newtype"
-      , "nullable"
-      , "prelude"
-      , "transformers"
-      , "tuples"
-      ]
-  , repo =
-      "https://github.com/rightfold/purescript-postgresql-client.git"
-  , version =
-      "master"
-  }
 
-let selda =
-  { dependencies =
-      [ "console"
-      , "exists"
-      , "heterogeneous"
-      , "lists"
-      , "node-sqlite3"
-      , "postgresql-client"
-      , "prelude"
-      , "simple-json"
-      , "strings"
-      , "test-unit"
-      , "transformers"
-      , "variant"
-      , "prettyprinter"
-      ]
-  , repo =
-      "https://github.com/Kamirus/purescript-selda.git"
-  , version =
-      "scope-as-backend"
-  }
+let homogeneous = mkPackage
+  [ "assert", "console", "effect", "foreign-object", "psci-support"
+  , "record-extra", "typelevel-eval", "variant"
+  ]
+  "https://github.com/paluh/purescript-homogeneous.git"
+  "master"
 
-let prettyprinter = 
-  { dependencies = 
-      [ "prelude"
-      , "unfoldable"
-      , "random"
-      , "ansi"
-      , "console"
-      ]
-  , repo =
-      "https://github.com/Kamirus/purescript-prettyprinter.git"
-  , version = 
-      "master"
-  }
+let postgresql-client = mkPackage
+  [ "aff", "arrays", "bifunctors", "bytestrings", "datetime", "decimals", "effect"
+  , "either", "exceptions", "foldable-traversable", "foreign", "foreign-generic"
+  , "foreign-object", "js-date", "lists", "maybe", "newtype", "nullable", "prelude"
+  , "string-parsers", "transformers", "tuples"
+  ]
+  "https://github.com/rightfold/purescript-postgresql-client.git"
+  -- "v3.1.0"
+  "pool-query"
 
-let routing-duplex-variant = 
-  { dependencies =
-      [ "routing-duplex"
-      ]
-  , repo = 
-      "https://github.com/paluh/purescript-routing-duplex-variant.git"
-  , version = 
-      "master"
-  }
+let polyform = mkPackage
+  [ "newtype", "ordered-collections", "variant", "profunctor", "invariant", "foreign-object"
+  , "record", "run", "transformers", "generics-rep", "validation", "foreign"
+  ]
+  "https://github.com/paluh/purescript-polyform.git"
+  "master"
 
-let homogeneous =
-  { dependencies =
-      [ "assert"
-      , "console"
-      , "effect"
-      , "foreign-object"
-      , "psci-support"
-      , "record-extra"
-      , "typelevel-eval"
-      , "variant"
-      ]
-  , repo =
-      "https://github.com/paluh/purescript-homogeneous.git"
-  , version =
-      "master"
-  }
+let polyform-batteries-core = mkPackage
+  [ "polyform", "argonaut", "prelude", "affjax", "numbers" ]
+  "https://github.com/purescript-polyform/batteries-core.git"
+  "master"
 
-let polyform =
-  { dependencies =
-      [ "newtype"
-      , "ordered-collections"
-      , "variant"
-      , "profunctor"
-      , "invariant"
-      , "foreign-object"
-      , "record"
-      , "run"
-      , "transformers"
-      , "generics-rep"
-      , "validation"
-      , "foreign"
-      ]
-  , repo =
-      "https://github.com/paluh/purescript-polyform.git"
-  , version =
-      "master"
-  }
+let polyform-batteries-env = mkPackage
+  [ "polyform-batteries-core" , "argonaut" , "prelude" , "affjax" , "numbers" ]
+  "https://github.com/purescript-polyform/batteries-env.git"
+  "master"
 
-let polyform-batteries =
-  { dependencies =
-      [ "polyform"
-      , "argonaut"
-      , "prelude"
-      , "affjax"
-      , "numbers"
-      ]
-  , repo =
-      "https://github.com/lambdaterms/purescript-polyform-batteries.git"
-  , version =
-      "master"
-  }
+let polyform-batteries-urlencoded = mkPackage
+  [ "polyform-batteries-core", "argonaut", "prelude", "affjax", "numbers" ]
+  "https://github.com/purescript-polyform/batteries-urlencoded.git"
+  "master"
 
-let typelevel-eval =
-  { dependencies =
-      [ "prelude"
-      , "typelevel-prelude"
-      , "tuples"
-      , "unsafe-coerce"
-      , "leibniz"
-      ]
-  , repo =
-      "https://github.com/natefaubion/purescript-typelevel-eval.git"
-  , version =
-      "master"
-  }
+let prettyprinter = mkPackage
+  [ "prelude", "unfoldable", "random", "ansi", "console" ]
+  "https://github.com/Kamirus/purescript-prettyprinter.git"
+  "master"
 
-let literal =
-    { dependencies =
-      [ "assert"
-      , "effect"
-      , "console"
-      , "integers"
-      , "numbers"
-      , "partial"
-      , "psci-support"
-      , "unsafe-coerce"
-      , "typelevel-prelude"
-      ]
-    , repo =
-      "https://github.com/jvliwanag/purescript-literal.git"
-    , version =
-      "master"
-   }
+let routing-duplex-variant = mkPackage
+  [ "routing-duplex" ]
+  "https://github.com/paluh/purescript-routing-duplex-variant.git"
+  "master"
 
-let oneof =
-  { dependencies =
-     [ "assert"
-     , "console"
-     , "effect"
-     , "foreign"
-     , "foreign-object"
-     , "literal"
-     , "maybe"
-     , "newtype"
-     , "proxy"
-     , "psci-support"
-     , "tuples"
-     , "unsafe-coerce"
-     ]
-  , repo =
-      "https://github.com/jvliwanag/purescript-oneof.git"
-  , version =
-      "master"
-  }
+let resourcet = mkPackage
+  [ "aff", "ordered-collections", "refs", "transformers" ]
+  "https://github.com/paluh/purescript-resourcet.git"
+  "master"
+
+let selda = mkPackage
+  [ "console", "exists", "heterogeneous", "lists", "node-sqlite3", "postgresql-client"
+  , "prelude", "simple-json", "strings", "test-unit", "transformers", "variant", "prettyprinter"
+  ]
+  "https://github.com/Kamirus/purescript-selda.git"
+  "scope-as-backend-with-new-pg-client"
+
+let typelevel-eval = mkPackage
+  [ "prelude", "typelevel-prelude", "tuples", "unsafe-coerce", "leibniz" ]
+  "https://github.com/natefaubion/purescript-typelevel-eval.git"
+  "master"
+
 let undefined-is-not-a-problem = ../undefined-is-not-a-problem/spago.dhall as Location
 --   { dependencies =
 --     [ "effect"
@@ -318,20 +88,19 @@ let undefined-is-not-a-problem = ../undefined-is-not-a-problem/spago.dhall as Lo
 --   }
 
 let additions =
-  { selda = ../selda/spago.dhall as Location
-  -- , polyform = polyform
-  -- , polyform-batteries = polyform-batteries
-  , homogeneous = homogeneous
-  , literal = literal
-  , oneof = oneof
+  { homogeneous
   , polyform = ../polyform/spago.dhall as Location
-  , polyform-batteries-env = ../polyform-batteries-env/spago.dhall as Location
-  , polyform-batteries = ../polyform-batteries/spago.dhall as Location
-  , postgresql-client = postgresql-client
-  , prettyprinter = prettyprinter
-  , routing-duplex-variant = routing-duplex-variant
-  , typelevel-eval = typelevel-eval
-  , undefined-is-not-a-problem = undefined-is-not-a-problem
+  , polyform-batteries-core = ../polyform-batteries/spago.dhall as Location
+  , polyform-batteries-env = ../batteries-env/spago.dhall as Location
+  , polyform-batteries-json = ../batteries-json/spago.dhall as Location
+  , polyform-batteries-urlencoded = ../batteries-urlencoded/spago.dhall as Location
+  , postgresql-client = ../postgresql-client/spago.dhall as Location
+  , prettyprinter
+  , resourcet
+  , routing-duplex-variant
+  , typelevel-eval
+  , selda = ../selda/spago.dhall as Location
+  , undefined-is-not-a-problem
   }
 
 let overrides =

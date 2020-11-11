@@ -1,16 +1,16 @@
-module WebRow.Selda.CLI where
+module WebRow.PostgreSQL.CLI where
 
 import Prelude
 import Control.Alt ((<|>))
 import Data.Maybe (Maybe(..), optional)
-import Database.PostgreSQL (defaultPoolConfiguration)
+import Database.PostgreSQL (defaultConfiguration)
 import Database.PostgreSQL as PG
 import Effect (Effect)
 import Options.Applicative ((<**>))
 import Options.Applicative as Optparse
 
 type Options
-  = { database ∷ PG.PoolConfiguration
+  = { database ∷ PG.Configuration
     -- , schema ∷ String
     -- , action ∷ Action
     }
@@ -31,7 +31,7 @@ options =
   database = pool <$> (db <|> pure default)
     where
     pool cfg =
-      (defaultPoolConfiguration cfg.name)
+      (defaultConfiguration cfg.name)
         { host = cfg.host
         , idleTimeoutMillis = cfg.idleTimeoutMillis
         , user = cfg.user
