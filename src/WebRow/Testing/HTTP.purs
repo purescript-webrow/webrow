@@ -16,7 +16,7 @@ import HTTPure (Method(..)) as HTTPure.Method
 import HTTPure (empty) as Headers
 import HTTPure.Request (Request) as HTTPure
 import HTTPure.Version (Version(..))
-import Polyform.Batteries.UrlEncoded (Decoded(..))
+import Polyform.Batteries.UrlEncoded (Query(..)) as UrlEncoded
 import Polyform.Batteries.UrlEncoded.Query (unsafeEncode) as UrlEncoded
 import Prim.Row (class Union) as Row
 import Routing.Duplex (RouteDuplex')
@@ -134,7 +134,7 @@ post url payload =
     , path: mempty
     , query: mempty
     , body:
-        UrlEncoded.unsafeEncode $ Decoded $ Map.fromFoldableWithIndex $ map Array.singleton $ Object.fromHomogeneous
+        UrlEncoded.unsafeEncode $ UrlEncoded.Query $ Map.fromFoldableWithIndex $ map Array.singleton $ Object.fromHomogeneous
           $ payload
     , httpVersion: HTTP1_1
     , url

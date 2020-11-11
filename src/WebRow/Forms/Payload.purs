@@ -3,8 +3,9 @@ module WebRow.Forms.Payload where
 import Prelude
 import Data.Lazy (force) as L
 import Data.Maybe (Maybe, maybe)
+import Polyform.Batteries.UrlEncoded (Query) as UrlEncoded
 import Polyform.Batteries.UrlEncoded.Query (Key, lookup) as UrlDecoded.Query
-import Polyform.Batteries.UrlEncoded.Query (parse, Value, Decoded) as UrlEncoded.Query
+import Polyform.Batteries.UrlEncoded.Query (parse, Value, Query) as UrlEncoded.Query
 import Run (Run)
 import Run.Reader (askAt)
 import Type.Row (type (+))
@@ -19,7 +20,7 @@ type Key
 
 -- | Map String (Array String)
 type UrlDecoded
-  = UrlEncoded.Query.Decoded
+  = UrlEncoded.Query
 
 lookup ∷ String → UrlDecoded → Maybe (Array String)
 lookup = UrlDecoded.Query.lookup

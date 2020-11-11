@@ -8,7 +8,7 @@ import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe)
 import Data.Traversable (class Traversable, for, sequence)
 import Data.Variant (Variant)
-import Polyform.Batteries.UrlEncoded (Decoded(..))
+import Polyform.Batteries.UrlEncoded (Query(..)) as UrlEncoded
 import WebRow.Forms.BuilderM (BuilderM)
 import WebRow.Forms.BuilderM (id) as BuilderM
 import WebRow.Forms.Payload (Key, UrlDecoded, Value, lookup) as Payload
@@ -54,13 +54,13 @@ dump ∷
   Payload inputs →
   Payload.UrlDecoded
 dump ns pl =
-  Decoded
+  UrlEncoded.Query
     <<< Map.fromFoldable
     -- | Drop empty values
-    
+
     <<< List.catMaybes
     -- | Turn (Tuple k (Maybe v)) into (Maybe (Tuple k v))
-    
+
     <<< map sequence
     $ List.zip
         (foldr List.Cons List.Nil ns)

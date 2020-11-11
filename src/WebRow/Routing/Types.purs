@@ -2,7 +2,7 @@ module WebRow.Routing.Types where
 
 import Data.Lazy (Lazy)
 import Data.Newtype (class Newtype)
-import Polyform.Batteries.UrlEncoded (Decoded)
+import Polyform.Batteries.UrlEncoded (Query)
 import Routing.Duplex (RouteDuplex') as D
 
 newtype FullUrl
@@ -33,6 +33,6 @@ type Context v
   = { domain ∷ Domain
     , routeDuplex ∷ D.RouteDuplex' v
     , route ∷ v
-    , query ∷ Lazy Decoded
+    , query ∷ Lazy Query
     , url ∷ RelativeUrl
     }

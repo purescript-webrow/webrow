@@ -23,7 +23,7 @@ import Data.String (Pattern(..), Replacement(..), replaceAll) as String
 import Data.Variant (SProxy(..), Variant)
 import HTTPure.Headers (empty) as HTTPure.Headers
 import HTTPure.Request (Request) as HTTPure
-import Polyform.Batteries.UrlEncoded (Decoded(..))
+import Polyform.Batteries.UrlEncoded (Query(..))
 import Routing.Duplex (RouteDuplex', print) as D
 import Routing.Duplex (RouteDuplex(..), RouteDuplex')
 import Routing.Duplex.Parser (RouteError, RouteResult(..), parsePath, runRouteParser) as D
@@ -72,7 +72,7 @@ context domain routeDuplex@(RouteDuplex _ dec) = go
 
       query =
         L.defer \_ →
-          Decoded
+          Query
             <<< Map.fromFoldableWith append
             <<< map (map Array.singleton)
             $ params

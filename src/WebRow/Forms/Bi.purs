@@ -37,8 +37,8 @@ import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Close
 import Data.Variant (Variant)
 import Polyform (Dual(..)) as Polyform
 import Polyform.Batteries (Errors)
+import Polyform.Batteries.UrlEncoded (Query(..)) as UrlEncoded
 import Polyform.Batteries.UrlEncoded.Duals (value) as Batteries
-import Polyform.Batteries.UrlEncoded.Query (Decoded(..)) as Query
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Dual (Dual(..), dual) as Dual
 import Polyform.Reporter (liftFn) as Polyform.Reporter
@@ -148,7 +148,7 @@ fieldBuilder { constructor, defaults, dual } =
         Dual.dual
           (Polyform.Reporter.liftFn (Widget.payload ns))
           ( pure
-              <<< Query.Decoded
+              <<< UrlEncoded.Query
               <<< Map.fromFoldable
               <<< dropMissing
               <<< List.zip (List.fromFoldable ns)
