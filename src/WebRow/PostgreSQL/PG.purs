@@ -2,23 +2,30 @@
 -- | * Exposes low level PostgreSql API (internally it is Reader + wrapping around Resource / Aff).
 -- | * Uses JS `Pool.query` as a default mode for quering DB.
 -- | * Provides a way for managing transaction in a safe manner.
-module WebRow.PostgreSQL.PG where
+module WebRow.PostgreSQL.PG
+  ( module Exports
+  , command
+  , execute
+  , _pgExcept
+  , PgExcept
+  , query
+  , run
+  , withTransaction
+  )
+  where
 
 import Prelude
+
 import Control.Monad.Error.Class (catchError, throwError)
-import Control.Monad.Resource (Resource, acquire) as Resource
+import Control.Monad.Resource (acquire) as Resource
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Data.Tuple (snd)
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Variant.Internal (FProxy)
-import Database.PostgreSQL (class FromSQLRow, class FromSQLValue, class ToSQLRow, ConnectResult, Connection, PGError(..), Pool, Query(..), Row0(..), Row1, fromClient, fromPool) as PG
+import Data.Tuple.Nested ((/\))
+import Database.PostgreSQL (class FromSQLRow, class FromSQLValue, class ToSQLRow, ConnectResult, PGError(..), Pool, Query(..), Row0(..), Row1, fromClient) as PG
 import Database.PostgreSQL.Aff (command, connect, execute, query, scalar) as PG
-import Debug.Trace (traceM)
-import Effect (Effect)
 import Effect.Aff (Aff)
-import Effect.Aff.Class (liftAff) as Aff.Class
 import Effect.Class (liftEffect) as Effect.Class
 import Effect.Exception (error) as Effect.Exception
 import Effect.Ref (Ref)
@@ -30,60 +37,9 @@ import Run.Except (EXCEPT)
 import Run.Except (throwAt) as Run.Except
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
+import WebRow.PostgreSQL.Internal (Conn(..), Inside, Outside, PGF(..), Pg, _pg, connection, liftEffect, liftPGAff, pool)
+import WebRow.PostgreSQL.Internal (Pg, _pg, Inside, Outside, kind TransactionMode) as Exports
 import WebRow.Resource (Resource, liftResource)
-
-foreign import kind TransactionMode
-
-foreign import data Inside ∷ TransactionMode
-
-foreign import data Outside ∷ TransactionMode
-
--- | TODO:
--- | This is somewhat unsafe meaning we can have
--- | (mode ∷ Inside) but lack the connection value...
--- | Should we really care about this incosistency?
-newtype Conn (mode ∷ TransactionMode)
-  = Conn (PG.Pool /\ (Maybe PG.Connection))
-
--- | I'm not sure if it is possible to abstract away
--- | whole pg interaction if I want to preserve
--- | `withTransaction` (it seems that it should contain
--- | `Run` value inside itself - is it possible?).
--- | Because of this problem we provide only tiny a layer
--- | above reader / Aff effect (to limit the damage).
-newtype PGF mode a
-  = PGF (Conn mode → Resource.Resource (Either PG.PGError a))
-
-derive instance pgFunctor ∷ Functor (PGF mode)
-
-type PG mode
-  = FProxy (PGF mode)
-
-type Pg mode r
-  = ( pg ∷ PG mode | r )
-
-_pg = SProxy ∷ SProxy "pg"
-
-connection ∷ ∀ mode r. Run (Pg mode + r) PG.Connection
-connection = Run.lift _pg (PGF (pure <<< wrap))
-  where
-  wrap (Conn (p /\ Nothing)) = Right (PG.fromPool p)
-
-  wrap (Conn (_ /\ (Just conn))) = Right conn
-
-pool ∷ ∀ mode r. Run (Pg mode + r) PG.Pool
-pool = Run.lift _pg (PGF (pure <<< wrap))
-  where
-  wrap (Conn (p /\ _)) = Right p
-
-liftPGAff ∷ ∀ a mode r. Aff (Either PG.PGError a) → Run (Pg mode + r) a
-liftPGAff action = Run.lift _pg (PGF $ const $ Aff.Class.liftAff action)
-
-liftAff ∷ ∀ a mode r. Aff a → Run (Pg mode + r) a
-liftAff action = liftPGAff (map Right action)
-
-liftEffect ∷ ∀ a mode r. Effect a → Run (Pg mode + r) a
-liftEffect action = liftAff $ Effect.Class.liftEffect action
 
 execute ::
   ∀ i mode o r.

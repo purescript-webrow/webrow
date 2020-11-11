@@ -11,6 +11,7 @@ import Test.WebRow.HTTP (spec) as HTTP
 import Test.WebRow.I18N (spec) as I18N
 import Test.WebRow.PostgreSQL.Config (load) as Test.PostgreSQL.Config
 import Test.WebRow.PostgreSQL.PG (spec) as PG
+import Test.WebRow.Selda (spec) as Selda
 import Test.WebRow.Session (spec) as Session
 
 main :: Effect Unit
@@ -27,4 +28,4 @@ main = launchAff_ $ do
     Session.spec
 
     PG.spec pool
-    -- Selda.spec pool
+    Selda.spec pool
