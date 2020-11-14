@@ -1,6 +1,7 @@
 module WebRow.I18N.Routing where
 
 import Prelude hiding ((/))
+
 import Control.Alt ((<|>))
 import Data.Either (note)
 import Data.Newtype (un)

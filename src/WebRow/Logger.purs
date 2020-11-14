@@ -2,6 +2,8 @@ module WebRow.Logger
   ( debug
   , err
   , info
+  , LOGGER
+  , Logger
   , runToConsole
   , warning
   , LoggerF(..)
@@ -24,6 +26,8 @@ derive instance functorLoggerF ∷ Functor LoggerF
 
 type LOGGER
   = FProxy LoggerF
+
+type Logger r = (logger ∷ LOGGER | r)
 
 _logger = SProxy ∷ SProxy "logger"
 

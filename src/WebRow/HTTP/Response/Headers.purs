@@ -1,7 +1,8 @@
--- | TODO: Rename to `Response.Headers`
 module WebRow.HTTP.Response.Headers where
 
 import Prelude
+
+import Data.MediaType (MediaType(..))
 import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
 import HTTPure (header) as HTTPure
@@ -31,6 +32,10 @@ setHeader ∷
   String →
   Run ( setHeader ∷ SETHEADER | eff ) Unit
 setHeader k v = Run.lift _setHeader (SetHeaderF k v unit)
+
+setContentType ∷ ∀ eff. MediaType → Run (SetHeader + eff) Unit
+setContentType (MediaType t) =
+  setHeader "Content-Type" t
 
 setHeaderOnParts ∷ String → String → Parts → Parts
 setHeaderOnParts k v parts = parts { headers = HTTPure.header k v <> parts.headers }

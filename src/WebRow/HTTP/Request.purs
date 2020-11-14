@@ -1,34 +1,8 @@
-module WebRow.HTTP.Request where
+module WebRow.HTTP.Request
+  ( module Headers
+  , module Request
+  )
+  where
 
-import Prelude
-import HTTPure (Headers) as HTTPure
-import HTTPure.Method (Method) as HTTPure
-import HTTPure.Request (Request) as HTTPure
-import Run (Run)
-import Run.Reader (READER, askAt, runReaderAt)
-import Type.Prelude (SProxy(..))
-import Type.Row (type (+))
-
-type Request r
-  = ( request ∷ READER HTTPure.Request | r )
-
-_request = SProxy ∷ SProxy "request"
-
-fullPath ∷ ∀ eff. Run (Request + eff) String
-fullPath = _.url <$> askAt _request
-
-body ∷ ∀ eff. Run (Request + eff) String
-body = _.body <$> askAt _request
-
-method ∷ ∀ eff. Run (Request + eff) HTTPure.Method
-method = _.method <$> askAt _request
-
-headers ∷ ∀ eff. Run (Request + eff) HTTPure.Headers
-headers = _.headers <$> askAt _request
-
-runRequest ∷
-  ∀ a eff.
-  HTTPure.Request →
-  Run (Request + eff) a →
-  Run eff a
-runRequest r = runReaderAt _request r
+import WebRow.HTTP.Request.Headers (accept, accepts, header, headers, MediaPattern(..)) as Headers
+import WebRow.HTTP.Request.Request (body, fullPath, method, _request, runRequest, Request) as Request

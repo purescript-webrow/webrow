@@ -14,6 +14,7 @@ module WebRow.Routing
   ) where
 
 import Prelude
+
 import Data.Array (singleton) as Array
 import Data.Either (Either(..))
 import Data.Lazy (defer) as L
