@@ -58,8 +58,8 @@ let routing-duplex-variant = mkPackage
 
 let resourcet = mkPackage
   [ "aff", "ordered-collections", "refs", "transformers" ]
-  "https://github.com/paluh/purescript-resourcet.git"
-  "master"
+  "https://github.com/robertdp/purescript-resourcet.git"
+  "2183bac0f1a528a5d6cdddb4fa223c4a8b9bb604"
 
 let selda = mkPackage
   [ "console", "exists", "heterogeneous", "lists", "node-sqlite3", "postgresql-client"
@@ -104,6 +104,8 @@ let additions =
   }
 
 let overrides =
-  { httpure = upstream.httpure // { version = "master" }}
+  { httpure = upstream.httpure // { version = "master" }
+  , media-types = upstream.media-types // { version = "4c685071074065506403197b7a5f22eb661ff17c" }
+  }
 
 in  upstream // overrides // additions
