@@ -2,7 +2,7 @@
 
 Let's build a highly opinionated but fully-featured web framework in PureScript. For the backend. And the frontend.
 
-WIP! Use **only** at home and nowhere else!
+WIP!
 
 
 <!--
