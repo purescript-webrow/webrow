@@ -90,7 +90,7 @@ let undefined-is-not-a-problem = ../undefined-is-not-a-problem/spago.dhall as Lo
 let additions =
   { homogeneous
   , polyform = ../polyform/spago.dhall as Location
-  , polyform-batteries-core = ../polyform-batteries/spago.dhall as Location
+  , polyform-batteries-core = ../batteries-core/spago.dhall as Location
   , polyform-batteries-env = ../batteries-env/spago.dhall as Location
   , polyform-batteries-json = ../batteries-json/spago.dhall as Location
   , polyform-batteries-urlencoded = ../batteries-urlencoded/spago.dhall as Location

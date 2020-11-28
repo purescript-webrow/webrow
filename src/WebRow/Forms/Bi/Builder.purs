@@ -4,20 +4,26 @@ import Prelude
 import Data.Newtype (class Newtype, un)
 import Data.Profunctor (class Profunctor, dimap, lcmap)
 import Polyform (Dual(..))
+import Polyform.Batteries.UrlEncoded (Query) as UrlEncoded
 import Polyform.Reporter.Dual (DualD) as Reporter
 import WebRow.Forms.BuilderM (BuilderM)
 
-newtype BuilderD m layout i o' o
+type Default layout
+  = { layout ∷ layout
+    , payload ∷ UrlEncoded.Query
+    }
+
+newtype BuilderD m n layout i o' o
   = BuilderD
   ( BuilderM
       { dualD ∷ Reporter.DualD m layout i o' o
-      , default ∷ m layout
+      , default ∷ n (Default layout)
       }
   )
 
-derive instance functorBuilderD ∷ Functor m ⇒ Functor (BuilderD m layout i o')
+derive instance functorBuilderD ∷ Functor m ⇒ Functor (BuilderD m n layout i o')
 
-instance applyBuilderD ∷ (Monoid layout, Semigroup i, Monad m) ⇒ Apply (BuilderD m layout i o') where
+instance applyBuilderD ∷ (Monoid layout, Semigroup i, Monad m, Monad n) ⇒ Apply (BuilderD m n layout i o') where
   apply (BuilderD sw1) (BuilderD sw2) =
     BuilderD
       $ do
@@ -29,8 +35,8 @@ instance applyBuilderD ∷ (Monoid layout, Semigroup i, Monad m) ⇒ Apply (Buil
             }
 
 instance applicativeBuilderD ∷
-  (Monoid i, Monoid layout, Monad m) ⇒
-  Applicative (BuilderD m layout i o') where
+  (Monoid i, Monoid layout, Monad m, Monad n) ⇒
+  Applicative (BuilderD m n layout i o') where
   pure a =
     BuilderD
       $ pure
@@ -40,18 +46,18 @@ instance applicativeBuilderD ∷
 
 instance profunctorBuilderD ∷
   (Functor m) ⇒
-  Profunctor (BuilderD m layout i) where
+  Profunctor (BuilderD m n layout i) where
   dimap l r (BuilderD w) =
     BuilderD do
       { dualD, default: def } ← w
       pure { dualD: dimap l r dualD, default: def }
 
-newtype Builder m layout i o
-  = Builder (BuilderD m layout i o o)
+newtype Builder m n layout i o
+  = Builder (BuilderD m n layout i o o)
 
-derive instance newtypeBuilder ∷ Newtype (Builder m layout i o) _
+derive instance newtypeBuilder ∷ Newtype (Builder m n layout i o) _
 
-instance semigroupoidBuilder ∷ (Monoid layout, Monad m) ⇒ Semigroupoid (Builder m layout) where
+instance semigroupoidBuilder ∷ (Monoid layout, Monad m, Monad n) ⇒ Semigroupoid (Builder m n layout) where
   compose (Builder (BuilderD sw1)) (Builder (BuilderD sw2)) =
     Builder $ BuilderD
       $ do
@@ -62,24 +68,24 @@ instance semigroupoidBuilder ∷ (Monoid layout, Monad m) ⇒ Semigroupoid (Buil
             , default: append <$> w1.default <*> w2.default
             }
 
-instance categoryBuilder ∷ (Monoid layout, Monad m) ⇒ Category (Builder m layout) where
+instance categoryBuilder ∷ (Monoid layout, Monad m, Monad n) ⇒ Category (Builder m n layout) where
   identity = Builder $ BuilderD $ pure { dualD: un Dual identity, default: pure mempty }
 
 infixl 5 diverge as ~
 
 diverge ∷
-  ∀ layout i m o o'.
+  ∀ layout i m n o o'.
   Functor m ⇒
   (o' → o) →
-  Builder m layout i o →
-  BuilderD m layout i o' o
+  Builder m n layout i o →
+  BuilderD m n layout i o' o
 diverge f = lcmap f <<< un Builder
 
 builder ∷
-  ∀ i layout m o.
+  ∀ i layout m n o.
   BuilderM
-    { default ∷ m layout
+    { default ∷ n (Default layout)
     , dualD ∷ Reporter.DualD m layout i o o
     } →
-  Builder m layout i o
+  Builder m n layout i o
 builder = Builder <<< BuilderD

@@ -4,6 +4,7 @@ import Data.Lazy (Lazy)
 import Data.Newtype (class Newtype)
 import Polyform.Batteries.UrlEncoded (Query)
 import Routing.Duplex (RouteDuplex') as D
+import Routing.Duplex.Types (RouteState) as Routing.Duplex.Types
 
 newtype FullUrl
   = FullUrl String
@@ -32,6 +33,7 @@ type Domain
 type Context v
   = { domain ∷ Domain
     , routeDuplex ∷ D.RouteDuplex' v
+    , raw ∷ Routing.Duplex.Types.RouteState
     , route ∷ v
     , query ∷ Lazy Query
     , url ∷ RelativeUrl

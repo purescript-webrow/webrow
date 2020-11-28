@@ -1,11 +1,13 @@
 module WebRow.Message where
 
 import Prelude
+
 import Data.Symbol (SProxy(..))
 import Data.Variant (Variant)
 import Data.Variant.Internal (FProxy)
 import Run (Run)
 import Run as Run
+import Type.Row (type (+))
 
 message ∷
   ∀ eff msg.
@@ -26,4 +28,9 @@ type MESSAGE messages
 type Message messages eff
   = ( message ∷ MESSAGE messages | eff )
 
--- type Message' messages eff = Message (Variant messages) eff
+run ∷ ∀ a eff msg. (Variant msg → String) → Run (Message msg + eff) a -> Run eff a
+run print = Run.interpret (Run.on _message handleMessage Run.send)
+  where
+    handleMessage ∷ ∀ m. Monad m ⇒ MessageF (Variant msg) ~> m
+    handleMessage (MessageF v next) = pure $ next (print v)
+

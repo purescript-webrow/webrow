@@ -21,8 +21,7 @@ module WebRow.Forms.Uni
   ) where
 
 import Prelude
-import Data.Either (Either(..))
-import Data.Exists (mkExists)
+import Data.Either (Either(..), either)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
@@ -133,19 +132,19 @@ foreign import data Optional ∷ OptFlag
 foreign import data Required ∷ OptFlag
 
 -- | We reuse this row in Forms.Bi
-type TextInputInitialsBase (r ∷ # Type)
+type TextInputInitialsBase info (r ∷ #Type)
   = ( default ∷ Opt String
-    , label ∷ Opt String
+    , label ∷ Opt (Variant info)
     , name ∷ Opt String
     , type_ ∷ Opt String
-    , placeholder ∷ Opt String
-    , helpText ∷ Opt String
+    , placeholder ∷ Opt (Variant info)
+    , helpText ∷ Opt (Variant info)
     | r
     )
 
 type TextInputInitials info eff o
-  = {
-    | TextInputInitialsBase
+  = { 
+    | TextInputInitialsBase info
       + ( validator ∷ Polyform.Validator (MessageM info eff) (Errors info) (Maybe Payload.Value) o )
     }
 
@@ -166,24 +165,27 @@ textInputBuilder args =
 
   validator' = validator <<< Validator.liftFn (un Identity)
 
-  constructor { payload: Identity payload, names: Identity name, result } =
+  constructor { payload: Identity payload, names: Identity name, result } = do
+    helpText ← i.helpText # NoProblem.toMaybe # traverse message
+    label ← i.label # NoProblem.toMaybe # traverse message
+    placeholder ← i.placeholder # NoProblem.toMaybe # traverse message
     pure
       $ Widgets.textInput
           { type_: i.type_ ! "text"
-          , helpText: i.helpText # NoProblem.toMaybe
-          , label: i.label # NoProblem.toMaybe
+          , helpText
+          , label
           , payload
-          , placeholder: i.placeholder # NoProblem.toMaybe
+          , placeholder
           , name
-          , result: map (mkExists <<< Identity) <$> result
+          , result: either Just (const Nothing) <$> result
           }
 
 type PasswordInputInitials eff info
-  = { label ∷ Opt String
+  = { helpText ∷ Opt (Variant info)
+    , label ∷ Opt (Variant info)
     , name ∷ Opt String
-    , placeholder ∷ Opt String
+    , placeholder ∷ Opt (Variant info)
     , policy ∷ Opt (FieldValidator eff info String String)
-    , helpText ∷ Opt String
     }
 
 passwordInputBuilder ∷
@@ -234,19 +236,18 @@ type EmailMessages r
   = InvalidEmailFormat + r
 
 type EmailInputInitials eff info
-  = { label ∷ Opt String
+  = { label ∷ Opt (Variant info)
     , name ∷ Opt String
-    , placeholder ∷ Opt String
-    , helpText ∷ Opt String
-    , policy ∷ Opt (FieldValidator eff (EmailMessages + info) Email Email)
+    , placeholder ∷ Opt (Variant info)
+    , helpText ∷ Opt (Variant info)
+    , policy ∷ Opt (FieldValidator eff info Email Email)
     }
 
 emailInputBuilder ∷
   ∀ args eff info r.
   NoProblem.Closed.Coerce
     args
-    (EmailInputInitials eff (MissingValue + info)) -- (EmailInputInitials eff info)
-  ⇒
+    (EmailInputInitials eff (MissingValue + EmailMessages + info)) ⇒
   args →
   Builder
     eff
@@ -264,13 +265,13 @@ emailInputBuilder args =
     , validator: Batteries.value >>> Validators.email >>> (i.policy ! identity)
     }
   where
-  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff (MissingValue + info)
+  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff (EmailMessages + MissingValue + info)
 
 optEmailInputBuilder ∷
   ∀ args eff info r.
   NoProblem.Closed.Coerce
     args
-    (EmailInputInitials eff info) ⇒
+    (EmailInputInitials eff (EmailMessages + info)) ⇒
   args →
   Builder
     eff
@@ -288,7 +289,7 @@ optEmailInputBuilder args =
     , validator: optValidator (Validators.email >>> (i.policy ! identity))
     }
   where
-  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff info
+  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff (EmailMessages + info)
 
 sectionValidator ∷
   ∀ eff i info o widgets.

@@ -38,7 +38,7 @@ names ∷
   BuilderM (Names inputs)
 names = for (mempty ∷ inputs Unit) (\_ → BuilderM.id)
 
--- | Extract payload from query given a functor with names
+-- | Extract payload from the query given a functor with names
 payload ∷
   ∀ inputs.
   Functor inputs ⇒

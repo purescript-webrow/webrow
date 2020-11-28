@@ -1,8 +1,10 @@
 module WebRow.Forms.Layout where
 
 import Prelude
+
 import Data.Bifunctor (class Bifunctor, bimap)
 import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
+import Data.Generic.Rep (class Generic)
 import Data.List (List(..), singleton, snoc) as List
 import Data.List (List, (:))
 import Data.Maybe (Maybe(..))
@@ -30,15 +32,18 @@ type Layout msg widgets
 -- | These references are filled out when validation process is finished.
 -- | Please check `Forms.Plain.run` or `Forms.Dual.run`.
 -- |
+
+type Section message widgets =
+  { closed ∷ Maybe { title ∷ message }
+  , errors ∷ Array message
+  , layout ∷ List (LayoutBase message widgets)
+  }
 data LayoutBase message widgets
-  = Section
-    { closed ∷ Maybe { title ∷ message }
-    , errors ∷ Array message
-    , layout ∷ List (LayoutBase message widgets)
-    }
+  = Section (Section message widgets)
   | Widget widgets
 
 derive instance functorLayoutBase ∷ Functor (LayoutBase message)
+derive instance genericLayoutBase ∷ Generic (LayoutBase message widgets) _
 
 instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
   foldMap f (Widget widgets) = f widgets
@@ -59,6 +64,8 @@ instance monoidLayoutBase ∷ Monoid (LayoutBase message widgets) where
   mempty = Section { closed: Nothing, errors: mempty, layout: mempty }
 
 instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
+  -- | TODO: This not nice and trivial strategy for combining form sections.
+  -- | We can do better probably.
   append s1@(Section s1r) s2@(Section s2r) = case s1r.closed, s2r.closed of
     Nothing, Nothing →
       Section

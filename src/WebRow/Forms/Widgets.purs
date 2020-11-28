@@ -1,9 +1,7 @@
 module WebRow.Forms.Widgets where
 
-import Data.Either (Either)
-import Data.Exists (Exists)
-import Data.Identity (Identity)
 import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype)
 import Data.Variant (inj) as Variant
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
@@ -18,14 +16,13 @@ type TextInputPropsR
     , placeholder ∷ Maybe String
     , helpText ∷ Maybe String
     , name ∷ String
-    , result ∷
-        Maybe
-          (Either (Array String) (Exists Identity))
+    , result ∷ Maybe (Maybe (Array String))
     , type_ ∷ String
     }
 
 newtype TextInputProps
   = TextInputProps TextInputPropsR
+derive instance newtypeTextInputProps ∷ Newtype TextInputProps _
 
 type TextInput r
   = ( textInput ∷ TextInputProps

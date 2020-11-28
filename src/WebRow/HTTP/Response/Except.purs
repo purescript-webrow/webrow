@@ -52,8 +52,8 @@ unauthorized headers = httpExcept (HTTPException { body: BodyString "", headers,
 forbidden ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 forbidden headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.forbidden })
 
-notFound ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
-notFound headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.notFound })
+notFound ∷ ∀ a eff. HTTPure.Headers → Body → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
+notFound headers body = httpExcept (HTTPException { body, headers, status: Status.notFound })
 
 methodNotAllowed ∷ ∀ a eff. HTTPure.Headers → Run ( httpExcept ∷ EXCEPT HTTPException | eff ) a
 methodNotAllowed headers = httpExcept (HTTPException { body: BodyString "", headers, status: Status.methodNotAllowed })

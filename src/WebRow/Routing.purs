@@ -36,6 +36,7 @@ import WebRow.HTTP (HTTPExcept)
 import WebRow.HTTP (redirect) as HTTP.Response
 import WebRow.HTTP.Request (Request)
 import WebRow.HTTP.Response.Except (notFound)
+import WebRow.HTTP.Response.Types (Body(..))
 import WebRow.Routing.Types (Context, Domain, FullUrl(..), RelativeUrl(..), fromRelativeUrl)
 import WebRow.Routing.Types (Context, Domain, FullUrl(..), RelativeUrl(..), fromRelativeUrl, fromFullUrl) as Exports
 
@@ -69,8 +70,13 @@ context domain routeDuplex@(RouteDuplex _ dec) = go
 
   go rawUrl =
     let
-      routeState@{ params } = D.parsePath (replacePlus rawUrl)
+      routeState@{ hash, params } = D.parsePath (replacePlus rawUrl)
 
+      -- | TODO: Do we need this `query` value from the Duplex side?
+      -- | It seems that we want to keep it here so we can be
+      -- | consistent on the frontend.
+      -- | `Query` is provided is separately by `WebRow.HTTP.Request`
+      -- | where it is really expected.
       query =
         L.defer \_ →
           Query
@@ -80,7 +86,9 @@ context domain routeDuplex@(RouteDuplex _ dec) = go
 
       ctx =
         { domain
+        -- | Drop `query` and provide combinator which builds it
         , query
+        , raw: routeState
         , route: _
         , routeDuplex
         , url: RelativeUrl rawUrl
@@ -102,7 +110,7 @@ runRouting domain routeDuplex request action = do
   case context domain routeDuplex request.url of
     Right routing → runReaders { request, routing } action
     Left e → do
-      notFound HTTPure.Headers.empty
+      notFound HTTPure.Headers.empty (BodyString "")
 
 route ∷ ∀ eff route. Run (Routing route + eff) route
 route = askAt _routing <#> _.route
@@ -110,6 +118,9 @@ route = askAt _routing <#> _.route
 url ∷ ∀ eff route. Run (Routing route + eff) RelativeUrl
 url = askAt _routing <#> _.url
 
+-- hash ∷ ∀ eff route. Run (Routing route + eff) String
+-- hash 
+-- 
 redirect ∷
   ∀ a eff route.
   route →

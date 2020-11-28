@@ -2,11 +2,9 @@ module WebRow.Testing.Templates where
 
 import Prelude
 import Data.Array (head) as Array
-import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Variant (Variant, case_, on)
-import Global.Unsafe (unsafeStringify)
 import Text.Smolder.HTML (Html)
 import Text.Smolder.HTML (div, form, h2, html, input, p) as M
 import Text.Smolder.HTML.Attributes as A
@@ -44,7 +42,7 @@ formBody renderExtra (Forms.Widget widget) =
     renderExtra
       # on _textInput \(TextInputProps { name, payload, result, type_ }) → do
           for_ result case _ of
-            Left errors →
+            Just errors →
               for_ errors \msg →
                 M.p $ M.text msg
             otherwise → pure unit

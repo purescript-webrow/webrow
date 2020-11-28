@@ -2,6 +2,7 @@ module WebRow.HTTP.Response.Headers where
 
 import Prelude
 
+import Data.Maybe (Maybe(..))
 import Data.MediaType (MediaType(..))
 import Data.Symbol (SProxy(..))
 import Data.Variant.Internal (FProxy)
@@ -10,7 +11,7 @@ import Run (Run)
 import Run (lift, on, run, send) as Run
 import Type.Row (type (+))
 import WebRow.HTTP.Response.Except (HTTPException(..))
-import WebRow.HTTP.Response.Types (HTTPResponse(..), Parts)
+import WebRow.HTTP.Response.Types (ContentDisposition(..), HTTPResponse(..), Parts)
 
 -- | TODO: Change to `SetHeaders (Tuple String String)`
 data SetHeaderF a
@@ -36,6 +37,15 @@ setHeader k v = Run.lift _setHeader (SetHeaderF k v unit)
 setContentType ∷ ∀ eff. MediaType → Run (SetHeader + eff) Unit
 setContentType (MediaType t) =
   setHeader "Content-Type" t
+
+setContentDisposition ∷ ∀ eff. ContentDisposition → Run (SetHeader + eff) Unit
+setContentDisposition = case _ of
+  Inline → setHeader header "inline"
+  Attachment Nothing → setHeader header "attachment"
+  Attachment (Just name) →
+    setHeader header $ "attachment; filename=" <> name
+  where
+    header = "Content-Disposition"
 
 setHeaderOnParts ∷ String → String → Parts → Parts
 setHeaderOnParts k v parts = parts { headers = HTTPure.header k v <> parts.headers }
