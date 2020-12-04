@@ -27,6 +27,7 @@ module WebRow.Forms.Bi
 
 import Prelude
 
+import Data.Array (head, singleton) as Array
 import Data.Either (Either(..), either)
 import Data.Identity (Identity(..))
 import Data.List (List)
@@ -52,6 +53,7 @@ import Polyform.Dual (Dual(..), dual) as Dual
 import Polyform.Reporter (liftFn) as Polyform.Reporter
 import Polyform.Reporter.Dual (DualD, Dual) as Reporter
 import Polyform.Reporter.Dual (liftValidatorDualWith, liftValidatorDualWithM, lmapM) as Reporter.Dual
+import Polyform.Validator (liftFn)
 import Polyform.Validator.Dual (Dual) as Validator
 import Polyform.Validator.Dual (iso, lmapM) as Validator.Dual
 import Run (expand) as Run
@@ -65,7 +67,7 @@ import WebRow.Forms.Layout (LayoutBase(..), closeSection, sectionErrors) as Layo
 import WebRow.Forms.Payload (Key, Value) as Payload
 import WebRow.Forms.Payload (UrlDecoded)
 import WebRow.Forms.Uni (Layout, MessageM, PasswordInputInitials)
-import WebRow.Forms.Widget (Constructor, Names, Payload, dump, names, payload) as Widget
+import WebRow.Forms.Widget (Constructor, Payload, dump, names, payload) as Widget
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Forms.Widgets (textInput) as Widgets
 import WebRow.Message (message)
@@ -88,6 +90,8 @@ type FieldDual eff info i o
 type Dual eff info widgets i o
   = Reporter.Dual (MessageM info eff) (Layout widgets) i o
 
+-- | This wrapper is introduced only to simplify signatures
+-- | so the error messages are readable.
 newtype Builder eff info widgets i o
   = Builder
   ( B.BuilderD
@@ -131,26 +135,29 @@ diverge f (Builder b) = lcmap f b
 
 -- | Takes:
 -- |
--- |  * A "field constructor" which requires possible validation result.
+-- |  * A "widget constructor" which requires a possible validation result.
 -- |
 -- |  * A `Dual` which works on a structured input with query values
 -- |  (so it doesn't care about field "names" in the HTML form).
 -- |
 -- | Returns a form `Builder` which can be composed into larger one easily.
-fieldBuilder ∷
+widgetBuilder ∷
   ∀ eff info inputs widgets o.
   Monoid (inputs Unit) ⇒
   Traversable inputs ⇒
   { constructor ∷ Widget.Constructor (MessageM info ()) inputs widgets o
   , defaults ∷ Widget.Payload inputs
   , dual ∷ FieldDual eff info (Widget.Payload inputs) o
+  , widgetId ∷ Maybe String
   } →
   Builder eff info widgets UrlDecoded o
-fieldBuilder { constructor, defaults, dual: d } =
+widgetBuilder { constructor, defaults, dual: d, widgetId } =
   builder do
-    ns ∷ Widget.Names inputs ← Widget.names
+    ns ← Widget.names
     let
-      constructor' = map Layout.Widget <<< constructor
+      constructor' = map step <<< constructor
+        where
+          step widget = Layout.Widget { id: widgetId, widget }
 
       fromSuccess ∷ Tuple (Widget.Payload inputs) o → MessageM info eff (Layout widgets)
       fromSuccess (Tuple payload o) = Run.expand $ constructor' { payload, names: ns, result: Just (Right o) }
@@ -186,6 +193,44 @@ fieldBuilder { constructor, defaults, dual: d } =
           pure { layout, payload: Widget.dump ns defaults }
       }
 
+-- | widgetBuilder ∷
+-- |   ∀ eff info inputs widgets o.
+-- |   Monoid (inputs Unit) ⇒
+-- |   Traversable inputs ⇒
+-- |   { constructor ∷ Widget.Constructor (MessageM info ()) inputs widgets o
+-- |   , defaults ∷ Widget.Payload inputs
+-- |   , dual ∷ FieldDual eff info (Widget.Payload inputs) o
+-- |   } →
+-- |   Builder eff info widgets UrlDecoded o
+
+type Id a = a
+
+-- | Simple widget which contains only a single "field".
+-- | Which means that it contains single payload "name" and
+-- | possibly its value.
+-- | This helper wraps this stuff in `Identity` to fullfill
+-- | more generic widget builder API where `Traversable inputs`
+-- | is expected.
+fieldBuilder ∷
+  ∀ eff info widgets o.
+  { constructor ∷ Widget.Constructor (MessageM info ()) Id widgets o
+  , default ∷ Maybe Payload.Value
+  , dual ∷ FieldDual eff info (Maybe Payload.Value) o
+  , widgetId ∷ Maybe String
+  } →
+  Builder eff info widgets UrlDecoded o
+fieldBuilder { constructor, default: def, dual: d, widgetId } =
+  widgetBuilder
+    { constructor: constructor'
+    , defaults: Identity def
+    , dual: d'
+    , widgetId
+    }
+  where
+    d' = d <<< Validator.Dual.iso (un Identity) Identity
+    constructor' { names: Identity names, payload: Identity payload, result } =
+      constructor { payload, names, result }
+
 builder ∷
   ∀ eff info i o widgets.
   BuilderM
@@ -198,9 +243,11 @@ builder = Builder <<< B.BuilderD
 type TextInputInitialsBase info (r ∷ #Type)
   = ( helpText ∷ Opt (Variant info)
     , default ∷ Opt String
+    , id ∷ Opt String
     , label ∷ Opt (Variant info)
     , type_ ∷ Opt String
     , placeholder ∷ Opt (Variant info)
+    , widgetId ∷ Opt String
     | r
     )
 
@@ -217,13 +264,14 @@ textInputBuilder ∷
   Builder eff info (TextInput + r) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
-    { constructor, defaults: Identity (Just [ default ! "" ]), dual: dual' }
+    { constructor, default: Just [ default ! "" ]
+    , dual
+    , widgetId: NoProblem.toMaybe i.widgetId
+    }
   where
   i@{ default, dual } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
 
-  dual' = dual <<< Validator.Dual.iso (un Identity) Identity
-
-  constructor { payload: Identity payload, names: Identity name, result } = do
+  constructor { payload, names: name, result } = do
     helpText ← i.helpText # NoProblem.toMaybe # traverse message
     label ← i.label # NoProblem.toMaybe # traverse message
     placeholder ← i.placeholder # NoProblem.toMaybe # traverse message
@@ -237,6 +285,30 @@ textInputBuilder args =
           , name
           , result: either Just (const Nothing) <$> result
           }
+
+-- optTextInputBuilder ∷
+--   ∀ args eff info r.
+--   NoProblem.Closed.Coerce args (TextInputInitials eff info o) ⇒
+--   args →
+--   Builder
+--     eff
+--     info
+--     (TextInput + r)
+--     UrlDecoded
+--     (Maybe o)
+-- optTextInputBuilder args =
+--   textInputBuilder
+--     { placeholder
+--     , helpText
+--     , label
+--     , name
+--     , dual
+--     }
+--   where
+--   dual = Dual.dual
+--     (liftFn Array.head)
+--     (map Array.singleton >>> pure)
+--   i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials eff info
 
 passwordInputBuilder ∷
   ∀ args eff info r.
@@ -259,8 +331,16 @@ passwordInputBuilder args =
   where
   i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ (PasswordInputInitials eff (MissingValue + info))
 
-closeSection ∷ ∀ eff i info o widgets. Variant info → Builder eff info widgets i o → Builder eff info widgets i o
-closeSection title (Builder (B.BuilderD bd)) =
+-- | Move this to internals
+type LayoutHeader' info =
+  { id ∷ Opt String, title ∷ Opt (Variant info)}
+
+closeSection
+  ∷ ∀ args eff i info o widgets.
+  NoProblem.Closed.Coerce args (LayoutHeader' info) ⇒
+  args →
+  Builder eff info widgets i o → Builder eff info widgets i o
+closeSection args (Builder (B.BuilderD bd)) =
   builder do
     { default: d, dualD } ← bd
     pure
@@ -272,12 +352,15 @@ closeSection title (Builder (B.BuilderD bd)) =
       , dualD: un Polyform.Dual (Reporter.Dual.lmapM close (Polyform.Dual dualD))
       }
   where
+  header = NoProblem.Closed.coerce args ∷ LayoutHeader' info
+  -- | Make this polymorphic
   close' s = do
-    t ← message title
-    pure $ Layout.closeSection t s
+    title ← header.title # NoProblem.toMaybe # traverse message
+    pure $ Layout.closeSection { id: NoProblem.toMaybe header.id, title } s
+
   close s = do
-    t ← message title
-    pure $ Layout.closeSection t s
+    title ← header.title # NoProblem.toMaybe # traverse message
+    pure $ Layout.closeSection { id: NoProblem.toMaybe header.id, title } s
 
 sectionDual ∷
   ∀ eff i info o widgets.

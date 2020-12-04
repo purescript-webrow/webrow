@@ -13,6 +13,10 @@ type Default layout
     , payload ∷ UrlEncoded.Query
     }
 
+-- | I'm not sure if we want to carry this `n`
+-- | parameter. This disticion is useful
+-- | in some scenarios but is it worth such
+-- | a type complication?
 newtype BuilderD m n layout i o' o
   = BuilderD
   ( BuilderM

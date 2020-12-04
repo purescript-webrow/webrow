@@ -21,6 +21,7 @@ module WebRow.Forms.Uni
   ) where
 
 import Prelude
+
 import Data.Either (Either(..), either)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
@@ -94,17 +95,20 @@ fieldBuilder ∷
   { constructor ∷ Widget.Constructor (MessageM info eff) inputs widgets o
   , defaults ∷ Widget.Payload inputs
   , name ∷ Maybe (Widget.Names inputs)
+  , widgetId ∷ Maybe String
   , validator ∷ FieldValidator eff info (Widget.Payload inputs) o
   } →
   Builder eff info widgets UrlDecoded o
-fieldBuilder { constructor, defaults, name, validator: msgValidator } =
+fieldBuilder { constructor, defaults, name, validator: msgValidator, widgetId } =
   Builder $ B.Builder
     $ do
         ns ← case name of
           Nothing → Widget.names
           Just n → pure n
         let
-          constructor' = map Layout.Widget <<< constructor
+          constructor' = map step <<< constructor
+            where
+              step widget = Layout.Widget { id: widgetId, widget }
 
           fromSuccess ∷ Tuple (Widget.Payload inputs) o → MessageM info eff (Layout widgets)
           fromSuccess (Tuple payload o) = constructor' { payload, names: ns, result: Just (Right o) }
@@ -134,11 +138,12 @@ foreign import data Required ∷ OptFlag
 -- | We reuse this row in Forms.Bi
 type TextInputInitialsBase info (r ∷ #Type)
   = ( default ∷ Opt String
+    , helpText ∷ Opt (Variant info)
     , label ∷ Opt (Variant info)
     , name ∷ Opt String
     , type_ ∷ Opt String
     , placeholder ∷ Opt (Variant info)
-    , helpText ∷ Opt (Variant info)
+    , widgetId ∷ Opt String
     | r
     )
 
@@ -159,6 +164,7 @@ textInputBuilder args =
     , defaults: Identity (Just [ default ! "" ])
     , name: Identity <$> NoProblem.toMaybe i.name
     , validator: validator'
+    , widgetId: NoProblem.toMaybe i.widgetId
     }
   where
   i@{ default, validator } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
@@ -301,16 +307,25 @@ sectionValidator validator = Builder $ B.Builder $ pure { default: pure mempty, 
 
   reporter = Reporter.liftValidatorWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) validator'
 
-closeSection ∷ ∀ eff i info o widgets. Variant info → Builder eff info widgets i o → Builder eff info widgets i o
-closeSection title (Builder (B.Builder b)) =
+type LayoutHeader' info =
+  { id ∷ Opt String, title ∷ Opt (Variant info)}
+
+closeSection ∷
+  ∀ args eff i info o widgets.
+  NoProblem.Closed.Coerce args (LayoutHeader' info) ⇒
+  args →
+  Builder eff info widgets i o →
+  Builder eff info widgets i o
+closeSection args (Builder (B.Builder b)) =
   Builder
     $ B.Builder do
         { default: d, reporter } ← b
         pure { default: d >>= close, reporter: Reporter.lmapM close reporter }
   where
+  header = NoProblem.Closed.coerce args ∷ (LayoutHeader' info)
   close s = do
-    t ← message title
-    pure $ Layout.closeSection t s
+    title ← header.title # NoProblem.toMaybe # traverse message
+    pure $ Layout.closeSection { id: NoProblem.toMaybe header.id, title } s
 
 build ∷
   ∀ eff info o widgets.

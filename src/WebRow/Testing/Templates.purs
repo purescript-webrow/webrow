@@ -29,11 +29,11 @@ formBody renderExtra (Forms.Section { closed, errors, layout }) = do
   -- | TODO: Render form errors
   for_ errors \msg → M.p $ M.text msg
   case closed of
-    Just { title } → M.h2 $ M.text title
+    Just { title } → for_ title \t → M.h2 $ M.text t
     Nothing → pure unit
   for_ layout (formBody renderExtra)
 
-formBody renderExtra (Forms.Widget widget) =
+formBody renderExtra (Forms.Widget { widget }) =
   M.div
     $ do
         renderWidget widget

@@ -5,7 +5,7 @@ import Prelude
 import Data.Bifunctor (class Bifunctor, bimap)
 import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
 import Data.Generic.Rep (class Generic)
-import Data.List (List(..), singleton, snoc) as List
+import Data.List (List(..), singleton) as List
 import Data.List (List, (:))
 import Data.Maybe (Maybe(..))
 import WebRow.Forms.Widget (Widget)
@@ -14,8 +14,8 @@ import WebRow.Forms.Widget (Widget)
 -- | use this type directly. I would not be able
 -- | to provide instances for such a `Layout` type...
 -- | This should be fixed with the next purs release!
-type Layout msg widgets
-  = LayoutBase msg (Widget widgets)
+type Layout msg widget
+  = LayoutBase msg (Widget widget)
 
 -- | `Layout` is a proposition for the form UI representation.
 -- | Provided DSLs in `Forms.Builders` depend on this structure
@@ -33,20 +33,25 @@ type Layout msg widgets
 -- | Please check `Forms.Plain.run` or `Forms.Dual.run`.
 -- |
 
-type Section message widgets =
-  { closed ∷ Maybe { title ∷ message }
+type Header message = { id ∷ Maybe String, title ∷ Maybe message }
+
+type Section message widget =
+  { closed ∷ Maybe (Header message)
   , errors ∷ Array message
-  , layout ∷ List (LayoutBase message widgets)
+  , layout ∷ List (LayoutBase message widget)
   }
-data LayoutBase message widgets
-  = Section (Section message widgets)
-  | Widget widgets
+data LayoutBase message widget
+  = Section (Section message widget)
+  | Widget
+    { id ∷ Maybe String
+    , widget ∷ widget
+    }
 
 derive instance functorLayoutBase ∷ Functor (LayoutBase message)
 derive instance genericLayoutBase ∷ Generic (LayoutBase message widgets) _
 
 instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
-  foldMap f (Widget widgets) = f widgets
+  foldMap f (Widget { id, widget }) = f widget
   foldMap f (Section { layout }) = foldMap (foldMap f) layout
   foldr f = foldrDefault f
   foldl f = foldlDefault f
@@ -54,11 +59,11 @@ instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
 instance bifunctorLayoutBase ∷ Bifunctor LayoutBase where
   bimap f g (Section { closed, errors, layout }) =
     Section
-      $ { closed: (\r → { title: f r.title }) <$> closed
+      $ { closed: (\r → { id: r.id, title: f <$> r.title }) <$> closed
         , errors: map f errors
         , layout: bimap f g <$> layout
         }
-  bimap f g (Widget widgets) = Widget (g widgets)
+  bimap f g (Widget { id, widget }) = Widget { id, widget: g widget }
 
 instance monoidLayoutBase ∷ Monoid (LayoutBase message widgets) where
   mempty = Section { closed: Nothing, errors: mempty, layout: mempty }
@@ -79,55 +84,54 @@ instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
         , errors: mempty
         , layout: s1 : s2 : List.Nil
         }
-    Nothing, Just _ →
+    Just _, Nothing →
       Section
         { closed: Nothing
         , errors: s2r.errors
         , layout: s1 : s2r.layout
         }
-    Just _, Nothing →
+    Nothing, Just _ →
       Section
         { closed: Nothing
         , errors: s1r.errors
-        , layout: List.snoc s1r.layout s2
+        , layout: s1r.layout <> s2 : List.Nil
         }
-  append s@(Section sr) widgets = case sr.closed of
+  append s@(Section sr) widget@(Widget _) = case sr.closed of
     Nothing →
       Section
         { closed: Nothing
         , errors: sr.errors
-        , layout: widgets : sr.layout
+        , layout: sr.layout <> List.singleton widget
         }
-    Just _ →
+    otherwise →
       Section
         { closed: Nothing
         , errors: mempty
-        , layout: s : widgets : List.Nil
+        , layout: s : widget : List.Nil
         }
-  append widgets s@(Section sr) = case sr.closed of
+  append widget@(Widget _) s@(Section sr) = case sr.closed of
     Nothing →
       Section
         { closed: Nothing
         , errors: sr.errors
-        , layout: List.snoc sr.layout widgets
+        , layout: widget : sr.layout
         }
-    Just _ →
-      Section
-        { closed: Nothing
+    otherwise →
+      Section { closed: Nothing
         , errors: mempty
-        , layout: widgets : s : List.Nil
+        , layout: widget : s : List.Nil
         }
-  append widgets1 widgets2 =
+  append widget1@(Widget _) widget2@(Widget _) =
     Section
       { closed: Nothing
       , errors: mempty
-      , layout: widgets1 : widgets2 : List.Nil
+      , layout: widget1 : widget2 : List.Nil
       }
 
-closeSection ∷ ∀ message widgets. message → LayoutBase message widgets → LayoutBase message widgets
-closeSection title widgets@(Widget _) = Section { closed: Just { title }, layout: List.singleton widgets, errors: mempty }
+closeSection ∷ ∀ message widgets. Header message → LayoutBase message widgets → LayoutBase message widgets
+closeSection header widgets@(Widget _) = Section { closed: Just header, layout: List.singleton widgets, errors: mempty }
 
-closeSection title widgets@(Section { layout, errors }) = Section { closed: Just { title }, layout, errors }
+closeSection header widgets@(Section { layout, errors }) = Section { closed: Just header, layout, errors }
 
 sectionErrors ∷ ∀ message widgets. Array message → LayoutBase message widgets
 sectionErrors errors = Section { closed: Nothing, layout: mempty, errors }
