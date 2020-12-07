@@ -2,18 +2,19 @@ module WebRow.Forms.Bi
   ( Bi
   , Builder(..)
   , build
+  , closeSection
   , default
   , diverge
   , dual
-  , FieldDual
-  , TextInputInitials
-  , TextInputInitialsBase
-  , closeSection
   , fieldBuilder
+  , FieldDual
+  , fromDual
   , passwordInputBuilder
   , sectionDual
   , serialize
   , textInputBuilder
+  , TextInputInitials
+  , TextInputInitialsBase
   , validate
   , (~)
   ) where
@@ -27,7 +28,6 @@ module WebRow.Forms.Bi
 
 import Prelude
 
-import Data.Array (head, singleton) as Array
 import Data.Either (Either(..), either)
 import Data.Identity (Identity(..))
 import Data.List (List)
@@ -53,12 +53,11 @@ import Polyform.Dual (Dual(..), dual) as Dual
 import Polyform.Reporter (liftFn) as Polyform.Reporter
 import Polyform.Reporter.Dual (DualD, Dual) as Reporter
 import Polyform.Reporter.Dual (liftValidatorDualWith, liftValidatorDualWithM, lmapM) as Reporter.Dual
-import Polyform.Validator (liftFn)
 import Polyform.Validator.Dual (Dual) as Validator
 import Polyform.Validator.Dual (iso, lmapM) as Validator.Dual
 import Run (expand) as Run
 import Type.Row (type (+))
-import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..), Default) as B
+import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..), Default, fromDual) as B
 import WebRow.Forms.Bi.Builder (Default) as Builder
 import WebRow.Forms.Bi.Form (Form(..), default, serialize, validate) as Form
 import WebRow.Forms.BuilderM (BuilderM)
@@ -125,6 +124,13 @@ instance categoryBuilder ∷ Category (Builder eff info widgets) where
       Builder bdi
 
 infixl 5 diverge as ~
+
+fromDual ∷ ∀ eff i info o widgets. Dual eff info widgets i o → Builder eff info widgets i o
+fromDual d =
+  let
+    B.Builder bd = B.fromDual d
+  in
+    Builder bd
 
 diverge ∷
   ∀ eff i info o o' widgets.

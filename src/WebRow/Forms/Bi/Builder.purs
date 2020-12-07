@@ -5,7 +5,7 @@ import Data.Newtype (class Newtype, un)
 import Data.Profunctor (class Profunctor, dimap, lcmap)
 import Polyform (Dual(..))
 import Polyform.Batteries.UrlEncoded (Query) as UrlEncoded
-import Polyform.Reporter.Dual (DualD) as Reporter
+import Polyform.Reporter.Dual (DualD, Dual) as Reporter
 import WebRow.Forms.BuilderM (BuilderM)
 
 type Default layout
@@ -84,6 +84,15 @@ diverge ∷
   Builder m n layout i o →
   BuilderD m n layout i o' o
 diverge f = lcmap f <<< un Builder
+
+fromDual ∷
+  ∀ i layout m n o.
+  Monoid layout ⇒
+  Applicative m ⇒
+  Applicative n ⇒
+  Reporter.Dual m layout i o →
+  Builder m n layout i o
+fromDual (Dual d) = Builder $ BuilderD (pure { default: pure mempty, dualD: d })
 
 builder ∷
   ∀ i layout m n o.
