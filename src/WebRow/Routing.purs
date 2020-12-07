@@ -10,6 +10,7 @@ module WebRow.Routing
   , route
   , _routing
   , runRouting
+  , toFullUrl
   , url
   ) where
 
@@ -19,7 +20,6 @@ import Data.Array (singleton) as Array
 import Data.Either (Either(..))
 import Data.Lazy (defer) as L
 import Data.Map (fromFoldableWith) as Map
-import Data.Newtype (un)
 import Data.String (Pattern(..), Replacement(..), replaceAll) as String
 import Data.Variant (SProxy(..), Variant)
 import HTTPure.Headers (empty) as HTTPure.Headers
@@ -61,7 +61,10 @@ printRoute ∷ ∀ v eff. v → Run ( routing ∷ ROUTING v | eff ) RelativeUrl
 printRoute v = map RelativeUrl $ askAt _routing <#> _.routeDuplex <#> flip D.print v
 
 printFullRoute ∷ ∀ v eff. v → Run ( routing ∷ ROUTING v | eff ) FullUrl
-printFullRoute v = map FullUrl $ (<>) <$> (askAt _routing <#> _.domain) <*> (map (un RelativeUrl) $ printRoute v)
+printFullRoute v = printRoute v >>= toFullUrl
+
+toFullUrl ∷ ∀ v eff. RelativeUrl → Run ( routing ∷ ROUTING v | eff ) FullUrl
+toFullUrl (RelativeUrl str) = map FullUrl $ (<>) <$> (askAt _routing <#> _.domain) <@> str
 
 context ∷ ∀ v. Domain → D.RouteDuplex' v → String → Either D.RouteError (Context v)
 context domain routeDuplex@(RouteDuplex _ dec) = go

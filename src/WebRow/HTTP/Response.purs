@@ -9,6 +9,7 @@ module WebRow.HTTP.Response
   ) where
 
 import Prelude
+
 import HTTPure (Headers)
 import HTTPure (Response, header) as HTTPure
 import HTTPure (empty) as HTTPure.Headers
@@ -17,6 +18,7 @@ import HTTPure.Status (found, ok) as HTTPure.Status
 import Run (Run)
 import Run.Except (catchAt)
 import Type.Row (type (+))
+import WebRow.HTTP.Response.BodyWriter (BodyWriter(..)) as BodyWriter
 import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept)
 import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept, notFound) as Except
 import WebRow.HTTP.Response.Headers (runSetHeader, SetHeader)
@@ -48,6 +50,7 @@ run action = action'
           BodyString string → Body.write string
           BodyBuffer buffer → Body.write buffer
           BodyStream stream → Body.write stream
+          BodyWriter writer → Body.write $ BodyWriter.BodyWriter writer
     }
 
 ok ∷ ∀ eff. String → Run eff HTTPResponse
