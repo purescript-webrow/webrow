@@ -7,12 +7,12 @@ import Data.Maybe (fromMaybe)
 import Prim.Row (class Union) as Row
 import Run (Run)
 import Run (expand) as Run
-import WebRow.KeyValueStore (KeyValueStore, Key)
+import WebRow.KeyValueStore (Interface, Key) as KeyValueStore
 
 type SessionStore m session
   = { delete ∷ m Boolean
     , fetch ∷ m session
-    , key ∷ Lazy Key
+    , key ∷ Lazy KeyValueStore.Key
     , save ∷ session → m Boolean
     }
 
@@ -35,7 +35,7 @@ new ∷
   ∀ m session.
   Monad m ⇒
   session →
-  KeyValueStore m session →
+  KeyValueStore.Interface m session →
   m (SessionStore m session)
 new default kv =
   kv.new
@@ -51,8 +51,8 @@ forKey ∷
   ∀ m session.
   Monad m ⇒
   session →
-  Lazy Key →
-  KeyValueStore m session →
+  Lazy KeyValueStore.Key →
+  KeyValueStore.Interface m session →
   SessionStore m session
 forKey default k kv =
   { delete: kv.delete (force k)

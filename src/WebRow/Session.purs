@@ -18,7 +18,7 @@ import WebRow.HTTP (HTTPExcept, internalServerError)
 import WebRow.HTTP.Cookies (Cookies)
 import WebRow.HTTP.Cookies (defaultAttributes, delete, lookup, lookupJson, set, setJson) as Cookies
 import WebRow.HTTP.Response.Types (Body(..))
-import WebRow.KeyValueStore.Types (Key)
+import WebRow.KeyValueStore (Key)
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (hoist) as SessionStore
 import WebRow.Session.SessionStore.InMemory (new) as SessionStore.InMemory

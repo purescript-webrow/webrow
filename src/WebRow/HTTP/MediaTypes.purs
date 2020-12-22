@@ -1,6 +1,7 @@
 module WebRow.HTTP.MediaTypes
   ( known
   , module MediaType
+  , imageSvg
   , parse
   )
   where
@@ -10,6 +11,9 @@ import Data.Maybe (Maybe(..))
 import Data.MediaType (MediaType(..))
 import Data.MediaType.Common as Common
 import Data.MediaType.Common (applicationFormURLEncoded, applicationJSON, applicationJavascript, applicationOctetStream, applicationXML, imageGIF, imageJPEG, imagePNG, multipartFormData, textCSV, textHTML, textPlain, textXML, textCSS) as MediaType
+
+imageSvg ∷ MediaType
+imageSvg = MediaType "image/svg+xml"
 
 known ∷ Array MediaType
 known =
@@ -21,6 +25,7 @@ known =
   , Common.imageGIF
   , Common.imageJPEG
   , Common.imagePNG
+  , imageSvg
   , Common.multipartFormData
   , Common.textCSV
   , Common.textHTML

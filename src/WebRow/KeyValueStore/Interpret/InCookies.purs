@@ -1,4 +1,4 @@
-module WebRow.KeyValueStore.InCookies where
+module WebRow.KeyValueStore.Interpret.InCookies where
 
 import Prelude
 import Data.Lazy (force) as Lazy
@@ -8,10 +8,11 @@ import WebRow.Contrib.Run (EffRow)
 import WebRow.Crypto (Crypto)
 import WebRow.HTTP.Cookies (Attributes, delete, lookup, set) as Cookies
 import WebRow.HTTP.Cookies (Cookies)
-import WebRow.KeyValueStore.Types (KeyValueStore, Namespace, newKey)
+import WebRow.KeyValueStore (Interface) as KeyValueStore
+import WebRow.KeyValueStore.Interpret (Namespace, newKey)
 
 type InCookies a
-  = KeyValueStore (Run (Cookies + Crypto + EffRow + ())) a
+  = KeyValueStore.Interface (Run (Cookies + Crypto + EffRow + ())) a
 
 inCookies ∷ Namespace → Cookies.Attributes → InCookies String
 inCookies namespace attributes =

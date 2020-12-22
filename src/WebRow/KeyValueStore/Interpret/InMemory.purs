@@ -1,16 +1,15 @@
-module WebRow.KeyValueStore.InMemory where
+module WebRow.KeyValueStore.Interpret.InMemory where
 
 import Prelude
-
 import Data.Map (Map)
 import Data.Map (delete, insert, lookup) as Map
 import Effect (Effect)
 import Effect.Ref (Ref)
 import Effect.Ref (modify, new, read) as Ref
-import WebRow.KeyValueStore.Types (KeyValueStore, newKey)
+import WebRow.KeyValueStore.Interpret (Interface, newKey)
 
 type InMemory a
-  = KeyValueStore Effect a
+  = Interface Effect a
 
 -- | TODO: Provide also efficient JS Map reference
 -- | based implementation done through mutable

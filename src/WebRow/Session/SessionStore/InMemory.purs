@@ -8,7 +8,7 @@ import Data.Maybe (Maybe, fromMaybe)
 import Effect (Effect)
 import Effect.Ref (Ref)
 import WebRow.KeyValueStore (Key)
-import WebRow.KeyValueStore.InMemory (forRef) as KeyValueStore.InMemory
+import WebRow.KeyValueStore.Interpret.InMemory (forRef) as KeyValueStore.InMemory
 import WebRow.Session.SessionStore (SessionStore)
 import WebRow.Session.SessionStore (forKey) as SessionStore
 

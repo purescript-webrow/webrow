@@ -87,6 +87,10 @@ context domain routeDuplex@(RouteDuplex _ dec) = go
             <<< map (map Array.singleton)
             $ params
 
+      -- | TODO:
+      -- | * drop query (raw contains this info)
+      -- | * move `raw` to `raw.parts`
+      -- | * move `url` to `raw.fullPath`
       ctx =
         { domain
         -- | Drop `query` and provide combinator which builds it
