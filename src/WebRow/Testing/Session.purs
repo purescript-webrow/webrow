@@ -30,11 +30,11 @@ handleSession ∷
   Effect (SessionStore (Run (EffRow + eff)) session) → SessionF session ~> Run (EffRow + eff)
 handleSession ss (DeleteF next) = Run.liftEffect ss >>= _.delete >>= next >>> pure
 
-handleSession ss (FetchF next) = Run.liftEffect ss >>= _.fetch >>= next >>> pure
+handleSession ss (FetchF ttl next) = Run.liftEffect ss >>= _.fetch >>= next >>> pure
 
-handleSession ss (SaveF v next) = do
+handleSession ss (SaveF ttl v next) = do
   ss' ← Run.liftEffect ss
-  ss'.save v >>= next >>> pure
+  ss'.save ttl v >>= next >>> pure
 
 run ∷
   ∀ eff session.

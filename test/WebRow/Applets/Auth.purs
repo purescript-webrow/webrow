@@ -4,17 +4,17 @@ import Prelude
 
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
+import Data.Time.Duration (Seconds(..))
 import Data.Variant (Variant, case_, inj, on)
 import Effect.Class (liftEffect) as Effect
 import Effect.Class.Console (log)
-import Effect.Ref (new) as Effect.Ref
 import Effect.Ref (new, read) as Ref
 import Global.Unsafe (unsafeStringify)
 import Record.Builder (build) as Record.Builder
 import Routing.Duplex (RouteDuplex', print, root) as D
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
 import Run (Run, liftEffect, runBaseAff')
-import Run (liftEffect, on, run, send) as Run
+import Run (on, run, send) as Run
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Type.Row (type (+))
@@ -26,7 +26,7 @@ import WebRow.Applets.Auth.Types (Password(..), _auth)
 import WebRow.Mailer (Email(..))
 import WebRow.Routing (route)
 import WebRow.Session (fetch) as Session
-import WebRow.Session.SessionStore (hoist) as SessionStore
+import WebRow.Session.SessionStore (TTL(..))
 import WebRow.Testing.HTTP (get, post, run) as T.H
 import WebRow.Testing.HTTP.Response (Response(..)) as T.H.R
 import WebRow.Testing.Interpret (runMessage) as Testing.Interpret
@@ -46,8 +46,11 @@ runAuth = Run.run (Run.on _auth handler Run.send)
         then pure $ next (Just { email })
         else pure $ next Nothing
 
+ttl :: TTL
+ttl = TTL $ Seconds $ 60.0 * 60.0 * 24.0 * 3.0
+
 server = Testing.Interpret.runMessage $ runAuth $ bind route $ case_
-  # Auth.router
+  # Auth.router ttl
 
 render = case_
   # on _auth Templates.render
@@ -77,7 +80,7 @@ spec = do
                 T.H.R.HTTPResponse r → r.parts.status `shouldEqual` 200
                 T.H.R.HTTPException _ _ → fail "Unexpected exception"
 
-            s ← Session.fetch
+            s ← Session.fetch (Just ttl)
             liftEffect $ log "\nSession:"
             liftEffect $ log $ unsafeStringify s
 
@@ -88,7 +91,7 @@ spec = do
             liftEffect $ log "\nLogin correct response:"
             liftEffect $ log $ unsafeStringify response
 
-            s ← Session.fetch
+            s ← Session.fetch (Just ttl)
             liftEffect $ log "\nSession:"
             liftEffect $ log $ unsafeStringify s
             void $ T.H.get "2"
@@ -101,7 +104,7 @@ spec = do
             liftEffect $ log ("\nLogout response (" <> unsafeStringify logoutUrl <> "):")
             liftEffect $ log $ unsafeStringify response
 
-            s ← Session.fetch
+            s ← Session.fetch (Just ttl)
             liftEffect $ log "\nSession:"
             liftEffect $ log $ unsafeStringify s
 

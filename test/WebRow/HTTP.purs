@@ -52,7 +52,7 @@ spec = do
             get_ "2"
 
           server = do
-            value ← Session.fetch
+            value ← Session.fetch Nothing
             cs ← Crypto.secret
             c ← Lazy.force <$> Cookies.lookup "test"
             liftEffect $ logShow c

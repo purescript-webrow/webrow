@@ -6,6 +6,7 @@ module WebRow.Applets.Auth
   ) where
 
 import Prelude
+
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
@@ -28,6 +29,7 @@ import WebRow.HTTP (methodNotAllowed', method, redirect)
 import WebRow.Routing (fromRelativeUrl)
 import WebRow.Routing (printRoute) as Routing
 import WebRow.Session (delete, fetch, modify) as Session
+import WebRow.Session.SessionStore (TTL)
 import WebRow.Types (WebRow)
 
 type AuthRow messages routes session user eff
@@ -45,6 +47,7 @@ type AuthRow messages routes session user eff
 
 router ::
   ∀ eff messages responses routes routes' session user.
+  TTL →
   ( Variant routes →
     Run
       (AuthRow messages routes' session user + eff)
@@ -54,20 +57,22 @@ router ::
   Run
     (AuthRow messages routes' session user + eff)
     (Variant (ResponseRow + responses))
-router = on _auth (map (inj _auth) <$> localRouter)
+router ttl = on _auth (map (inj _auth) <$> localRouter ttl)
 
 localRouter ∷
   ∀ eff messages routes session user.
+  TTL →
   Route →
   Run (AuthRow messages routes session user eff) Response
-localRouter = case _ of
-  Routes.Login → login
+localRouter ttl = case _ of
+  Routes.Login → login ttl
   Routes.Logout → logout
 
 login ∷
   ∀ eff messages routes session user.
+  TTL →
   Run (AuthRow messages routes session user + eff) Response
-login =
+login ttl =
   method
     >>= case _ of
         HTTPure.Post → do
@@ -77,7 +82,7 @@ login =
                 Tuple Nothing formLayout → do
                   pure $ LoginResponse (LoginFormValidationFailed formLayout)
                 Tuple (Just user) formLayout → do
-                  Session.modify _ { user = Just user }
+                  Session.modify ttl _ { user = Just user }
                   pure $ LoginResponse LoginSuccess
         HTTPure.Get → do
           form ← Forms.Uni.default loginForm
@@ -101,10 +106,11 @@ logout = do
 
 withUserRequired ∷
   ∀ a eff messages routes session user.
+  TTL →
   (User user → Run (AuthRow messages routes session user + eff) a) →
   Run (AuthRow messages routes session user + eff) a
-withUserRequired f =
-  Session.fetch >>= _.user
+withUserRequired ttl f =
+  Session.fetch (Just ttl) >>= _.user
     >>> case _ of
         Just user → f user
         Nothing → do

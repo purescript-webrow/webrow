@@ -18,7 +18,7 @@ import Run (Run, runBaseAff')
 import Run (on, run, send) as Run
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
-import Test.WebRow.Applets.Auth (runAuth)
+import Test.WebRow.Applets.Auth (runAuth, ttl)
 import Type.Row (type (+))
 import WebRow.Applets.Auth (Messages, ResponseRow, RouteRow, routeBuilder, router) as Auth
 import WebRow.Applets.Auth.Effects (Auth)
@@ -103,7 +103,7 @@ server ∷
 server =
   bind route $ case_
     # Registration.router
-    # Auth.router
+    # Auth.router ttl
 
 spec ∷ Spec Unit
 spec = do

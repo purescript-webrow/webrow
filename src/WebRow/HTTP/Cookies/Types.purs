@@ -5,6 +5,7 @@ import Data.JSDate (JSDate)
 import Data.Map (Map)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Data.Time.Duration (Seconds)
 import Foreign.Object (Object)
 
 type Name
@@ -39,7 +40,7 @@ type AttributesRecord
     , domain ∷ Maybe String
     , expires ∷ Maybe JSDate
     , httpOnly ∷ Boolean
-    , maxAge ∷ Maybe Int
+    , maxAge ∷ Maybe Seconds
     , path ∷ Maybe String
     , sameSite ∷ Maybe SameSite
     , secure ∷ Boolean
