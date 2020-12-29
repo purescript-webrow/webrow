@@ -12,3 +12,4 @@ _aff = SProxy ∷ SProxy "aff"
 
 type AffRow eff
   = ( aff ∷ AFF | eff )
+

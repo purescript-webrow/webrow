@@ -1,21 +1,15 @@
 module WebRow.Forms.Layout where
 
 import Prelude
-
-import Data.Bifunctor (class Bifunctor, bimap)
 import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
+import Data.Functor.Variant (class TraversableVFRL, VariantF)
 import Data.Generic.Rep (class Generic)
 import Data.List (List(..), singleton) as List
 import Data.List (List, (:))
 import Data.Maybe (Maybe(..))
+import Data.Traversable (class Traversable, sequence, traverse, traverseDefault)
+import Prim.RowList (class RowToList)
 import WebRow.Forms.Widget (Widget)
-
--- | Because widegts has a row kind (# Type) I'm not able to
--- | use this type directly. I would not be able
--- | to provide instances for such a `Layout` type...
--- | This should be fixed with the next purs release!
-type Layout msg widget
-  = LayoutBase msg (Widget widget)
 
 -- | `Layout` is a proposition for the form UI representation.
 -- | Provided DSLs in `Forms.Builders` depend on this structure
@@ -32,43 +26,47 @@ type Layout msg widget
 -- | These references are filled out when validation process is finished.
 -- | Please check `Forms.Plain.run` or `Forms.Dual.run`.
 -- |
+type Header msg
+  = { id ∷ Maybe String, title ∷ Maybe msg }
 
-type Header message = { id ∷ Maybe String, title ∷ Maybe message }
-
-type Section message widget =
-  { closed ∷ Maybe (Header message)
-  , errors ∷ Array message
-  , layout ∷ List (LayoutBase message widget)
-  }
-data LayoutBase message widget
-  = Section (Section message widget)
-  | Widget
-    { id ∷ Maybe String
-    , widget ∷ widget
+type Section widget msg
+  = { closed ∷ Maybe (Header msg)
+    , errors ∷ Array msg
+    , layout ∷ List (Layout widget msg)
     }
 
-derive instance functorLayoutBase ∷ Functor (LayoutBase message)
-derive instance genericLayoutBase ∷ Generic (LayoutBase message widgets) _
+data Layout widget msg
+  = Section (Section widget msg)
+  | Widget
+    { id ∷ Maybe String
+    , widget ∷ Widget widget msg
+    }
 
-instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
-  foldMap f (Widget { id, widget }) = f widget
+derive instance functorLayoutBase ∷ Functor (Layout widget)
+
+derive instance genericLayoutBase ∷ Generic (Layout widget msg) _
+
+instance foldableLayoutBase ∷ Foldable (VariantF widget) ⇒ Foldable (Layout widget) where
+  foldMap f (Widget { id, widget }) = foldMap f widget
   foldMap f (Section { layout }) = foldMap (foldMap f) layout
   foldr f = foldrDefault f
   foldl f = foldlDefault f
 
-instance bifunctorLayoutBase ∷ Bifunctor LayoutBase where
-  bimap f g (Section { closed, errors, layout }) =
-    Section
-      $ { closed: (\r → { id: r.id, title: f <$> r.title }) <$> closed
-        , errors: map f errors
-        , layout: bimap f g <$> layout
-        }
-  bimap f g (Widget { id, widget }) = Widget { id, widget: g widget }
+instance traversableLayout ∷ (RowToList widget rl, TraversableVFRL rl widget) ⇒ Traversable (Layout widget) where
+  sequence (Widget { id, widget }) = Widget <<< { id, widget: _ } <$> sequence widget
+  sequence (Section r) =
+    map Section $ { closed: _, errors: _, layout: _ }
+      <$> traverse sequenceHeader r.closed
+      <*> sequence r.errors
+      <*> traverse sequence r.layout
+    where
+    sequenceHeader { id, title } = { id, title: _ } <$> sequence title
+  traverse f = traverseDefault f
 
-instance monoidLayoutBase ∷ Monoid (LayoutBase message widgets) where
+instance monoidLayoutBase ∷ Monoid (Layout widget msg) where
   mempty = Section { closed: Nothing, errors: mempty, layout: mempty }
 
-instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
+instance semigroupLayoutBase ∷ Semigroup (Layout widget msg) where
   -- | TODO: This not nice and trivial strategy for combining form sections.
   -- | We can do better probably.
   append s1@(Section s1r) s2@(Section s2r) = case s1r.closed, s2r.closed of
@@ -117,7 +115,8 @@ instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
         , layout: widget : sr.layout
         }
     otherwise →
-      Section { closed: Nothing
+      Section
+        { closed: Nothing
         , errors: mempty
         , layout: widget : s : List.Nil
         }
@@ -128,10 +127,10 @@ instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
       , layout: widget1 : widget2 : List.Nil
       }
 
-closeSection ∷ ∀ message widgets. Header message → LayoutBase message widgets → LayoutBase message widgets
-closeSection header widgets@(Widget _) = Section { closed: Just header, layout: List.singleton widgets, errors: mempty }
+closeSection ∷ ∀ msg widget. Header msg → Layout widget msg → Layout widget msg
+closeSection header widget@(Widget _) = Section { closed: Just header, layout: List.singleton widget, errors: mempty }
 
-closeSection header widgets@(Section { layout, errors }) = Section { closed: Just header, layout, errors }
+closeSection header (Section { layout, errors }) = Section { closed: Just header, layout, errors }
 
-sectionErrors ∷ ∀ message widgets. Array message → LayoutBase message widgets
+sectionErrors ∷ ∀ msg widget. Array msg → Layout widget msg
 sectionErrors errors = Section { closed: Nothing, layout: mempty, errors }
