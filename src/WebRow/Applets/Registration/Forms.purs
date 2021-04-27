@@ -24,7 +24,7 @@ import WebRow.Mailer (Email(..))
 -- import WebRow.Forms.Fields.Validators (email) as Fields.Validators
 -- import WebRow.Forms.Plain (input, passwordField, sectionValidator) as Forms.Plain
 type Widgets
-  = (TextInput + ())
+  = (TextInput () + ())
 
 type FormLayout
   = Forms.Layout Widgets

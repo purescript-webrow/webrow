@@ -9,7 +9,6 @@ module WebRow.HTTP.Response
   ) where
 
 import Prelude
-
 import HTTPure (Headers)
 import HTTPure (Response, header) as HTTPure
 import HTTPure (empty) as HTTPure.Headers
@@ -24,7 +23,7 @@ import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept, 
 import WebRow.HTTP.Response.Headers (runSetHeader, SetHeader)
 import WebRow.HTTP.Response.Headers (runSetHeader, setHeader, _setHeader, SetHeader, SetHeaderF(..)) as Headers
 import WebRow.HTTP.Response.Types (Body(..), HTTPResponse(..), Parts)
-import WebRow.HTTP.Response.Types (HTTPResponse(..), Parts) as Types
+import WebRow.HTTP.Response.Types (ContentDisposition(..), HTTPResponse(..), Parts) as Types
 import WebRow.Routing.Types (Url(..))
 
 run ∷
@@ -46,11 +45,11 @@ run action = action'
     { status
     , headers
     , writeBody:
-        case body of
-          BodyString string → Body.write string
-          BodyBuffer buffer → Body.write buffer
-          BodyStream stream → Body.write stream
-          BodyWriter writer → Body.write $ BodyWriter.BodyWriter writer
+      case body of
+        BodyString string → Body.write string
+        BodyBuffer buffer → Body.write buffer
+        BodyStream stream → Body.write stream
+        BodyWriter writer → Body.write $ BodyWriter.BodyWriter writer
     }
 
 ok ∷ ∀ eff. String → Run eff HTTPResponse

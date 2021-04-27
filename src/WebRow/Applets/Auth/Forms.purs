@@ -20,7 +20,7 @@ import WebRow.Mailer (Email)
 _authFailed = SProxy ∷ SProxy "authFailed"
 
 type Widgets
-  = (TextInput + ())
+  = (TextInput () + ())
 
 type LoginLayout
   = Forms.Layout Widgets
@@ -36,7 +36,7 @@ loginForm ::
   Forms.Uni
     (Effects.Auth user + eff)
     (AuthFailed + InvalidEmailFormat + MissingValue + errs)
-    (TextInput + ())
+    (TextInput () + ())
     (User user)
 loginForm =
   Uni.build

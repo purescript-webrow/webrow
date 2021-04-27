@@ -19,7 +19,7 @@ html ∷ Html Unit → String
 html body = S.render $ M.html ! A.lang "en" $ body
 
 type FormLayout widgets
-  = Forms.Layout (Forms.TextInput + widgets)
+  = Forms.Layout (Forms.TextInput () + widgets)
 
 type RenderWidgets widgets
   = Variant widgets → Html Unit

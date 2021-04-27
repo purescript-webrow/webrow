@@ -148,7 +148,7 @@ type TextInputInitialsBase info (r ∷ #Type)
     )
 
 type TextInputInitials info eff o
-  = { 
+  = {
     | TextInputInitialsBase info
       + ( validator ∷ Polyform.Validator (MessageM info eff) (Errors info) (Maybe Payload.Value) o )
     }
@@ -157,7 +157,7 @@ textInputBuilder ∷
   ∀ args eff info o widgets.
   NoProblem.Closed.Coerce args (TextInputInitials info eff o) ⇒
   args →
-  Builder eff info (TextInput + widgets) UrlDecoded o
+  Builder eff info (TextInput () + widgets) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
     { constructor
@@ -201,7 +201,7 @@ passwordInputBuilder ∷
   Builder
     eff
     (MissingValue + info)
-    (TextInput + r)
+    (TextInput () + r)
     UrlDecoded
     String
 passwordInputBuilder args =
@@ -223,7 +223,7 @@ optPasswordInputBuilder ∷
   Builder
     eff
     info
-    (TextInput + r)
+    (TextInput () + r)
     UrlDecoded
     (Maybe String)
 optPasswordInputBuilder args =
@@ -258,7 +258,7 @@ emailInputBuilder ∷
   Builder
     eff
     (EmailMessages + MissingValue + info)
-    (TextInput + r)
+    (TextInput () + r)
     UrlDecoded
     Email
 emailInputBuilder args =
@@ -282,7 +282,7 @@ optEmailInputBuilder ∷
   Builder
     eff
     (EmailMessages info)
-    (TextInput + r)
+    (TextInput () + r)
     UrlDecoded
     (Maybe Email)
 optEmailInputBuilder args =

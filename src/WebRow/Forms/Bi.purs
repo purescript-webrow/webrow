@@ -2,6 +2,7 @@ module WebRow.Forms.Bi
   ( Bi
   , Builder(..)
   , build
+  , builder
   , closeSection
   , default
   , diverge
@@ -25,9 +26,7 @@ module WebRow.Forms.Bi
 -- | If you don't like `Forms.Layout` there is a layout
 -- | agnostic definition of `Builder` and `Form` itself provided in
 -- | the submodules.
-
 import Prelude
-
 import Data.Either (Either(..), either)
 import Data.Identity (Identity(..))
 import Data.List (List)
@@ -163,16 +162,18 @@ widgetBuilder { constructor, defaults, dual: d, widgetId } =
     let
       constructor' = map step <<< constructor
         where
-          step widget = Layout.Widget { id: widgetId, widget }
+        step widget = Layout.Widget { id: widgetId, widget }
 
       fromSuccess ∷ Tuple (Widget.Payload inputs) o → MessageM info eff (Layout widgets)
       fromSuccess (Tuple payload o) = Run.expand $ constructor' { payload, names: ns, result: Just (Right o) }
 
       fromFailure ∷ Tuple (Widget.Payload inputs) (Errors info) → MessageM info eff (Layout widgets)
-      fromFailure (Tuple payload e) = Run.expand $ do
-        -- | We are doing error rendering here
-        e' ← traverse message e
-        constructor' { payload, names: ns, result: Just (Left e') }
+      fromFailure (Tuple payload e) =
+        Run.expand
+          $ do
+              -- | We are doing error rendering here
+              e' ← traverse message e
+              constructor' { payload, names: ns, result: Just (Left e') }
 
       widgetDual ∷ Dual eff info widgets (Widget.Payload inputs) o
       widgetDual = Reporter.Dual.liftValidatorDualWithM fromFailure fromSuccess d
@@ -208,8 +209,8 @@ widgetBuilder { constructor, defaults, dual: d, widgetId } =
 -- |   , dual ∷ FieldDual eff info (Widget.Payload inputs) o
 -- |   } →
 -- |   Builder eff info widgets UrlDecoded o
-
-type Id a = a
+type Id a
+  = a
 
 -- | Simple widget which contains only a single "field".
 -- | Which means that it contains single payload "name" and
@@ -233,9 +234,9 @@ fieldBuilder { constructor, default: def, dual: d, widgetId } =
     , widgetId
     }
   where
-    d' = d <<< Validator.Dual.iso (un Identity) Identity
-    constructor' { names: Identity names, payload: Identity payload, result } =
-      constructor { payload, names, result }
+  d' = d <<< Validator.Dual.iso (un Identity) Identity
+
+  constructor' { names: Identity names, payload: Identity payload, result } = constructor { payload, names, result }
 
 builder ∷
   ∀ eff info i o widgets.
@@ -258,8 +259,7 @@ type TextInputInitialsBase info (r ∷ #Type)
     )
 
 type TextInputInitials info eff o
-  = {
-    | TextInputInitialsBase info
+  = { | TextInputInitialsBase info
       + ( dual ∷ FieldDual eff info (Maybe Payload.Value) o )
     }
 
@@ -267,10 +267,11 @@ textInputBuilder ∷
   ∀ args eff info o r.
   NoProblem.Closed.Coerce args (TextInputInitials info eff o) ⇒
   args →
-  Builder eff info (TextInput + r) UrlDecoded o
+  Builder eff info (TextInput () + r) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
-    { constructor, default: Just [ default ! "" ]
+    { constructor
+    , default: Just [ default ! "" ]
     , dual
     , widgetId: NoProblem.toMaybe i.widgetId
     }
@@ -315,7 +316,6 @@ textInputBuilder args =
 --     (liftFn Array.head)
 --     (map Array.singleton >>> pure)
 --   i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials eff info
-
 passwordInputBuilder ∷
   ∀ args eff info r.
   Closed.Coerce args (PasswordInputInitials eff (MissingValue + info)) ⇒
@@ -323,7 +323,7 @@ passwordInputBuilder ∷
   Builder
     eff
     (MissingValue + info)
-    (TextInput + r)
+    (TextInput () + r)
     UrlDecoded
     String
 passwordInputBuilder args =
@@ -338,11 +338,11 @@ passwordInputBuilder args =
   i@{ helpText, label, placeholder } = NoProblem.Closed.coerce args ∷ (PasswordInputInitials eff (MissingValue + info))
 
 -- | Move this to internals
-type LayoutHeader' info =
-  { id ∷ Opt String, title ∷ Opt (Variant info)}
+type LayoutHeader' info
+  = { id ∷ Opt String, title ∷ Opt (Variant info) }
 
-closeSection
-  ∷ ∀ args eff i info o widgets.
+closeSection ∷
+  ∀ args eff i info o widgets.
   NoProblem.Closed.Coerce args (LayoutHeader' info) ⇒
   args →
   Builder eff info widgets i o → Builder eff info widgets i o
@@ -359,6 +359,7 @@ closeSection args (Builder (B.BuilderD bd)) =
       }
   where
   header = NoProblem.Closed.coerce args ∷ LayoutHeader' info
+
   -- | Make this polymorphic
   close' s = do
     title ← header.title # NoProblem.toMaybe # traverse message
