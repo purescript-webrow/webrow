@@ -3,8 +3,6 @@ module WebRow.Forms.Uni
   , default
   , Builder
   , FieldValidator
-  , Layout
-  , MessageM
   , PasswordInputInitials
   , TextInputInitials
   , TextInputInitialsBase
@@ -26,23 +24,22 @@ import Data.Either (Either(..), either)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
-import Data.Traversable (class Traversable, traverse)
+import Data.Traversable (class Traversable)
 import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
 import Data.Undefined.NoProblem (Opt, (!))
 import Data.Undefined.NoProblem (toMaybe) as NoProblem
 import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Closed
-import Data.Variant (Variant)
 import Polyform (Reporter, Validator) as Polyform
-import Polyform.Batteries (Errors)
+import Polyform.Batteries (Msg)
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue, optValidator)
 import Polyform.Batteries.UrlEncoded.Validators (value) as Batteries
 import Polyform.Reporter (liftFn, liftValidatorWith, liftValidatorWithM, lmapM) as Reporter
-import Polyform.Validator (liftFn, lmapM) as Validator
-import Run (Run)
+import Polyform.Validator (liftFn) as Validator
 import Type.Row (type (+))
 import WebRow.Forms.BuilderM (eval) as BuilderM
-import WebRow.Forms.Layout (Layout, LayoutBase(..), closeSection, sectionErrors) as Layout
+import WebRow.Forms.Layout (Layout)
+import WebRow.Forms.Layout (LayoutBase(..), closeSection, sectionErrors) as Layout
 import WebRow.Forms.Payload (UrlDecoded)
 import WebRow.Forms.Payload (Value) as Payload
 import WebRow.Forms.Uni.Builder (Builder(..)) as B
@@ -53,34 +50,27 @@ import WebRow.Forms.Widget (Constructor, Payload, Names, names, payload) as Widg
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Forms.Widgets (textInput) as Widgets
 import WebRow.Mailer (Email)
-import WebRow.Message (MESSAGE, message)
 
-type Layout widgets
-  = Layout.Layout String widgets
+type FieldValidator m msg i o
+  = Polyform.Validator m (Array msg) i o
 
-type MessageM msgs eff
-  = Run ( message ∷ MESSAGE msgs | eff )
-
-type FieldValidator eff info i o
-  = Polyform.Validator (MessageM info eff) (Errors info) i o
-
-newtype Builder eff info widgets i o
+newtype Builder m msg widget i o
   = Builder
-  (B.Builder (MessageM info eff) (Layout widgets) i o)
+  (B.Builder m (Layout msg widget) i o)
 
-newtype Uni eff msgs widgets o
-  = Uni (Form.Form (MessageM msgs eff) (Layout widgets) o)
+newtype Uni m msg widget o
+  = Uni (Form.Form m (Layout msg widget) o)
 
 -- | Not able to derive one - probably monkind issue
-derive newtype instance functorBuilder ∷ Functor (Builder eff info widgets i)
+derive newtype instance functorBuilder ∷ Applicative m ⇒ Functor (Builder m msg widget i)
 
-derive newtype instance applyBuilder ∷ Apply (Builder eff info widgets i)
+derive newtype instance applyBuilder ∷ Monad m ⇒ Apply (Builder m msg widget i)
 
-derive newtype instance applicativeBuilder ∷ Applicative (Builder eff info widgets i)
+derive newtype instance applicativeBuilder ∷ Monad m ⇒ Applicative (Builder m msg widget i)
 
-derive newtype instance semigroupoidBuilder ∷ Semigroupoid (Builder eff info widgets)
+derive newtype instance semigroupoidBuilder ∷ Monad m ⇒ Semigroupoid (Builder m msg widget)
 
-derive newtype instance categoryBuilder ∷ Category (Builder eff info widgets)
+derive newtype instance categoryBuilder ∷ Monad m ⇒ Category (Builder m msg widget)
 
 -- | TODO: Custom names are currently NOT validated.
 -- | We are not able (and don't want) to keep this
@@ -89,17 +79,18 @@ derive newtype instance categoryBuilder ∷ Category (Builder eff info widgets)
 -- | We probably want keep track of used names and provide
 -- | validation on value level during "`safeBuild`".
 fieldBuilder ∷
-  ∀ eff info inputs o widgets.
+  ∀ inputs m msg o widget.
   Traversable inputs ⇒
+  Monad m ⇒
   Monoid (inputs Unit) ⇒
-  { constructor ∷ Widget.Constructor (MessageM info eff) inputs widgets o
+  { constructor ∷ Widget.Constructor m msg inputs widget o
   , defaults ∷ Widget.Payload inputs
   , name ∷ Maybe (Widget.Names inputs)
   , widgetId ∷ Maybe String
-  , validator ∷ FieldValidator eff info (Widget.Payload inputs) o
+  , validator ∷ FieldValidator m msg (Widget.Payload inputs) o
   } →
-  Builder eff info widgets UrlDecoded o
-fieldBuilder { constructor, defaults, name, validator: msgValidator, widgetId } =
+  Builder m msg widget UrlDecoded o
+fieldBuilder { constructor, defaults, name, validator: fieldValidator, widgetId } =
   Builder $ B.Builder
     $ do
         ns ← case name of
@@ -110,16 +101,14 @@ fieldBuilder { constructor, defaults, name, validator: msgValidator, widgetId } 
             where
               step widget = Layout.Widget { id: widgetId, widget }
 
-          fromSuccess ∷ Tuple (Widget.Payload inputs) o → MessageM info eff (Layout widgets)
+          fromSuccess ∷ Tuple (Widget.Payload inputs) o → m (Layout msg widget)
           fromSuccess (Tuple payload o) = constructor' { payload, names: ns, result: Just (Right o) }
 
-          fromFailure ∷ Tuple (Widget.Payload inputs) (Errors info) → MessageM info eff (Layout widgets)
-          fromFailure (Tuple payload e) = do
-            e' ← traverse message e
-            constructor' { payload, names: ns, result: Just (Left e') }
+          fromFailure ∷ Tuple (Widget.Payload inputs) (Array msg) → m (Layout msg widget)
+          fromFailure (Tuple payload e) = constructor' { payload, names: ns, result: Just (Left e) }
 
-          widgetValidator ∷ Polyform.Reporter (MessageM info eff) (Layout widgets) (Widget.Payload inputs) o
-          widgetValidator = Reporter.liftValidatorWithM fromFailure fromSuccess msgValidator
+          widgetValidator ∷ Polyform.Reporter m (Layout msg widget) (Widget.Payload inputs) o
+          widgetValidator = Reporter.liftValidatorWithM fromFailure fromSuccess fieldValidator
 
           reporter =
             widgetValidator
@@ -136,28 +125,29 @@ foreign import data Optional ∷ OptFlag
 foreign import data Required ∷ OptFlag
 
 -- | We reuse this row in Forms.Bi
-type TextInputInitialsBase info (r ∷ #Type)
+type TextInputInitialsBase msg (r ∷ #Type)
   = ( default ∷ Opt String
-    , helpText ∷ Opt (Variant info)
-    , label ∷ Opt (Variant info)
+    , helpText ∷ Opt msg
+    , label ∷ Opt msg
     , name ∷ Opt String
     , type_ ∷ Opt String
-    , placeholder ∷ Opt (Variant info)
+    , placeholder ∷ Opt msg
     , widgetId ∷ Opt String
     | r
     )
 
-type TextInputInitials info eff o
+type TextInputInitials m msg o
   = {
-    | TextInputInitialsBase info
-      + ( validator ∷ Polyform.Validator (MessageM info eff) (Errors info) (Maybe Payload.Value) o )
+    | TextInputInitialsBase msg
+      + ( validator ∷ FieldValidator m msg (Maybe Payload.Value) o )
     }
 
 textInputBuilder ∷
-  ∀ args eff info o widgets.
-  NoProblem.Closed.Coerce args (TextInputInitials info eff o) ⇒
+  ∀ args m msg o widget.
+  Monad m ⇒
+  NoProblem.Closed.Coerce args (TextInputInitials m msg o) ⇒
   args →
-  Builder eff info (TextInput () + widgets) UrlDecoded o
+  Builder m msg ((TextInput msg) () + widget) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
     { constructor
@@ -167,41 +157,42 @@ textInputBuilder args =
     , widgetId: NoProblem.toMaybe i.widgetId
     }
   where
-  i@{ default, validator } = NoProblem.Closed.coerce args ∷ TextInputInitials info eff o
+  i@{ default, validator } = NoProblem.Closed.coerce args ∷ TextInputInitials m msg o
 
   validator' = validator <<< Validator.liftFn (un Identity)
 
   constructor { payload: Identity payload, names: Identity name, result } = do
-    helpText ← i.helpText # NoProblem.toMaybe # traverse message
-    label ← i.label # NoProblem.toMaybe # traverse message
-    placeholder ← i.placeholder # NoProblem.toMaybe # traverse message
-    pure
-      $ Widgets.textInput
-          { type_: i.type_ ! "text"
-          , helpText
-          , label
-          , payload
-          , placeholder
-          , name
-          , result: either Just (const Nothing) <$> result
-          }
+    let
+      helpText = NoProblem.toMaybe i.helpText
+      label = NoProblem.toMaybe i.label
+      placeholder = NoProblem.toMaybe i.placeholder
+    pure $ Widgets.textInput
+      { type_: i.type_ ! "text"
+      , helpText
+      , label
+      , payload
+      , placeholder
+      , name
+      , result: either Just (const Nothing) <$> result
+      }
 
-type PasswordInputInitials eff info
-  = { helpText ∷ Opt (Variant info)
-    , label ∷ Opt (Variant info)
+type PasswordInputInitials m msg
+  = { helpText ∷ Opt msg
+    , label ∷ Opt msg
     , name ∷ Opt String
-    , placeholder ∷ Opt (Variant info)
-    , policy ∷ Opt (FieldValidator eff info String String)
+    , placeholder ∷ Opt msg
+    , policy ∷ Opt (FieldValidator m msg String String)
     }
 
 passwordInputBuilder ∷
-  ∀ args eff info r.
-  NoProblem.Closed.Coerce args (PasswordInputInitials eff (MissingValue + info)) ⇒
+  ∀ args m msg r.
+  Monad m ⇒
+  NoProblem.Closed.Coerce args (PasswordInputInitials m (Msg (MissingValue + msg))) ⇒
   args →
   Builder
-    eff
-    (MissingValue + info)
-    (TextInput () + r)
+    m
+    (Msg (MissingValue + msg))
+    (TextInput (Msg (MissingValue + msg)) () + r)
     UrlDecoded
     String
 passwordInputBuilder args =
@@ -214,16 +205,17 @@ passwordInputBuilder args =
     , validator: Batteries.value >>> (i.policy ! identity)
     }
   where
-  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials eff (MissingValue + info)
+  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials m (Msg (MissingValue + msg))
 
 optPasswordInputBuilder ∷
-  ∀ args eff info r.
-  NoProblem.Closed.Coerce args (PasswordInputInitials eff info) ⇒
+  ∀ args m msg r.
+  Monad m ⇒
+  NoProblem.Closed.Coerce args (PasswordInputInitials m (Msg msg)) ⇒
   args →
   Builder
-    eff
-    info
-    (TextInput () + r)
+    m
+    (Msg msg)
+    (TextInput (Msg msg) () + r)
     UrlDecoded
     (Maybe String)
 optPasswordInputBuilder args =
@@ -236,29 +228,30 @@ optPasswordInputBuilder args =
     , validator: optValidator (i.policy ! identity)
     }
   where
-  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials eff info
+  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ PasswordInputInitials m (Msg msg)
 
 type EmailMessages r
   = InvalidEmailFormat + r
 
-type EmailInputInitials eff info
-  = { label ∷ Opt (Variant info)
+type EmailInputInitials m msg
+  = { label ∷ Opt msg
     , name ∷ Opt String
-    , placeholder ∷ Opt (Variant info)
-    , helpText ∷ Opt (Variant info)
-    , policy ∷ Opt (FieldValidator eff info Email Email)
+    , placeholder ∷ Opt msg
+    , helpText ∷ Opt msg
+    , policy ∷ Opt (FieldValidator m msg Email Email)
     }
 
 emailInputBuilder ∷
-  ∀ args eff info r.
+  ∀ args m msg r.
+  Monad m ⇒
   NoProblem.Closed.Coerce
     args
-    (EmailInputInitials eff (MissingValue + EmailMessages + info)) ⇒
+    (EmailInputInitials m (Msg (MissingValue + EmailMessages + msg))) ⇒
   args →
   Builder
-    eff
-    (EmailMessages + MissingValue + info)
-    (TextInput () + r)
+    m
+    (Msg (EmailMessages + MissingValue + msg))
+    (TextInput (Msg (EmailMessages + MissingValue + msg)) () + r)
     UrlDecoded
     Email
 emailInputBuilder args =
@@ -271,18 +264,19 @@ emailInputBuilder args =
     , validator: Batteries.value >>> Validators.email >>> (i.policy ! identity)
     }
   where
-  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff (EmailMessages + MissingValue + info)
+  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials m (Msg (EmailMessages + MissingValue + msg))
 
 optEmailInputBuilder ∷
-  ∀ args eff info r.
+  ∀ args m msg r.
+  Monad m ⇒
   NoProblem.Closed.Coerce
     args
-    (EmailInputInitials eff (EmailMessages + info)) ⇒
+    (EmailInputInitials m (Msg (EmailMessages + msg))) ⇒
   args →
   Builder
-    eff
-    (EmailMessages info)
-    (TextInput () + r)
+    m
+    (Msg (EmailMessages + msg))
+    (TextInput (Msg (EmailMessages + msg)) () + r)
     UrlDecoded
     (Maybe Email)
 optEmailInputBuilder args =
@@ -295,53 +289,56 @@ optEmailInputBuilder args =
     , validator: optValidator (Validators.email >>> (i.policy ! identity))
     }
   where
-  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials eff (EmailMessages + info)
+  i@{ helpText, label, name, placeholder } = NoProblem.Closed.coerce args ∷ EmailInputInitials m (Msg (EmailMessages + msg))
 
 sectionValidator ∷
-  ∀ eff i info o widgets.
-  Polyform.Validator (MessageM info eff) (Errors info) i o →
-  Builder eff info widgets i o
+  ∀ i m msg o widgets.
+  Monad m ⇒
+  Polyform.Validator m (Array msg) i o →
+  Builder m msg widgets i o
 sectionValidator validator = Builder $ B.Builder $ pure { default: pure mempty, reporter: reporter }
   where
-  validator' = Validator.lmapM (traverse message) validator
+  reporter = Reporter.liftValidatorWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) validator
 
-  reporter = Reporter.liftValidatorWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) validator'
-
-type LayoutHeader' info =
-  { id ∷ Opt String, title ∷ Opt (Variant info)}
+type LayoutHeader' msg =
+  { id ∷ Opt String, title ∷ Opt msg }
 
 closeSection ∷
-  ∀ args eff i info o widgets.
-  NoProblem.Closed.Coerce args (LayoutHeader' info) ⇒
+  ∀ args i m msg o widgets.
+  Monad m ⇒
+  NoProblem.Closed.Coerce args (LayoutHeader' msg) ⇒
   args →
-  Builder eff info widgets i o →
-  Builder eff info widgets i o
+  Builder m msg widgets i o →
+  Builder m msg widgets i o
 closeSection args (Builder (B.Builder b)) =
   Builder
     $ B.Builder do
         { default: d, reporter } ← b
         pure { default: d >>= close, reporter: Reporter.lmapM close reporter }
   where
-  header = NoProblem.Closed.coerce args ∷ (LayoutHeader' info)
+  header = NoProblem.Closed.coerce args ∷ (LayoutHeader' msg)
   close s = do
-    title ← header.title # NoProblem.toMaybe # traverse message
+    let
+      title = NoProblem.toMaybe header.title
     pure $ Layout.closeSection { id: NoProblem.toMaybe header.id, title } s
 
 build ∷
-  ∀ eff info o widgets.
-  Builder eff info widgets UrlDecoded o →
-  Uni eff info widgets o
+  ∀ m msg o widgets.
+  Builder m msg widgets UrlDecoded o →
+  Uni m msg widgets o
 build (Builder (B.Builder b)) = Uni $ Form.Form $ BuilderM.eval b
 
 default ∷
-  ∀ eff info widgets o.
-  Uni eff info widgets o →
-  MessageM info eff (Layout widgets)
+  ∀ m msg widgets o.
+  Uni m msg widgets o →
+  m (Layout msg widgets)
 default (Uni form) = Form.default form
 
 validate ∷
-  ∀ eff info o widgets.
-  Uni eff info widgets o →
+  ∀ m msg o widgets.
+  Functor m ⇒
+  Uni m msg widgets o →
   UrlDecoded →
-  MessageM info eff (Tuple (Maybe o) (Layout widgets))
+  m (Tuple (Maybe o) (Layout msg widgets))
 validate (Uni form) i = Form.validate form i
+

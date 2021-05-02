@@ -8,14 +8,14 @@ import Data.Generic.Rep (class Generic)
 import Data.List (List(..), singleton) as List
 import Data.List (List, (:))
 import Data.Maybe (Maybe(..))
+import Data.Traversable (class Traversable, sequence, traverse, traverseDefault)
 import WebRow.Forms.Widget (Widget)
 
 -- | Because widegts has a row kind (# Type) I'm not able to
 -- | use this type directly. I would not be able
 -- | to provide instances for such a `Layout` type...
--- | This should be fixed with the next purs release!
-type Layout msg widget
-  = LayoutBase msg (Widget widget)
+type Layout message widget
+  = LayoutBase message (Widget widget)
 
 -- | `Layout` is a proposition for the form UI representation.
 -- | Provided DSLs in `Forms.Builders` depend on this structure
@@ -32,14 +32,15 @@ type Layout msg widget
 -- | These references are filled out when validation process is finished.
 -- | Please check `Forms.Plain.run` or `Forms.Dual.run`.
 -- |
+type Header message
+  = { id ∷ Maybe String, title ∷ Maybe message }
 
-type Header message = { id ∷ Maybe String, title ∷ Maybe message }
+type Section message widget
+  = { closed ∷ Maybe (Header message)
+    , errors ∷ Array message
+    , layout ∷ List (LayoutBase message widget)
+    }
 
-type Section message widget =
-  { closed ∷ Maybe (Header message)
-  , errors ∷ Array message
-  , layout ∷ List (LayoutBase message widget)
-  }
 data LayoutBase message widget
   = Section (Section message widget)
   | Widget
@@ -48,6 +49,7 @@ data LayoutBase message widget
     }
 
 derive instance functorLayoutBase ∷ Functor (LayoutBase message)
+
 derive instance genericLayoutBase ∷ Generic (LayoutBase message widgets) _
 
 instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
@@ -55,6 +57,11 @@ instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
   foldMap f (Section { layout }) = foldMap (foldMap f) layout
   foldr f = foldrDefault f
   foldl f = foldlDefault f
+
+instance traversableLayoutBase ∷ Traversable (LayoutBase message) where
+  sequence (Widget { id, widget }) = Widget <<< { id, widget: _ } <$> widget
+  sequence (Section { closed, errors, layout }) = Section <<< { closed, errors, layout: _ } <$> traverse sequence layout
+  traverse f = traverseDefault f
 
 instance bifunctorLayoutBase ∷ Bifunctor LayoutBase where
   bimap f g (Section { closed, errors, layout }) =
@@ -117,7 +124,8 @@ instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
         , layout: widget : sr.layout
         }
     otherwise →
-      Section { closed: Nothing
+      Section
+        { closed: Nothing
         , errors: mempty
         , layout: widget : s : List.Nil
         }

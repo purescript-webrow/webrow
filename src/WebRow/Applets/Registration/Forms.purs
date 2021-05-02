@@ -1,20 +1,24 @@
 module WebRow.Applets.Registration.Forms where
 
 import Prelude
+
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.String (Pattern(..), contains) as String
 import Data.Validation.Semigroup (invalid)
-import Polyform.Batteries (error) as Batteries
+import Data.Variant (Variant)
+import Polyform.Batteries (Msg, error) as Batteries
+import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Validator (check, checkM, liftFn, liftFnV) as Validator
 import Polyform.Validator.Dual (check) as Validator.Dual
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.Applets.Auth.Types (Password(..))
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
-import WebRow.Forms.Uni (Layout) as Forms
+import WebRow.Forms.Layout (Layout) as Forms
 import WebRow.Forms.Uni (build) as Uni
 import WebRow.Forms.Uni (build, emailInputBuilder, passwordInputBuilder, sectionValidator, textInputBuilder) as Forms.Uni
+import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Mailer (Email(..))
 
@@ -23,11 +27,14 @@ import WebRow.Mailer (Email(..))
 -- import WebRow.Forms.Fields.Duals (email) as Fields.Duals
 -- import WebRow.Forms.Fields.Validators (email) as Fields.Validators
 -- import WebRow.Forms.Plain (input, passwordField, sectionValidator) as Forms.Plain
+
+type Msg = Batteries.Msg (MissingValue + InvalidEmailFormat + PasswordsMismatch + EmailTaken + ())
+
 type Widgets
-  = (TextInput () + ())
+  = (TextInput Msg () + ())
 
 type FormLayout
-  = Forms.Layout Widgets
+  = Forms.Layout Msg Widgets
 
 _emailTaken = SProxy ∷ SProxy "emailTaken"
 
@@ -38,7 +45,7 @@ emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { name: "email", policy
   where
   validator =
     Validator.checkM
-      (Batteries.error _emailTaken)
+      (Batteries.error _emailTaken (const "Given email is already taken"))
       (map not <$> Effects.emailTaken)
 
 _passwordsMismatch = SProxy ∷ SProxy "passwordsMismatch"
@@ -54,7 +61,7 @@ passwordForm = Forms.Uni.build $ Forms.Uni.sectionValidator validator <<< passwo
   validator =
     Validator.liftFn (Password <<< _.password1)
       <<< Validator.check
-          (Batteries.error _passwordsMismatch)
+          (Batteries.error _passwordsMismatch (const "Given passwords don't match"))
           (\r → r.password1 == r.password2)
 
   passwordsForm =

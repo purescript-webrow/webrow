@@ -1,11 +1,14 @@
 module WebRow.Forms.Bi.Builder where
 
 import Prelude
+
+import Control.Monad.Writer (WriterT)
 import Data.Newtype (class Newtype, un)
 import Data.Profunctor (class Profunctor, dimap, lcmap)
 import Polyform (Dual(..))
 import Polyform.Batteries.UrlEncoded (Query) as UrlEncoded
-import Polyform.Reporter.Dual (DualD, Dual) as Reporter
+import Polyform.Dual (Dual, DualD) as Dual
+import Polyform.Reporter (Reporter)
 import WebRow.Forms.BuilderM (BuilderM)
 
 type Default layout
@@ -20,7 +23,7 @@ type Default layout
 newtype BuilderD m n layout i o' o
   = BuilderD
   ( BuilderM
-      { dualD ∷ Reporter.DualD m layout i o' o
+      { dualD ∷ Dual.DualD (Reporter m layout) (WriterT layout n) i o' o
       , default ∷ n (Default layout)
       }
   )
@@ -90,7 +93,7 @@ fromDual ∷
   Monoid layout ⇒
   Applicative m ⇒
   Applicative n ⇒
-  Reporter.Dual m layout i o →
+  Dual.Dual (Reporter m layout) (WriterT layout n) i o →
   Builder m n layout i o
 fromDual (Dual d) = Builder $ BuilderD (pure { default: pure mempty, dualD: d })
 
@@ -98,7 +101,7 @@ builder ∷
   ∀ i layout m n o.
   BuilderM
     { default ∷ n (Default layout)
-    , dualD ∷ Reporter.DualD m layout i o o
+    , dualD ∷ Dual.DualD (Reporter m layout) (WriterT layout n) i o o
     } →
   Builder m n layout i o
 builder = Builder <<< BuilderD

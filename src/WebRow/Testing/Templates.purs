@@ -1,10 +1,13 @@
 module WebRow.Testing.Templates where
 
 import Prelude
+
 import Data.Array (head) as Array
 import Data.Foldable (for_)
+import Data.Lazy (force) as Lazy
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Variant (Variant, case_, on)
+import Polyform.Batteries (Msg)
 import Text.Smolder.HTML (Html)
 import Text.Smolder.HTML (div, form, h2, html, input, p) as M
 import Text.Smolder.HTML.Attributes as A
@@ -15,21 +18,24 @@ import Type.Row (type (+))
 import WebRow.Forms (Layout, LayoutBase(..), TextInput) as Forms
 import WebRow.Forms.Widgets (TextInputProps(..), _textInput)
 
+str ∷ ∀ msg. Msg msg → String
+str { msg } = Lazy.force msg
+
 html ∷ Html Unit → String
 html body = S.render $ M.html ! A.lang "en" $ body
 
-type FormLayout widgets
-  = Forms.Layout (Forms.TextInput () + widgets)
+type FormLayout msg widgets
+  = Forms.Layout (Msg msg) (Forms.TextInput (Msg msg) () + widgets)
 
 type RenderWidgets widgets
   = Variant widgets → Html Unit
 
-formBody ∷ ∀ widgets. RenderWidgets widgets → FormLayout widgets → Html Unit
+formBody ∷ ∀ msg widgets. RenderWidgets widgets → FormLayout msg widgets → Html Unit
 formBody renderExtra (Forms.Section { closed, errors, layout }) = do
   -- | TODO: Render form errors
-  for_ errors \msg → M.p $ M.text msg
+  for_ errors \msg → M.p $ M.text (str msg)
   case closed of
-    Just { title } → for_ title \t → M.h2 $ M.text t
+    Just { title } → for_ title \t → M.h2 $ M.text (str t)
     Nothing → pure unit
   for_ layout (formBody renderExtra)
 
@@ -44,11 +50,11 @@ formBody renderExtra (Forms.Widget { widget }) =
           for_ result case _ of
             Just errors →
               for_ errors \msg →
-                M.p $ M.text msg
+                M.p $ M.text (str msg)
             otherwise → pure unit
           M.input ! A.type' type_ ! A.name name ! A.value (fromMaybe "" (payload >>= Array.head))
 
-form ∷ ∀ widgets. RenderWidgets widgets → FormLayout widgets → Html Unit
+form ∷ ∀ msg widgets. RenderWidgets widgets → FormLayout msg widgets → Html Unit
 form renderExtra l = do
   M.form ! A.method "post"
     $ do
@@ -56,5 +62,5 @@ form renderExtra l = do
         M.input ! A.type' "submit" ! A.value "submit"
 
 -- { dangerouslySetInnerHTML: { __html : "<a href=\"https://google.com\">UNSAFE</a>" }}
-form' ∷ FormLayout () → Html Unit
+form' ∷ ∀ msg. FormLayout msg () → Html Unit
 form' = form case_

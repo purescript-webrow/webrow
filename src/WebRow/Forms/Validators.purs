@@ -19,5 +19,7 @@ type InvalidEmailFormat r
 email ∷ ∀ e m. Monad m ⇒ Batteries.Validator m ( invalidEmailFormat ∷ String | e ) String Email
 email =
   Validator.liftFnMaybe
-    (Batteries.error _invalidEmailFormat)
+    (Batteries.error _invalidEmailFormat msg)
     Mailer.email
+  where
+  msg = append "Invalid email format: "

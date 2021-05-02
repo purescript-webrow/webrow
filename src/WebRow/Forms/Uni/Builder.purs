@@ -5,8 +5,10 @@ import Data.Newtype (class Newtype)
 import Polyform (Reporter)
 import WebRow.Forms.BuilderM (BuilderM)
 
--- | Just a `Reporter` but with predefined
--- | default layout.
+-- | We should differenciate monad here
+-- | for default and reporter so we can
+-- | build default layout without
+-- | using heavy context.
 newtype Builder m layout i o
   = Builder
   ( BuilderM

@@ -22,14 +22,14 @@ type Names inputs
 type Widget widgets
   = Variant widgets
 
-type Initials inputs o
+type Initials msg inputs o
   = { payload ∷ Payload inputs
     , names ∷ Names inputs
-    , result ∷ Maybe (Either (Array String) o)
+    , result ∷ Maybe (Either (Array msg) o)
     }
 
-type Constructor m inputs widgets o
-  = Initials inputs o → m (Widget widgets)
+type Constructor m msg inputs widgets o
+  = Initials msg inputs o → m (Widget widgets)
 
 names ∷
   ∀ inputs.

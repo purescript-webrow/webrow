@@ -10,29 +10,31 @@ import WebRow.Forms.Widget (Widget)
 
 _textInput = SProxy ∷ SProxy "textInput"
 
-type TextInputPropsR attrs
-  = { label ∷ Maybe String
+type TextInputPropsRow msg attrs
+  = ( label ∷ Maybe msg
     , payload ∷ Maybe Payload.Value
-    , placeholder ∷ Maybe String
-    , helpText ∷ Maybe String
+    , placeholder ∷ Maybe msg
+    , helpText ∷ Maybe msg
     , name ∷ String
-    , result ∷ Maybe (Maybe (Array String))
+    , result ∷ Maybe (Maybe (Array msg))
     , type_ ∷ String
     | attrs
-    }
+    )
 
-newtype TextInputProps attrs
-  = TextInputProps (TextInputPropsR attrs)
-derive instance newtypeTextInputProps ∷ Newtype (TextInputProps attrs) _
+type TextInputPropsR msg attrs = { | TextInputPropsRow msg attrs }
 
-type TextInput attrs r
-  = ( textInput ∷ TextInputProps attrs
+newtype TextInputProps msg attrs
+  = TextInputProps (TextInputPropsR msg attrs)
+derive instance newtypeTextInputProps ∷ Newtype (TextInputProps msg attrs) _
+
+type TextInput msg attrs r
+  = ( textInput ∷ TextInputProps msg attrs
     | r
     )
 
 textInput ∷
-  ∀ attrs r.
-  TextInputPropsR attrs →
-  Widget (TextInput attrs + r)
+  ∀ attrs msg r.
+  TextInputPropsR msg attrs →
+  Widget (TextInput msg attrs + r)
 textInput args = Variant.inj _textInput (TextInputProps args)
 
