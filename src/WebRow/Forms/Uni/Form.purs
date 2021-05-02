@@ -11,14 +11,14 @@ import WebRow.Forms.Uni.Builder (Builder(..))
 
 newtype Form m layout o
   = Form
-  { default ∷ m layout
+  { default ∷ layout
   , reporter ∷ Reporter m layout UrlDecoded o
   }
 
 build ∷ ∀ layout m o. Builder m layout UrlDecoded o → Form m layout o
 build (Builder b) = Form (BuilderM.eval b)
 
-default :: forall layout m o. Form m layout o -> m layout
+default :: forall layout m o. Form m layout o -> layout
 default (Form form) = _.default form
 
 validate ∷

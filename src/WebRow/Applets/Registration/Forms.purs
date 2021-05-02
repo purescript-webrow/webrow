@@ -22,16 +22,10 @@ import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Mailer (Email(..))
 
--- import WebRow.Forms.Dual ((~))
--- import WebRow.Forms.Dual (Form(..), textInput) as Forms.Dual
--- import WebRow.Forms.Fields.Duals (email) as Fields.Duals
--- import WebRow.Forms.Fields.Validators (email) as Fields.Validators
--- import WebRow.Forms.Plain (input, passwordField, sectionValidator) as Forms.Plain
-
 type Msg = Batteries.Msg (MissingValue + InvalidEmailFormat + PasswordsMismatch + EmailTaken + ())
 
 type Widgets
-  = (TextInput Msg () + ())
+  = (TextInput () + ())
 
 type FormLayout
   = Forms.Layout Msg Widgets

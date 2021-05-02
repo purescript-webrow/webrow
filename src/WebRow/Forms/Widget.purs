@@ -1,13 +1,14 @@
 module WebRow.Forms.Widget where
 
 import Prelude
+
 import Data.Either (Either)
 import Data.Foldable (class Foldable, foldr)
+import Data.Functor.Variant (VariantF)
 import Data.List (List(..), catMaybes, zip) as List
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe)
 import Data.Traversable (class Traversable, for, sequence)
-import Data.Variant (Variant)
 import Polyform.Batteries.UrlEncoded (Query(..)) as UrlEncoded
 import WebRow.Forms.BuilderM (BuilderM)
 import WebRow.Forms.BuilderM (id) as BuilderM
@@ -19,8 +20,8 @@ type Payload inputs
 type Names inputs
   = inputs Payload.Key
 
-type Widget widgets
-  = Variant widgets
+type Widget widgets msg
+  = VariantF widgets msg
 
 type Initials msg inputs o
   = { payload ∷ Payload inputs
@@ -28,8 +29,8 @@ type Initials msg inputs o
     , result ∷ Maybe (Either (Array msg) o)
     }
 
-type Constructor m msg inputs widgets o
-  = Initials msg inputs o → m (Widget widgets)
+type Constructor msg inputs widgets o
+  = Initials msg inputs o → Widget widgets msg
 
 names ∷
   ∀ inputs.

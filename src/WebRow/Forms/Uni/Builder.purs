@@ -12,7 +12,7 @@ import WebRow.Forms.BuilderM (BuilderM)
 newtype Builder m layout i o
   = Builder
   ( BuilderM
-      { default ∷ m layout
+      { default ∷ layout
       , reporter ∷ Reporter m layout i o
       }
   )
@@ -28,7 +28,7 @@ instance applyBuilder ∷ (Monad m, Monoid layout) ⇒ Apply (Builder m layout i
           w1 ← sw1
           w2 ← sw2
           pure
-            { default: append <$> w1.default <*> w2.default
+            { default: w1.default <> w2.default
             , reporter: apply w1.reporter w2.reporter
             }
 
@@ -37,7 +37,7 @@ instance applicativeBuilder ∷ (Monad m, Monoid layout) ⇒ Applicative (Builde
     Builder
       $ do
           pure
-            { default: pure mempty
+            { default: mempty
             , reporter: pure a
             }
 
@@ -48,7 +48,7 @@ instance semigroupoidBuilder ∷ (Monad m, Monoid layout) ⇒ Semigroupoid (Buil
           w1 ← sw1
           w2 ← sw2
           pure
-            { default: append <$> w1.default <*> w2.default
+            { default: w1.default <> w2.default
             , reporter: compose w1.reporter w2.reporter
             }
 
@@ -56,6 +56,6 @@ instance categoryBuilder ∷ (Monad m, Monoid layout) ⇒ Category (Builder m la
   identity =
     Builder
       $ pure
-          { default: pure mempty
+          { default: mempty
           , reporter: identity
           }

@@ -15,7 +15,10 @@ import WebRow.Forms.Widget (Widget)
 -- | use this type directly. I would not be able
 -- | to provide instances for such a `Layout` type...
 type Layout message widget
-  = LayoutBase message (Widget widget)
+  = LayoutBase message (Widget widget message)
+
+mapMessage ∷ ∀ message message' widget. (message → message') → Layout message widget → Layout message' widget
+mapMessage f l = bimap f (map f) l
 
 -- | `Layout` is a proposition for the form UI representation.
 -- | Provided DSLs in `Forms.Builders` depend on this structure
@@ -143,3 +146,4 @@ closeSection header widgets@(Section { layout, errors }) = Section { closed: Jus
 
 sectionErrors ∷ ∀ message widgets. Array message → LayoutBase message widgets
 sectionErrors errors = Section { closed: Nothing, layout: mempty, errors }
+

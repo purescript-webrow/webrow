@@ -1,6 +1,7 @@
 module WebRow.Forms.Uni
   ( build
   , default
+  , defaultM
   , Builder
   , FieldValidator
   , PasswordInputInitials
@@ -34,7 +35,7 @@ import Polyform (Reporter, Validator) as Polyform
 import Polyform.Batteries (Msg)
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue, optValidator)
 import Polyform.Batteries.UrlEncoded.Validators (value) as Batteries
-import Polyform.Reporter (liftFn, liftValidatorWith, liftValidatorWithM, lmapM) as Reporter
+import Polyform.Reporter (liftFn, liftValidatorWith, lmapReporter) as Reporter
 import Polyform.Validator (liftFn) as Validator
 import Type.Row (type (+))
 import WebRow.Forms.BuilderM (eval) as BuilderM
@@ -83,7 +84,7 @@ fieldBuilder ∷
   Traversable inputs ⇒
   Monad m ⇒
   Monoid (inputs Unit) ⇒
-  { constructor ∷ Widget.Constructor m msg inputs widget o
+  { constructor ∷ Widget.Constructor msg inputs widget o
   , defaults ∷ Widget.Payload inputs
   , name ∷ Maybe (Widget.Names inputs)
   , widgetId ∷ Maybe String
@@ -97,18 +98,18 @@ fieldBuilder { constructor, defaults, name, validator: fieldValidator, widgetId 
           Nothing → Widget.names
           Just n → pure n
         let
-          constructor' = map step <<< constructor
+          constructor' = step <<< constructor
             where
               step widget = Layout.Widget { id: widgetId, widget }
 
-          fromSuccess ∷ Tuple (Widget.Payload inputs) o → m (Layout msg widget)
+          fromSuccess ∷ Tuple (Widget.Payload inputs) o → Layout msg widget
           fromSuccess (Tuple payload o) = constructor' { payload, names: ns, result: Just (Right o) }
 
-          fromFailure ∷ Tuple (Widget.Payload inputs) (Array msg) → m (Layout msg widget)
+          fromFailure ∷ Tuple (Widget.Payload inputs) (Array msg) → Layout msg widget
           fromFailure (Tuple payload e) = constructor' { payload, names: ns, result: Just (Left e) }
 
           widgetValidator ∷ Polyform.Reporter m (Layout msg widget) (Widget.Payload inputs) o
-          widgetValidator = Reporter.liftValidatorWithM fromFailure fromSuccess fieldValidator
+          widgetValidator = Reporter.liftValidatorWith fromFailure fromSuccess fieldValidator
 
           reporter =
             widgetValidator
@@ -147,7 +148,7 @@ textInputBuilder ∷
   Monad m ⇒
   NoProblem.Closed.Coerce args (TextInputInitials m msg o) ⇒
   args →
-  Builder m msg ((TextInput msg) () + widget) UrlDecoded o
+  Builder m msg (TextInput () + widget) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
     { constructor
@@ -166,7 +167,7 @@ textInputBuilder args =
       helpText = NoProblem.toMaybe i.helpText
       label = NoProblem.toMaybe i.label
       placeholder = NoProblem.toMaybe i.placeholder
-    pure $ Widgets.textInput
+    Widgets.textInput
       { type_: i.type_ ! "text"
       , helpText
       , label
@@ -192,7 +193,7 @@ passwordInputBuilder ∷
   Builder
     m
     (Msg (MissingValue + msg))
-    (TextInput (Msg (MissingValue + msg)) () + r)
+    (TextInput () + r)
     UrlDecoded
     String
 passwordInputBuilder args =
@@ -215,7 +216,7 @@ optPasswordInputBuilder ∷
   Builder
     m
     (Msg msg)
-    (TextInput (Msg msg) () + r)
+    (TextInput () + r)
     UrlDecoded
     (Maybe String)
 optPasswordInputBuilder args =
@@ -251,7 +252,7 @@ emailInputBuilder ∷
   Builder
     m
     (Msg (EmailMessages + MissingValue + msg))
-    (TextInput (Msg (EmailMessages + MissingValue + msg)) () + r)
+    (TextInput () + r)
     UrlDecoded
     Email
 emailInputBuilder args =
@@ -276,7 +277,7 @@ optEmailInputBuilder ∷
   Builder
     m
     (Msg (EmailMessages + msg))
-    (TextInput (Msg (EmailMessages + msg)) () + r)
+    (TextInput () + r)
     UrlDecoded
     (Maybe Email)
 optEmailInputBuilder args =
@@ -296,7 +297,7 @@ sectionValidator ∷
   Monad m ⇒
   Polyform.Validator m (Array msg) i o →
   Builder m msg widgets i o
-sectionValidator validator = Builder $ B.Builder $ pure { default: pure mempty, reporter: reporter }
+sectionValidator validator = Builder $ B.Builder $ pure { default: mempty, reporter: reporter }
   where
   reporter = Reporter.liftValidatorWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) validator
 
@@ -314,25 +315,33 @@ closeSection args (Builder (B.Builder b)) =
   Builder
     $ B.Builder do
         { default: d, reporter } ← b
-        pure { default: d >>= close, reporter: Reporter.lmapM close reporter }
+        pure { default: close d, reporter: Reporter.lmapReporter close reporter }
   where
   header = NoProblem.Closed.coerce args ∷ (LayoutHeader' msg)
   close s = do
     let
       title = NoProblem.toMaybe header.title
-    pure $ Layout.closeSection { id: NoProblem.toMaybe header.id, title } s
+    Layout.closeSection { id: NoProblem.toMaybe header.id, title } s
 
 build ∷
-  ∀ m msg o widgets.
-  Builder m msg widgets UrlDecoded o →
-  Uni m msg widgets o
+  ∀ m msg o widget.
+  Builder m msg widget UrlDecoded o →
+  Uni m msg widget o
 build (Builder (B.Builder b)) = Uni $ Form.Form $ BuilderM.eval b
 
 default ∷
   ∀ m msg widgets o.
   Uni m msg widgets o →
-  m (Layout msg widgets)
+  Layout msg widgets
 default (Uni form) = Form.default form
+
+-- | Trivial helper to extract default without annotation in a given monad.
+defaultM ∷
+  ∀ m msg widgets o.
+  Applicative m ⇒
+  Uni m msg widgets o →
+  m (Layout msg widgets)
+defaultM (Uni form) = pure $ Form.default form
 
 validate ∷
   ∀ m msg o widgets.

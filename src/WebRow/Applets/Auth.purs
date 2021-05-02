@@ -85,7 +85,8 @@ login ttl =
                   Session.modify ttl _ { user = Just user }
                   pure $ LoginResponse LoginSuccess
         HTTPure.Get → do
-          form ← Forms.Uni.default loginForm
+          let
+            form = Forms.Uni.default loginForm
           pure $ LoginResponse (InitialEmailPassordForm form)
         method → methodNotAllowed'
 

@@ -5,6 +5,7 @@ module WebRow.Forms.Bi
   , builder
   , closeSection
   , default
+  , defaultM
   , diverge
   , dual
   , fieldBuilder
@@ -49,8 +50,8 @@ import Polyform.Batteries.UrlEncoded.Duals (value) as Batteries
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Dual (Dual(..), dual) as Dual
 import Polyform.Reporter (liftFn) as Polyform.Reporter
-import Polyform.Reporter.Dual (DualD, Dual) as Reporter
-import Polyform.Reporter.Dual (liftValidatorDualWith, liftValidatorDualWithM, lmapM) as Reporter.Dual
+import Polyform.Reporter.Dual (Dual, DualD, liftValidatorDualWith) as Reporter.Dual
+import Polyform.Reporter.Dual (Dual) as Reporter
 import Polyform.Validator.Dual (Dual) as Validator
 import Polyform.Validator.Dual (iso) as Validator.Dual
 import Type.Row (type (+))
@@ -83,14 +84,17 @@ import WebRow.Forms.Widgets (textInput) as Widgets
 type FieldDual m msg i o
   = Validator.Dual m (Array msg) i o
 
-type Dual m msg widget i o
-  = Reporter.Dual m (Layout msg widget) i o
+type DualD m msg widget
+  = Reporter.Dual.DualD m (Layout msg widget)
+
+type Dual m msg widget
+  -- = Reporter.Dual m (Layout msg widget) i o
+  = Reporter.Dual.Dual m (Layout msg widget)
 
 -- | TODO: Drop monads unification.
 newtype Builder m msg widget i o
   = Builder
   ( B.BuilderD
-      m
       m
       (Layout msg widget)
       i
@@ -102,29 +106,26 @@ derive newtype instance functorBuilder ∷ Monad m ⇒ Functor (Builder m msg wi
 
 derive newtype instance applyBuilder ∷ (Semigroup i, Monad m) ⇒ Apply (Builder m msg widgets i)
 
-newtype Bi m n msg widgets o
-  = Bi (Form.Form m n (Layout msg widgets) o)
+newtype Bi m msg widgets o
+  = Bi (Form.Form m (Layout msg widgets) o)
 
-instance semigroupoidBuilder ∷ Monad m ⇒ Semigroupoid (Builder m msg widget) where
-  compose (Builder bd1) (Builder bd2) =
+instance semigroupoidBuilder ∷ (Monad m) ⇒ Semigroupoid (Builder m msg widget) where
+  compose (Builder bd1) (Builder bd2) = do
     let
       B.Builder bd = compose (B.Builder bd1) (B.Builder bd2)
-    in
-      Builder bd
+    Builder bd
 
-instance categoryBuilder ∷ Monad m ⇒ Category (Builder m msg widget) where
-  identity =
+instance categoryBuilder ∷ (Monad m) ⇒ Category (Builder m msg widget) where
+  identity = do
     let
       B.Builder bdi = identity
-    in
-      Builder bdi
+    Builder bdi
 
-fromDual ∷ ∀ i m msg o widget. Monad m ⇒ Dual m msg widget i o → Builder m msg widget i o
-fromDual d =
+fromDual ∷ ∀ i m msg o widget. Monad m ⇒ Reporter.Dual m (Layout msg widget) i o → Builder m msg widget i o
+fromDual d = do
   let
     B.Builder bd = B.fromDual d
-  in
-    Builder bd
+  Builder bd
 
 infixl 5 diverge as ~
 
@@ -133,7 +134,7 @@ diverge ∷
   Functor m ⇒
   (o' → o) →
   Builder m msg widget i o →
-  B.BuilderD m m (Layout msg widget) i o' o
+  B.BuilderD m (Layout msg widget) i o' o
 diverge f (Builder b) = lcmap f b
 
 -- | Takes:
@@ -149,7 +150,7 @@ widgetBuilder ∷
   Monad m ⇒
   Monoid (inputs Unit) ⇒
   Traversable inputs ⇒
-  { constructor ∷ Widget.Constructor m msg inputs widget o
+  { constructor ∷ Widget.Constructor msg inputs widget o
   , defaults ∷ Widget.Payload inputs
   , dual ∷ FieldDual m msg (Widget.Payload inputs) o
   , widgetId ∷ Maybe String
@@ -159,18 +160,18 @@ widgetBuilder { constructor, defaults, dual: d, widgetId } =
   builder do
     ns ← Widget.names
     let
-      constructor' = map step <<< constructor
+      constructor' = step <<< constructor
         where
         step widget = Layout.Widget { id: widgetId, widget }
 
-      fromSuccess ∷ Tuple (Widget.Payload inputs) o → m (Layout msg widget)
+      fromSuccess ∷ Tuple (Widget.Payload inputs) o → Layout msg widget
       fromSuccess (Tuple payload o) = constructor' { payload, names: ns, result: Just (Right o) }
 
-      fromFailure ∷ Tuple (Widget.Payload inputs) (Array msg) → m (Layout msg widget)
+      fromFailure ∷ Tuple (Widget.Payload inputs) (Array msg) → Layout msg widget
       fromFailure (Tuple payload e) = constructor' { payload, names: ns, result: Just (Left e) }
 
       widgetDual ∷ Dual m msg widget (Widget.Payload inputs) o
-      widgetDual = Reporter.Dual.liftValidatorDualWithM fromFailure fromSuccess d
+      widgetDual = Reporter.Dual.liftValidatorDualWith fromFailure fromSuccess d
 
       dropMissing ∷ List (Tuple Payload.Key (Maybe Payload.Value)) → List (Tuple Payload.Key Payload.Value)
       dropMissing = List.catMaybes <<< map sequence
@@ -190,8 +191,9 @@ widgetBuilder { constructor, defaults, dual: d, widgetId } =
       { dualD: un Dual.Dual $ widgetDual <<< payloadDual
       , default:
         do
-          layout ← constructor' { payload: defaults, names: ns, result: Nothing }
-          pure { layout, payload: Widget.dump ns defaults }
+          let
+            layout = constructor' { payload: defaults, names: ns, result: Nothing }
+          { layout, payload: Widget.dump ns defaults }
       }
 
 -- | widgetBuilder ∷
@@ -215,7 +217,7 @@ type Id a
 fieldBuilder ∷
   ∀ m msg widget o.
   Monad m ⇒
-  { constructor ∷ Widget.Constructor m msg Id widget o
+  { constructor ∷ Widget.Constructor msg Id widget o
   , default ∷ Maybe Payload.Value
   , dual ∷ FieldDual m msg (Maybe Payload.Value) o
   , widgetId ∷ Maybe String
@@ -236,8 +238,8 @@ fieldBuilder { constructor, default: def, dual: d, widgetId } =
 builder ∷
   ∀ i m msg o widget.
   BuilderM
-    { default ∷ m (Builder.Default (Layout msg widget))
-    , dualD ∷ Reporter.DualD m (Layout msg widget) i o o
+    { default ∷ Builder.Default (Layout msg widget)
+    , dualD ∷ DualD m msg widget i o o
     } →
   Builder m msg widget i o
 builder = Builder <<< B.BuilderD
@@ -264,7 +266,7 @@ textInputBuilder ∷
   Monad m ⇒
   NoProblem.Closed.Coerce args (TextInputInitials msg m o) ⇒
   args →
-  Builder m msg (TextInput msg () + r) UrlDecoded o
+  Builder m msg (TextInput () + r) UrlDecoded o
 textInputBuilder args =
   fieldBuilder
     { constructor
@@ -282,16 +284,15 @@ textInputBuilder args =
       label = NoProblem.toMaybe i.label
 
       placeholder = NoProblem.toMaybe i.placeholder
-    pure
-      $ Widgets.textInput
-          { type_: i.type_ ! "text"
-          , helpText
-          , label
-          , payload
-          , placeholder
-          , name
-          , result: either Just (const Nothing) <$> result
-          }
+    Widgets.textInput
+      { type_: i.type_ ! "text"
+      , helpText
+      , label
+      , payload
+      , placeholder
+      , name
+      , result: either Just (const Nothing) <$> result
+      }
 
 -- optTextInputBuilder ∷
 --   ∀ args eff info r.
@@ -324,7 +325,7 @@ passwordInputBuilder ∷
   Builder
     m
     (Msg (MissingValue + msg))
-    (TextInput (Msg (MissingValue + msg)) () + r)
+    (TextInput () + r)
     UrlDecoded
     String
 passwordInputBuilder args =
@@ -353,13 +354,9 @@ closeSection args (Builder (B.BuilderD bd)) =
   builder do
     { default: d, dualD } ← bd
     pure
-      { default:
-        d
-          >>= \{ layout, payload } → do
-              let
-                layout' = close' layout
-              pure { layout: layout', payload }
-      , dualD: un Polyform.Dual (Reporter.Dual.lmapM (close >>> pure) (Polyform.Dual dualD))
+      { default: { layout: close d.layout, payload: d.payload }
+      -- , dualD: un Polyform.Dual (lmapM (close >>> pure) (Dual.Dual dualD))
+      , dualD: un Polyform.Dual (Dual.Dual dualD)
       }
   where
   header = NoProblem.Closed.coerce args ∷ LayoutHeader' msg
@@ -380,31 +377,37 @@ sectionDual ∷
   Monad m ⇒
   FieldDual m msg i o →
   Builder m msg widget i o
-sectionDual d = builder $ pure { default: pure mempty, dualD }
+sectionDual d = builder $ pure { default: mempty, dualD }
   where
   Polyform.Dual dualD = Reporter.Dual.liftValidatorDualWith (Tuple.snd >>> Layout.sectionErrors) (const mempty) d
 
--- | TODO: We should probably differenciate between monads here....
 default ∷
-  ∀ m msg n o widget.
-  Bi m n msg widget o →
-  n (B.Default (Layout msg widget))
+  ∀ m msg o widget.
+  Bi m msg widget o →
+  B.Default (Layout msg widget)
 default (Bi form) = Form.default form
+
+-- | Trivial helper to extract default without annotation in a given monad.
+defaultM ∷
+  ∀ m msg o widget.
+  Applicative m ⇒
+  Bi m msg widget o →
+  m (B.Default (Layout msg widget))
+defaultM (Bi form) = pure $ Form.default form
 
 -- | Make this consistnent with the above
 -- | probably we want to use just `Tuple` everywhere.
 serialize ∷
-  ∀ m msg n o widgets.
-  Applicative m ⇒
-  Bi m n msg widgets o →
+  ∀ m msg o widgets.
+  Bi m msg widgets o →
   o →
-  n (Tuple UrlDecoded (Layout msg widgets))
+  Tuple UrlDecoded (Layout msg widgets)
 serialize (Bi form) = Form.serialize form
 
 validate ∷
   ∀ m msg o widgets.
   Monad m ⇒
-  Bi m m msg widgets o →
+  Bi m msg widgets o →
   UrlDecoded →
   m (Tuple (Maybe o) (Layout msg widgets))
 validate (Bi form) = Form.validate form
@@ -412,11 +415,11 @@ validate (Bi form) = Form.validate form
 build ∷
   ∀ m msg o widgets.
   Builder m msg widgets UrlDecoded o →
-  Bi m m msg widgets o
+  Bi m msg widgets o
 build (Builder (B.BuilderD b)) = Bi $ Form.Form $ (\r@{ dualD } → { default: r.default, dual: Polyform.Dual r.dualD }) <<< BuilderM.eval $ b
 
 dual ∷
-  ∀ m msg o widgets.
-  Bi m m msg widgets o →
-  Dual m msg widgets UrlDecoded o
+  ∀ m msg o widget.
+  Bi m msg widget o →
+  Dual m msg widget UrlDecoded o
 dual (Bi (Form.Form form)) = form.dual

@@ -7,6 +7,7 @@ module WebRow.Applets.Registration
   ) where
 
 import Prelude
+
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
@@ -31,7 +32,7 @@ import WebRow.Applets.Registration.Types (SignedEmail(..), _registration)
 import WebRow.Crypto (Crypto)
 import WebRow.Crypto (sign, unsign) as Crypto
 import WebRow.Forms.Payload (fromBody)
-import WebRow.Forms.Uni (default, validate) as Forms.Uni
+import WebRow.Forms.Uni (default, defaultM, validate) as Forms.Uni
 import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.HTTP (method, methodNotAllowed')
 import WebRow.Mailer (Email(..), Mailer)
@@ -107,7 +108,8 @@ registerEmail =
                 Tuple _ form → do
                   pure $ RegisterEmailResponse $ EmailValidationFailed form
         HTTPure.Get → do
-          form ← Forms.Uni.default emailTakenForm
+          let
+            form = Forms.Uni.default emailTakenForm
           pure $ ConfirmationResponse $ InitialPasswordForm form
         method → methodNotAllowed'
 
@@ -140,7 +142,7 @@ confirmation signedEmail = do
                         Tuple _ form → do
                           pure $ ConfirmationResponse $ PasswordValidationFailed form
                 HTTPure.Get → do
-                  form ← Forms.Uni.default passwordForm
+                  form ← Forms.Uni.defaultM passwordForm
                   pure $ ConfirmationResponse $ InitialPasswordForm form
                 _ → methodNotAllowed'
   where

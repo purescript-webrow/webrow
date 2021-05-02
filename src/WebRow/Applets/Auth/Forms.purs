@@ -25,7 +25,7 @@ _authFailed = SProxy ∷ SProxy "authFailed"
 type Msg = Batteries.Msg (AuthFailed + MissingValue + InvalidEmailFormat + ())
 
 type Widgets
-  = (TextInput Msg () + ())
+  = (TextInput () + ())
 
 type LoginLayout
   = Forms.Layout Msg Widgets
@@ -41,7 +41,7 @@ loginForm ::
   Forms.Uni
     (Run (Effects.Auth user + eff))
     Msg
-    (TextInput Msg () + ())
+    (TextInput () + ())
     (User user)
 loginForm =
   Uni.build

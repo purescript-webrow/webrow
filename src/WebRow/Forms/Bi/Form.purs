@@ -2,18 +2,19 @@ module WebRow.Forms.Bi.Form where
 
 import Prelude
 
-import Control.Monad.Writer (WriterT, mapWriter, mapWriterT, runWriterT)
+import Control.Monad.Writer (mapWriterT)
 import Data.Lens (over) as Lens
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe)
-import Data.Profunctor.Strong (first, second)
+import Data.Profunctor.Strong (second)
 import Data.Tuple.Nested (type (/\))
 import Polyform (Dual(..))
 import Polyform.Batteries.UrlEncoded (Query) as UrlEncoded
-import Polyform.Dual (Dual, hoistParser, parser, serializer) as Dual
+import Polyform.Dual (hoistParser, parser) as Dual
 import Polyform.Dual (hoistSerializer)
-import Polyform.Reporter (Reporter, lmapReporter)
+import Polyform.Reporter (lmapReporter)
 import Polyform.Reporter (runReporter) as Reporter
+import Polyform.Reporter.Dual (Dual, runSerializer) as Reporter.Dual
 import Type.Prelude (SProxy(..))
 import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..))
 import WebRow.Forms.Bi.Builder (Default) as Builder
@@ -25,21 +26,21 @@ import WebRow.Forms.Payload (UrlDecoded)
 -- | to restrictive but I'm not sure how to
 -- | limit here the build up process to something
 -- | like tranlsations / localizations etc.
-newtype Form m n layout o
+newtype Form m layout o
   = Form
-  { dual ∷ Dual.Dual (Reporter m layout) (WriterT layout n) UrlDecoded o
-  , default ∷ n (Builder.Default layout)
+  { dual ∷ Reporter.Dual.Dual m layout UrlDecoded o
+  , default ∷ Builder.Default layout
   }
 
 -- | Should we change the order so layout is on the last position?
 -- | and we get a proper Functor instance for Form?
-mapLayout ∷ ∀ layout layout' m n o. Functor n ⇒ Monad m ⇒ (layout → layout') → Form m n layout o → Form m n layout' o
+mapLayout ∷ ∀ layout layout' m o. Monad m ⇒ (layout → layout') → Form m layout o → Form m layout' o
 mapLayout f (Form r) = Form
   { dual: hoistSerializer (mapWriterT (map (second f))) <<< Dual.hoistParser (lmapReporter f) $ r.dual
-  , default: map (Lens.over (prop (SProxy ∷ SProxy "layout")) f) r.default
+  , default: Lens.over (prop (SProxy ∷ SProxy "layout")) f r.default
   }
 
-build ∷ ∀ m n o widget. Builder m n widget UrlDecoded o → Form m n widget o
+build ∷ ∀ m o widget. Builder m widget UrlDecoded o → Form m widget o
 build (Builder (BuilderD b)) =
   let
     { dualD, default } = BuilderM.eval b
@@ -47,23 +48,22 @@ build (Builder (BuilderD b)) =
     Form { dual: Dual dualD, default }
 
 default ∷
-  ∀ m msg n o widget.
-  Form m n (Layout msg widget) o →
-  n (Builder.Default (Layout msg widget))
+  ∀ m msg o widget.
+  Form m (Layout msg widget) o →
+  Builder.Default (Layout msg widget)
 default (Form { default: d }) = d
 
 serialize ∷
-  ∀ m msg n o widget.
-  Applicative m ⇒
-  Form m n (Layout msg widget) o →
+  ∀ m msg o widget.
+  Form m (Layout msg widget) o →
   o →
-  n (UrlEncoded.Query /\ Layout msg widget)
-serialize (Form { dual }) = map runWriterT <<< Dual.serializer $ dual
+  UrlEncoded.Query /\ Layout msg widget
+serialize (Form { dual }) = Reporter.Dual.runSerializer $ dual
 
 validate ∷
-  ∀ m msg n o widget.
+  ∀ m msg o widget.
   Monad m ⇒
-  Form m n (Layout msg widget) o →
+  Form m (Layout msg widget) o →
   UrlDecoded →
   m (Maybe o /\ Layout msg widget)
 validate (Form { dual }) = Reporter.runReporter (Dual.parser dual)
