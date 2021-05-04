@@ -29,4 +29,4 @@ eval ∷ ∀ a. BuilderM a → a
 eval (BuilderM a) = evalState a 0
 
 id ∷ BuilderM String
-id = append "id:" <<< show <$> next
+id = append "id" <<< show <$> next
