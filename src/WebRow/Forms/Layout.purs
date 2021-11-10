@@ -11,6 +11,23 @@ import Data.Maybe (Maybe(..))
 import Data.Traversable (class Traversable, sequence, traverse, traverseDefault)
 import WebRow.Forms.Widget (Widget)
 
+-- | Now when we have `VariantF` as a base widget representation and example
+-- | we can slowly move to this cleaner representation I think:
+-- |
+-- | ```purescript
+-- | data Layout (widget :: Type -> Type) msg
+-- |   = Section (Array msg) (Array (Layout widget msg))
+-- |   | Widget (widget msg)
+-- |
+-- | derive instance functorLayout :: Functor widget => Functor (Layout widget)
+-- |
+-- | hoistWidget ::
+-- |   forall msg widget widget'.
+-- |   (widget ~> widget') -> Layout widget msg -> Layout widget' msg
+-- | hoistWidget f (Widget w) = Widget (f w)
+-- | hoistWidget f (Section msgs layouts) = Section msgs (map (hoistWidget f) layouts)
+-- | ```
+
 -- | Because widegts has a row kind (# Type) I'm not able to
 -- | use this type directly. I would not be able
 -- | to provide instances for such a `Layout` type...
@@ -53,6 +70,8 @@ data LayoutBase message widget
 
 derive instance functorLayoutBase ∷ Functor (LayoutBase message)
 
+derive instance eqLayoutBase ∷ (Eq message, Eq widget) ⇒ Eq (LayoutBase message widget)
+
 derive instance genericLayoutBase ∷ Generic (LayoutBase message widgets) _
 
 instance foldableLayoutBase ∷ Foldable (LayoutBase message) where
@@ -78,6 +97,8 @@ instance bifunctorLayoutBase ∷ Bifunctor LayoutBase where
 instance monoidLayoutBase ∷ Monoid (LayoutBase message widgets) where
   mempty = Section { closed: Nothing, errors: mempty, layout: mempty }
 
+
+-- <ws> + <ws>
 instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
   -- | TODO: This not nice and trivial strategy for combining form sections.
   -- | We can do better probably.
@@ -104,7 +125,7 @@ instance semigroupLayoutBase ∷ Semigroup (LayoutBase message widgets) where
       Section
         { closed: Nothing
         , errors: s1r.errors
-        , layout: s1r.layout <> s2 : List.Nil
+        , layout: s1r.layout <> (s2 : List.Nil)
         }
   append s@(Section sr) widget@(Widget _) = case sr.closed of
     Nothing →

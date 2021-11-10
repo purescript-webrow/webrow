@@ -2,27 +2,25 @@ module WebRow.UUID where
 
 import Prelude
 
-import Data.UUID (UUID, genUUID)
-import Run (FProxy, Run, on)
+import Data.UUID (UUID)
+import Data.UUID (genUUID) as UUID
+import Run (Run, on)
 import Run (interpret, liftEffect, send) as Run
-import Type.Prelude (SProxy(..))
+import Type.Prelude (Proxy(..))
 import Type.Row (type (+))
 import WebRow.Contrib.Run (EffRow)
 
-newtype UuidF a = UuidF (UUID → a)
+newtype GenUUID a = GenUUID (UUID → a)
 
-derive instance functorUUIDF ∷ Functor UuidF
+derive instance functorUUIDF ∷ Functor GenUUID
 
-type UUIDF
-  = FProxy UuidF
+type GENUUID eff = (genUUID ∷ GenUUID | eff)
 
-type Uuid eff = (uuid ∷ UUIDF | eff)
+_genUUID = Proxy ∷ Proxy "genUUID"
 
-_uuid = SProxy ∷ SProxy "uuid"
-
-run ∷ ∀ eff. Run (EffRow + Uuid + eff) ~> Run (EffRow + eff)
-run = Run.interpret (on _uuid handleUuid Run.send)
+run ∷ ∀ eff. Run (EffRow + GENUUID + eff) ~> Run (EffRow + eff)
+run = Run.interpret (on _genUUID handleUuid Run.send)
   where
-    handleUuid ∷ ∀ b. UuidF b → Run (EffRow + eff) b
-    handleUuid (UuidF next) = next <$> Run.liftEffect genUUID
+    handleUuid ∷ ∀ b. GenUUID b → Run (EffRow + eff) b
+    handleUuid (GenUUID next) = next <$> Run.liftEffect UUID.genUUID
 

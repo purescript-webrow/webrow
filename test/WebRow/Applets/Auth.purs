@@ -2,6 +2,7 @@ module Test.WebRow.Applets.Auth where
 
 import Prelude
 
+import Data.Map (empty) as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
 import Data.Time.Duration (Seconds(..))
@@ -9,7 +10,7 @@ import Data.Variant (Variant, case_, inj, on)
 import Effect.Class (liftEffect) as Effect
 import Effect.Class.Console (log)
 import Effect.Ref (new, read) as Ref
-import Global.Unsafe (unsafeStringify)
+import JS.Unsafe.Stringify (unsafeStringify)
 import Record.Builder (build) as Record.Builder
 import Routing.Duplex (RouteDuplex', print, root) as D
 import Routing.Duplex.Generic.Variant (variant') as RouteDuplex.Variant
@@ -19,7 +20,7 @@ import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Type.Row (type (+))
 import WebRow.Applets.Auth (RouteRow, routeBuilder, router) as Auth
-import WebRow.Applets.Auth.Effects (Auth, AuthF(..))
+import WebRow.Applets.Auth.Effects (AUTH, Auth(..))
 import WebRow.Applets.Auth.Routes (Route(..)) as Auth.Routes
 import WebRow.Applets.Auth.Testing.Templates (render) as Templates
 import WebRow.Applets.Auth.Types (Password(..), _auth)
@@ -38,7 +39,7 @@ routeDuplex = D.root $ RouteDuplex.Variant.variant' routes
   where
     routes = Record.Builder.build Auth.routeBuilder {}
 
-runAuth ∷ ∀ eff. Run (Auth () + eff) ~> Run eff
+runAuth ∷ ∀ eff. Run (AUTH () + eff) ~> Run eff
 runAuth = Run.run (Run.on _auth handler Run.send)
   where
     handler (Authenticate email password next) = do
@@ -60,7 +61,7 @@ spec = do
   describe "Auth" do
     describe "login" do
       it "flow" do
-        ref ← Effect.liftEffect $ Ref.new mempty
+        ref ← Effect.liftEffect $ Ref.new Map.empty
         let
           sessionStorageConfig =
             { default: { user: Nothing }, ref, key: Nothing }

@@ -8,7 +8,7 @@ import Prelude
 -- import Data.Tuple (Tuple(..))
 -- import Data.Validation.Semigroup (V(..))
 -- import Data.Variant (Variant, inj)
--- import Global.Unsafe (unsafeStringify)
+-- import JS.Unsafe.Stringify (unsafeStringify)
 -- import Polyform.Reporter (R(..), hoistFnMR)
 -- import Polyform.Reporter (Reporter) as Polyform.Reporter
 -- import Polyform.Reporter (hoistValidatorWith) as Reporter

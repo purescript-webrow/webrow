@@ -1,5 +1,6 @@
 module WebRow.HTTP.Cookies
   ( Cookies
+  , COOKIES
   , module Exports
   , _cookies
   , cookies
@@ -22,42 +23,43 @@ import Data.Lazy (Lazy)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Run (Run)
-import Run.State (STATE, getAt, putAt, runStateAt)
+import Run.State (State, getAt, putAt, runStateAt)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import WebRow.Contrib.Data.JSDate (epoch)
-import WebRow.Crypto (Crypto, secret)
+import WebRow.Crypto (CRYPTO, secret)
 import WebRow.HTTP.Cookies.CookieStore (CookieStore(..)) as Exports
 import WebRow.HTTP.Cookies.CookieStore (CookieStore, cookieStore, toSetCookieHeaders)
 import WebRow.HTTP.Cookies.CookieStore (lookup, lookup', lookupJson, lookupJson', set, setJson) as CookieStore
 import WebRow.HTTP.Cookies.Types (Attributes, Name, SetValue, Value, Values, attributes)
 import WebRow.HTTP.Cookies.Types (attributes, Attributes(..), Name, Value, Values, RequestCookies, ResponseCookies, SetValue, defaultAttributes) as Exports
-import WebRow.HTTP.Request (Request)
+import WebRow.HTTP.Request (REQUEST)
 import WebRow.HTTP.Request (headers) as Request
-import WebRow.HTTP.Response (setHeader, SetHeader) as Response
+import WebRow.HTTP.Response (setHeader, SETHEADER) as Response
 
-type Cookies r
-  = ( cookies ∷ STATE CookieStore | r )
+type Cookies = State CookieStore
+
+type COOKIES r = ( cookies ∷ Cookies | r )
 
 _cookies = SProxy ∷ SProxy "cookies"
 
-cookies ∷ ∀ eff. Run (Cookies + eff) CookieStore
+cookies ∷ ∀ eff. Run (COOKIES + eff) CookieStore
 cookies = getAt _cookies
 
-lookup ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Value))
+lookup ∷ ∀ eff. Name → Run (COOKIES + eff) (Lazy (Maybe Value))
 lookup name = CookieStore.lookup name <$> cookies
 
-lookup' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Values))
+lookup' ∷ ∀ eff. Name → Run (COOKIES + eff) (Lazy (Maybe Values))
 lookup' name = CookieStore.lookup' name <$> cookies
 
-lookupJson ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe Json))
+lookupJson ∷ ∀ eff. Name → Run (COOKIES + eff) (Lazy (Maybe Json))
 lookupJson name = CookieStore.lookupJson name <$> cookies
 
-lookupJson' ∷ ∀ eff. Name → Run (Cookies + eff) (Lazy (Maybe (NonEmptyArray Json)))
+lookupJson' ∷ ∀ eff. Name → Run (COOKIES + eff) (Lazy (Maybe (NonEmptyArray Json)))
 lookupJson' name = CookieStore.lookupJson' name <$> cookies
 
 -- | TODO: We should handle here cookie errors like "to large cookies" etc.
-set ∷ ∀ eff. Name → SetValue → Run (Cookies + eff) Boolean
+set ∷ ∀ eff. Name → SetValue → Run (COOKIES + eff) Boolean
 set name v = do
   cookies' ← CookieStore.set name v <$> cookies
   case cookies' of
@@ -66,7 +68,7 @@ set name v = do
       pure true
     Nothing → pure false
 
-setJson ∷ ∀ eff. Name → { json ∷ Json, attributes ∷ Attributes } → Run (Cookies + eff) Boolean
+setJson ∷ ∀ eff. Name → { json ∷ Json, attributes ∷ Attributes } → Run (COOKIES + eff) Boolean
 setJson name v = do
   cookies' ← CookieStore.setJson name v <$> cookies
   case cookies' of
@@ -75,7 +77,7 @@ setJson name v = do
       pure true
     Nothing → pure false
 
-delete ∷ ∀ eff. Name → Run (Cookies + eff) Boolean
+delete ∷ ∀ eff. Name → Run (COOKIES + eff) Boolean
 delete name = set name { value: "", attributes: attributes _ { expires = Just epoch } }
 
 -- | Useful for testing when we want
@@ -84,8 +86,8 @@ delete name = set name { value: "", attributes: attributes _ { expires = Just ep
 runOnStore ∷
   ∀ a eff.
   CookieStore →
-  Run (Cookies + Response.SetHeader + eff) a →
-  Run (Response.SetHeader + eff) a
+  Run (COOKIES + Response.SETHEADER + eff) a →
+  Run (Response.SETHEADER + eff) a
 runOnStore c action = do
   (Tuple cs a) ← runStateAt _cookies c action
   let
@@ -96,8 +98,8 @@ runOnStore c action = do
 
 run ∷
   ∀ a eff.
-  Run (Cookies + Crypto + Request + Response.SetHeader + eff) a →
-  Run (Crypto + Request + Response.SetHeader + eff) a
+  Run (COOKIES + CRYPTO + REQUEST + Response.SETHEADER + eff) a →
+  Run (CRYPTO + REQUEST + Response.SETHEADER + eff) a
 run action = do
   s ← secret
   hs ← Request.headers

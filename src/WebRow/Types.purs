@@ -1,20 +1,21 @@
 module WebRow.Types where
 
+import Data.Variant (Variant)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
-import WebRow.HTTP (HTTPExcept, Request, Cookies)
-import WebRow.Message (Message)
-import WebRow.Routing (Routing')
-import WebRow.Session (Session)
+import WebRow.HTTP (HTTPEXCEPT, REQUEST, COOKIES)
+import WebRow.Message (MESSAGE)
+import WebRow.Routing (ROUTING')
+import WebRow.Session (SESSION)
 
 _webrow = SProxy ∷ SProxy "webrow"
 
 type WebRow messages session routes eff
-  = ( Cookies
-        + HTTPExcept
-        + Message messages
-        + Request
-        + Routing' routes
-        + Session session
+  = ( COOKIES
+        + HTTPEXCEPT
+        + MESSAGE (Variant messages)
+        + REQUEST
+        + ROUTING' routes
+        + SESSION session
         + eff
     )

@@ -1,5 +1,5 @@
 module WebRow.Forms.Bi
-  ( Bi
+  ( Bi(..)
   , Builder(..)
   , build
   , builder
@@ -11,6 +11,7 @@ module WebRow.Forms.Bi
   , fieldBuilder
   , FieldDual
   , fromDual
+  , hoist
   , passwordInputBuilder
   , sectionDual
   , serialize
@@ -27,18 +28,21 @@ module WebRow.Forms.Bi
 -- | If you don't like `Forms.Layout` there is a layout
 -- | agnostic definition of `Builder` and `Form` itself provided in
 -- | the submodules.
+
 import Prelude
+
 import Data.Either (Either(..), either)
+import Data.Functor.Invariant (class Invariant)
 import Data.Identity (Identity(..))
 import Data.List (List)
 import Data.List (catMaybes, fromFoldable, zip) as List
 import Data.Map (fromFoldable) as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (un)
-import Data.Profunctor (lcmap)
+import Data.Profunctor (dimap, lcmap)
 import Data.Traversable (class Traversable, sequence)
-import Data.Tuple (Tuple(..))
 import Data.Tuple (snd) as Tuple
+import Data.Tuple.Nested ((/\), type (/\))
 import Data.Undefined.NoProblem (Opt, (!))
 import Data.Undefined.NoProblem (toMaybe) as NoProblem
 import Data.Undefined.NoProblem.Closed (class Coerce) as Closed
@@ -46,18 +50,19 @@ import Data.Undefined.NoProblem.Closed (class Coerce, coerce) as NoProblem.Close
 import Polyform (Dual(..)) as Polyform
 import Polyform.Batteries (Msg)
 import Polyform.Batteries.UrlEncoded (Query(..)) as UrlEncoded
+import Polyform.Batteries.UrlEncoded (lookup) as UrlEncoded.Query
 import Polyform.Batteries.UrlEncoded.Duals (value) as Batteries
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Dual (Dual(..), dual) as Dual
 import Polyform.Reporter (liftFn) as Polyform.Reporter
-import Polyform.Reporter.Dual (Dual, DualD, liftValidatorDualWith) as Reporter.Dual
 import Polyform.Reporter.Dual (Dual) as Reporter
+import Polyform.Reporter.Dual (Dual, DualD, liftValidatorDualWith) as Reporter.Dual
 import Polyform.Validator.Dual (Dual) as Validator
 import Polyform.Validator.Dual (iso) as Validator.Dual
 import Type.Row (type (+))
 import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..), Default, fromDual) as B
 import WebRow.Forms.Bi.Builder (Default) as Builder
-import WebRow.Forms.Bi.Form (Form(..), default, serialize, validate) as Form
+import WebRow.Forms.Bi.Form (Form(..), default, hoist, serialize, validate) as Form
 import WebRow.Forms.BuilderM (BuilderM)
 import WebRow.Forms.BuilderM (eval) as BuilderM
 import WebRow.Forms.Layout (Layout)
@@ -91,7 +96,6 @@ type Dual m msg widget
   -- = Reporter.Dual m (Layout msg widget) i o
   = Reporter.Dual.Dual m (Layout msg widget)
 
--- | TODO: Drop monads unification.
 newtype Builder m msg widget i o
   = Builder
   ( B.BuilderD
@@ -102,9 +106,8 @@ newtype Builder m msg widget i o
       o
   )
 
-derive newtype instance functorBuilder ∷ Monad m ⇒ Functor (Builder m msg widget i)
-
-derive newtype instance applyBuilder ∷ (Semigroup i, Monad m) ⇒ Apply (Builder m msg widgets i)
+instance Functor m ⇒ Invariant (Builder m msg widget i) where
+  imap f g (Builder b) = Builder (dimap g f b)
 
 newtype Bi m msg widgets o
   = Bi (Form.Form m (Layout msg widgets) o)
@@ -145,6 +148,8 @@ diverge f (Builder b) = lcmap f b
 -- |  (so it doesn't care about field "names" in the HTML form).
 -- |
 -- | Returns a form `Builder` which can be composed into larger one easily.
+-- |
+-- | Consider abstracting over a `Layout`. How hard the API would be then?
 widgetBuilder ∷
   ∀ inputs m msg widget o.
   Monad m ⇒
@@ -164,16 +169,16 @@ widgetBuilder { constructor, defaults, dual: d, widgetId } =
         where
         step widget = Layout.Widget { id: widgetId, widget }
 
-      fromSuccess ∷ Tuple (Widget.Payload inputs) o → Layout msg widget
-      fromSuccess (Tuple payload o) = constructor' { payload, names: ns, result: Just (Right o) }
+      fromSuccess ∷ Widget.Payload inputs /\ o → Layout msg widget
+      fromSuccess (payload /\ o) = constructor' { payload, names: ns, result: Just (Right o) }
 
-      fromFailure ∷ Tuple (Widget.Payload inputs) (Array msg) → Layout msg widget
-      fromFailure (Tuple payload e) = constructor' { payload, names: ns, result: Just (Left e) }
+      fromFailure ∷ Widget.Payload inputs /\ Array msg → Layout msg widget
+      fromFailure (payload /\ e) = constructor' { payload, names: ns, result: Just (Left e) }
 
       widgetDual ∷ Dual m msg widget (Widget.Payload inputs) o
       widgetDual = Reporter.Dual.liftValidatorDualWith fromFailure fromSuccess d
 
-      dropMissing ∷ List (Tuple Payload.Key (Maybe Payload.Value)) → List (Tuple Payload.Key Payload.Value)
+      dropMissing ∷ List (Payload.Key /\ Maybe Payload.Value) → List (Payload.Key /\ Payload.Value)
       dropMissing = List.catMaybes <<< map sequence
 
       payloadDual ∷ Dual m msg widget UrlDecoded (Widget.Payload inputs)
@@ -193,7 +198,12 @@ widgetBuilder { constructor, defaults, dual: d, widgetId } =
         do
           let
             layout = constructor' { payload: defaults, names: ns, result: Nothing }
-          { layout, payload: Widget.dump ns defaults }
+
+            overwrite query = do
+              let
+                payload = map (flip UrlEncoded.Query.lookup query) ns
+              constructor' { payload, names: ns, result: Nothing }
+          { layout, overwrite, payload: Widget.dump ns defaults }
       }
 
 -- | widgetBuilder ∷
@@ -354,7 +364,8 @@ closeSection args (Builder (B.BuilderD bd)) =
   builder do
     { default: d, dualD } ← bd
     pure
-      { default: { layout: close d.layout, payload: d.payload }
+      { default: { layout: close d.layout, overwrite: close <<< d.overwrite, payload: d.payload }
+      -- | TODO: Test what is going on here!
       -- , dualD: un Polyform.Dual (lmapM (close >>> pure) (Dual.Dual dualD))
       , dualD: un Polyform.Dual (Dual.Dual dualD)
       }
@@ -401,7 +412,7 @@ serialize ∷
   ∀ m msg o widgets.
   Bi m msg widgets o →
   o →
-  Tuple UrlDecoded (Layout msg widgets)
+  UrlDecoded /\ Layout msg widgets
 serialize (Bi form) = Form.serialize form
 
 validate ∷
@@ -409,7 +420,7 @@ validate ∷
   Monad m ⇒
   Bi m msg widgets o →
   UrlDecoded →
-  m (Tuple (Maybe o) (Layout msg widgets))
+  m (Maybe o /\ Layout msg widgets)
 validate (Bi form) = Form.validate form
 
 build ∷
@@ -423,3 +434,12 @@ dual ∷
   Bi m msg widget o →
   Dual m msg widget UrlDecoded o
 dual (Bi (Form.Form form)) = form.dual
+
+hoist ∷
+  ∀ m m' msg o widget.
+  Functor m ⇒
+  (m ~> m') →
+  Bi m msg widget o →
+  Bi m' msg widget o
+hoist f (Bi form) = Bi (Form.hoist f form)
+

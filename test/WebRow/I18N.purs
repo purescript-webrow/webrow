@@ -3,7 +3,7 @@ module Test.WebRow.I18N where
 import Prelude hiding ((/))
 import Data.Either (hush)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Show.Generic (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Variant (Variant)
 import Routing.Duplex (RouteDuplex', parse, print)

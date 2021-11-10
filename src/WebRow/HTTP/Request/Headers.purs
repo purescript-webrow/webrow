@@ -18,12 +18,12 @@ import Run (Run)
 import Run.Reader (askAt)
 import Type.Row (type (+))
 import WebRow.HTTP.MediaTypes (parse) as MediaTypes
-import WebRow.HTTP.Request.Request (Request, _request)
+import WebRow.HTTP.Request.Request (REQUEST, _request)
 
-headers ∷ ∀ eff. Run (Request + eff) HTTPure.Headers
+headers ∷ ∀ eff. Run (REQUEST + eff) HTTPure.Headers
 headers = _.headers <$> askAt _request
 
-header ∷ ∀ eff. String → Run (Request + eff) (Maybe String)
+header ∷ ∀ eff. String → Run (REQUEST + eff) (Maybe String)
 header name = flip HTTPure.lookup name <$> headers
 
 data MediaPattern
@@ -39,7 +39,7 @@ derive instance eqMediaPattern ∷ Eq MediaPattern
 
 -- | TODO: Parse also quality factor like q=0.8
 -- | https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation/List_of_default_Accept_values
-accept ∷ ∀ eff. Run (Request + eff) (Array { pattern ∷ MediaPattern, q ∷ Maybe String })
+accept ∷ ∀ eff. Run (REQUEST + eff) (Array { pattern ∷ MediaPattern, q ∷ Maybe String })
 accept = do
   parse <$> header "Accept"
   where
@@ -59,7 +59,7 @@ accept = do
       Nothing → UnkonwnMediaPattern p
 
 -- | TODO: POSSIBLY A BUGGY STUB! We should check for patterns like img/* etc. probably
-accepts ∷ ∀ eff. MediaPattern → Run (Request + eff) Boolean
+accepts ∷ ∀ eff. MediaPattern → Run (REQUEST + eff) Boolean
 accepts pattern = do
   patterns ← accept
   pure $ pattern `Array.elem` map _.pattern patterns

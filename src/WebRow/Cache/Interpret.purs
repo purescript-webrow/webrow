@@ -6,13 +6,12 @@ import Data.Argonaut (Json)
 import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, jsonParser, stringify) as Argonaut
 import Data.Either (hush)
 import Data.Maybe (Maybe)
-import Data.Symbol (SProxy)
 import Prim.Row (class Cons) as Row
 import Run (Run)
 import Run as Run
-import Type.Prelude (class IsSymbol)
+import Type.Prelude (class IsSymbol, Proxy(..))
 import Type.Row (type (+))
-import WebRow.Cache.Effect (CACHE, CacheF(..), Key, Cache, _cache)
+import WebRow.Cache.Effect (CACHE, Cache(..), Key, Cache, _cache)
 
 -- | Do we want to drop `delete` and use `put ∷ Key → Maybe a → m Boolean`
 type Interface m attrs a
@@ -73,13 +72,13 @@ argonautify =
 runOnInterfaceAt ∷
   ∀ a attrs eff eff' l v.
   IsSymbol l ⇒
-  Row.Cons l (CACHE attrs v) eff eff' ⇒
-  SProxy l →
+  Row.Cons l (Cache attrs v) eff eff' ⇒
+  Proxy l →
   Interface (Run eff) attrs v →
   Run eff' a → Run eff a
 runOnInterfaceAt l interface = Run.interpret (Run.on l handleKeyValueStore Run.send)
   where
-  handleKeyValueStore ∷ ∀ b. CacheF attrs v b → Run eff b
+  handleKeyValueStore ∷ ∀ b. Cache attrs v b → Run eff b
   handleKeyValueStore = case _ of
     DeleteF k next → pure next
     LookupF k next → interface.lookup k <#> next
@@ -88,6 +87,6 @@ runOnInterfaceAt l interface = Run.interpret (Run.on l handleKeyValueStore Run.s
 runOnInterface ∷
   ∀ a attrs eff v.
   Interface (Run eff) attrs v →
-  Run (Cache attrs v + eff) a →
+  Run (CACHE attrs v + eff) a →
   Run eff a
 runOnInterface = runOnInterfaceAt _cache

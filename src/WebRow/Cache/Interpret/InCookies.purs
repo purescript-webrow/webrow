@@ -3,16 +3,15 @@ module WebRow.Cache.Interpret.InCookies where
 import Prelude
 
 import Data.Lazy (force) as Lazy
-import Run (Run)
+import Run (EFFECT, Run)
 import Type.Row (type (+))
 import WebRow.Cache.Interpret (Interface)
-import WebRow.Contrib.Run (EffRow)
-import WebRow.Crypto (Crypto)
+import WebRow.Crypto (CRYPTO)
+import WebRow.HTTP (COOKIES)
 import WebRow.HTTP.Cookies (Attributes, delete, lookup, set) as Cookies
-import WebRow.HTTP.Cookies (Cookies)
 
 type InCookies a
-  = Interface (Run (Cookies + Crypto + EffRow + ())) Cookies.Attributes a
+  = Interface (Run (COOKIES + CRYPTO + EFFECT + ())) Cookies.Attributes a
 
 inCookies ∷ InCookies String
 inCookies =

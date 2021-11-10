@@ -13,7 +13,7 @@ import Routing.Duplex.Generic.Syntax ((/), (?))
 import Run (Run)
 import Type.Row (type (+))
 import WebRow.Applets.Registration.Types (Namespace, SignedEmail, _registration, namespace)
-import WebRow.Routing (FullUrl, Routing')
+import WebRow.Routing (FullUrl, ROUTING')
 import WebRow.Routing (printFullRoute) as Route
 
 data Route
@@ -43,5 +43,5 @@ routeBuilder ∷
   Record.Builder.Builder { | routes } { registration ∷ RouteDuplex' Route | routes }
 routeBuilder = Record.Builder.insert _registration localDuplex
 
-printFullRoute ∷ ∀ eff routes. Route → Run (Routing' (RouteRow routes) + eff) FullUrl
+printFullRoute ∷ ∀ eff routes. Route → Run (ROUTING' (RouteRow routes) + eff) FullUrl
 printFullRoute = Route.printFullRoute <<< namespace

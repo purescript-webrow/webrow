@@ -4,15 +4,14 @@ import Prelude
 
 import Data.Either (note)
 import Data.Validation.Semigroup (V(..))
-import Data.Variant (Variant)
 import Polyform.Batteries (Msg, error) as Batteries
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Validator (liftFnMV) as Validator
-import Run (Run(..))
-import Type.Prelude (SProxy(..))
+import Run (Run)
+import Type.Prelude (Proxy(..))
 import Type.Row (type (+))
-import WebRow.Applets.Auth.Effects (Auth, authenticate) as Effects
-import WebRow.Applets.Auth.Effects (User)
+import WebRow.Applets.Auth.Effects (authenticate) as Effects
+import WebRow.Applets.Auth.Effects (User, AUTH)
 import WebRow.Applets.Auth.Types (Password(..))
 import WebRow.Forms (Uni, Layout) as Forms
 import WebRow.Forms.Uni (Builder, build, emailInputBuilder, passwordInputBuilder, sectionValidator) as Uni
@@ -20,7 +19,7 @@ import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.Forms.Widgets (TextInput)
 import WebRow.Mailer (Email)
 
-_authFailed = SProxy ∷ SProxy "authFailed"
+_authFailed = Proxy ∷ Proxy "authFailed"
 
 type Msg = Batteries.Msg (AuthFailed + MissingValue + InvalidEmailFormat + ())
 
@@ -37,9 +36,9 @@ type AuthFailed r
   = ( authFailed ∷ AuthPayload | r )
 
 loginForm ::
-  forall eff errs user.
+  forall eff user.
   Forms.Uni
-    (Run (Effects.Auth user + eff))
+    (Run (AUTH user + eff))
     Msg
     (TextInput () + ())
     (User user)
@@ -49,9 +48,9 @@ loginForm =
     <<< ({ email: _, password: _ } <$> emailFormBuilder <*> passwordFormBuilder)
   where
   autheticateBuilder ∷
-    ∀ errs' widgets'.
+    ∀ widgets'.
     Uni.Builder
-      (Run (Effects.Auth user + eff))
+      (Run (AUTH user + eff))
       Msg
       -- (AuthFailed + errs')
       widgets'

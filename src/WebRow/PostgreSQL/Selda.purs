@@ -12,8 +12,8 @@ import Selda.PG.Class (class InsertRecordIntoTableReturning, BackendPGClass)
 import Selda.Query.Class (class GenericInsert)
 import Selda.Query.Utils (class ColsToPGHandler, class TableToColsWithoutAlias)
 import Type.Row (type (+))
-import WebRow.PostgreSQL.Internal (connection, liftPGAff)
-import WebRow.PostgreSQL.PG (Pg)
+import WebRow.PostgreSQL.Internal (connection, liftPgAff)
+import WebRow.PostgreSQL.PG (PG)
 
 query ∷
   ∀ eff i mode o tup.
@@ -21,10 +21,10 @@ query ∷
   GetCols i ⇒
   FromSQLRow tup ⇒
   FullQuery BackendPGClass { | i } →
-  Run (Pg mode + eff) (Array { | o })
+  Run (PG mode + eff) (Array { | o })
 query q = do
   conn ← connection
-  liftPGAff (Selda.PG.Aff.query conn q)
+  liftPgAff (Selda.PG.Aff.query conn q)
 
 query1 ∷
   ∀ eff i o mode tup.
@@ -32,52 +32,52 @@ query1 ∷
   GetCols i ⇒
   FromSQLRow tup ⇒
   FullQuery BackendPGClass { | i } →
-  Run (Pg mode + eff) (Maybe { | o })
+  Run (PG mode + eff) (Maybe { | o })
 query1 q = do
   conn ← connection
-  liftPGAff (Selda.PG.Aff.query1 conn q)
+  liftPgAff (Selda.PG.Aff.query1 conn q)
 
 insert ∷
   ∀ eff mode r t ret.
   InsertRecordIntoTableReturning r t ret ⇒
-  Table t → Array { | r } → Run (Pg mode + eff) (Array { | ret })
+  Table t → Array { | r } → Run (PG mode + eff) (Array { | ret })
 insert table xs = do
   conn ← connection
-  liftPGAff $ Selda.PG.Aff.insert conn table xs
+  liftPgAff $ Selda.PG.Aff.insert conn table xs
 
 insert_ ∷
   ∀ eff mode r t.
   GenericInsert BackendPGClass PGSelda t r ⇒
-  Table t → Array { | r } → Run (Pg mode + eff) Unit
+  Table t → Array { | r } → Run (PG mode + eff) Unit
 insert_ table xs = do
   conn ← connection
-  liftPGAff $ Selda.PG.Aff.insert_ conn table xs
+  liftPgAff $ Selda.PG.Aff.insert_ conn table xs
 
 insert1 ∷
   ∀ eff mode r t ret.
   InsertRecordIntoTableReturning r t ret ⇒
-  Table t → { | r } → Run (Pg mode + eff) { | ret }
+  Table t → { | r } → Run (PG mode + eff) { | ret }
 insert1 table xs = do
   conn ← connection
-  liftPGAff $ Selda.PG.Aff.insert1 conn table xs
+  liftPgAff $ Selda.PG.Aff.insert1 conn table xs
 
 insert1_ ∷
   ∀ eff mode t r.
   GenericInsert BackendPGClass PGSelda t r ⇒
-  Table t → { | r } → Run (Pg mode + eff) Unit
+  Table t → { | r } → Run (PG mode + eff) Unit
 insert1_ table r = do
   conn ← connection
-  liftPGAff $ Selda.PG.Aff.insert1_ conn table r
+  liftPgAff $ Selda.PG.Aff.insert1_ conn table r
 
 deleteFrom ∷
   ∀ eff mode r r'.
   TableToColsWithoutAlias BackendPGClass r r' ⇒
   Table r →
   ({ | r' } → Col BackendPGClass Boolean) →
-  Run (Pg mode + eff) Unit
+  Run (PG mode + eff) Unit
 deleteFrom table r = do
   conn ← connection
-  liftPGAff $ Selda.PG.Aff.deleteFrom conn table r
+  liftPgAff $ Selda.PG.Aff.deleteFrom conn table r
 
 update ∷
   ∀ eff mode r r'.
@@ -86,7 +86,7 @@ update ∷
   Table r →
   ({ | r' } → Col BackendPGClass Boolean) →
   ({ | r' } → { | r' }) →
-  Run (Pg mode + eff) Unit
+  Run (PG mode + eff) Unit
 update table pred up = do
   conn ← connection
-  liftPGAff $ Selda.PG.Aff.update conn table pred up
+  liftPgAff $ Selda.PG.Aff.update conn table pred up

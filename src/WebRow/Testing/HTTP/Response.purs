@@ -10,10 +10,10 @@ import Run (Run)
 import Run (on, run, send) as Run
 import Run.Except (catchAt)
 import Type.Row (type (+))
-import WebRow.HTTP (HTTPExcept)
+import WebRow.HTTP (HTTPEXCEPT)
 import WebRow.HTTP (HTTPException) as HTTP
 import WebRow.HTTP.Response (HTTPResponse(..), Parts) as HTTP.Response
-import WebRow.HTTP.Response (HTTPResponse, SetHeader, SetHeaderF(..), _httpExcept, _setHeader)
+import WebRow.HTTP.Response (HTTPResponse, SETHEADER, SetHeader(..), _httpExcept, _setHeader)
 import WebRow.HTTP.Response.Headers (setHeaderOnParts)
 import WebRow.HTTP.Response.Types (Body(..))
 
@@ -49,19 +49,19 @@ runRender r rCtx = do
 
 runHTTPExcept ∷
   ∀ eff res.
-  Run (HTTPExcept + eff) (Response res) →
+  Run (HTTPEXCEPT + eff) (Response res) →
   Run eff (Response res)
 runHTTPExcept = catchAt _httpExcept (\e → pure $ HTTPException e HTTPure.Headers.empty)
 
 runSetHeader ∷
   ∀ res eff.
-  Run (SetHeader + eff) (Response res) →
+  Run (SETHEADER + eff) (Response res) →
   Run eff (Response res)
 runSetHeader =
   Run.run
     $ Run.on _setHeader go Run.send
   where
-  go (SetHeaderF k v a) = pure (set k v <$> a)
+  go (SetHeader k v a) = pure (set k v <$> a)
 
   set k v (HTTPException e h) = HTTPException e (HTTPure.header k v <> h)
 

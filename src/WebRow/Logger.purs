@@ -3,59 +3,57 @@ module WebRow.Logger
   , err
   , info
   , LOGGER
-  , Logger
+  , LOGGER
   , runToConsole
   , warning
-  , LoggerF(..)
+  , Logger(..)
   , module Level
   ) where
 
 import Prelude
 
 import Data.Symbol (SProxy(..))
-import Data.Variant.Internal (FProxy)
 import Effect.Class.Console as Console
 import Run (Run, AFF)
 import Run as Run
+import Type.Prelude (Proxy(..))
+import Type.Row (type (+))
 import WebRow.Logger.Level (Level(..))
 import WebRow.Logger.Level (Level(..)) as Level
 
-data LoggerF a = LoggerF Level String a
+data Logger a = Logger Level String a
 
-derive instance functorLoggerF ∷ Functor LoggerF
+derive instance functorLogger ∷ Functor Logger
 
-type LOGGER
-  = FProxy LoggerF
-
-type Logger r = (logger ∷ LOGGER | r)
+type LOGGER r = (logger ∷ Logger | r)
 
 _logger = SProxy ∷ SProxy "logger"
 
-log ∷ ∀ eff. Level → String → Run ( logger ∷ LOGGER | eff ) Unit
-log lvl msg = Run.lift _logger (LoggerF lvl msg unit)
+log ∷ ∀ eff. Level → String → Run ( LOGGER + eff ) Unit
+log lvl msg = Run.lift _logger (Logger lvl msg unit)
 
-debug ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
+debug ∷ ∀ eff. String → Run ( LOGGER + eff ) Unit
 debug = log Debug
 
-info ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
+info ∷ ∀ eff. String → Run ( LOGGER + eff ) Unit
 info = log Info
 
-warning ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
+warning ∷ ∀ eff. String → Run ( LOGGER + eff ) Unit
 warning = log Warning
 
-err ∷ ∀ eff. String → Run ( logger ∷ LOGGER | eff ) Unit
+err ∷ ∀ eff. String → Run ( LOGGER + eff ) Unit
 err = log Err
 
 runToConsole ∷
   ∀ a eff.
-  Run ( aff ∷ AFF, logger ∷ LOGGER | eff ) a →
-  Run ( aff ∷ AFF | eff ) a
+  Run ( AFF + LOGGER + eff ) a →
+  Run ( AFF + eff ) a
 runToConsole = Run.interpret (Run.on _logger handleLoggerConsole Run.send)
   where
   handleLoggerConsole ∷
     ∀ b.
-    LoggerF b →
-    Run ( aff ∷ AFF | eff ) b
-  handleLoggerConsole (LoggerF lvl msg next) = do
+    Logger b →
+    Run ( AFF + eff ) b
+  handleLoggerConsole (Logger lvl msg next) = do
     Run.liftAff $ Console.log $ (show lvl) <> ":> " <> show msg
     pure next

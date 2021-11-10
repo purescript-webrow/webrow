@@ -10,16 +10,14 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), joinWith, split, trim)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
-import Debug.Trace (traceM)
 import Foreign.Object as Object
-import Global.Unsafe (unsafeDecodeURIComponent, unsafeEncodeURIComponent)
 import HTTPure (Headers, lookup) as HTTPure
-import Run (Run)
+import Run (EFFECT, Run)
 import Type.Row (type (+))
-import WebRow.Contrib.Run (EffRow)
-import WebRow.Crypto (Crypto)
+import WebRow.Contrib.JSURI (unsafeDecodeURIComponent, unsafeEncodeURIComponent)
+import WebRow.Crypto (CRYPTO)
 import WebRow.HTTP.Cookies.Types (Attributes(..), Name, RequestCookies, SameSite(..), SetValue, Value, Values)
-import WebRow.HTTP.Response (SetHeader, setHeader) as HTTP.Response
+import WebRow.HTTP.Response (SETHEADER, setHeader) as HTTP.Response
 
 requestCookies ∷ HTTPure.Headers → RequestCookies
 requestCookies hs =
@@ -32,7 +30,7 @@ setCookie ∷
   ∀ eff.
   Name →
   SetValue →
-  Run (EffRow + Crypto + HTTP.Response.SetHeader + eff) Unit
+  Run (EFFECT + CRYPTO + HTTP.Response.SETHEADER + eff) Unit
 setCookie name { value, attributes } = do
   let
     h = setCookieHeaderValue name value attributes

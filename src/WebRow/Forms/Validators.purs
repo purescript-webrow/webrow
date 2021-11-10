@@ -3,7 +3,7 @@ module WebRow.Forms.Validators where
 import Prelude
 import Polyform.Batteries (Validator, error) as Batteries
 import Polyform.Validator (liftFnMaybe) as Validator
-import Type.Prelude (SProxy(..))
+import Type.Prelude (Proxy(..))
 import Type.Row (type (+))
 import WebRow.Mailer (Email)
 import WebRow.Mailer (email) as Mailer
@@ -11,7 +11,7 @@ import WebRow.Mailer (email) as Mailer
 type Messages msgs
   = (InvalidEmailFormat + msgs)
 
-_invalidEmailFormat = SProxy ∷ SProxy "invalidEmailFormat"
+_invalidEmailFormat = Proxy ∷ Proxy "invalidEmailFormat"
 
 type InvalidEmailFormat r
   = ( invalidEmailFormat ∷ String | r )

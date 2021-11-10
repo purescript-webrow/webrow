@@ -1,11 +1,12 @@
 module WebRow.Testing.HTTP where
 
 import Prelude
+import Control.Alt ((<|>))
 import Data.Array (singleton) as Array
 import Data.Lazy (defer) as Lazy
 import Data.List (List(..), reverse) as List
 import Data.List (List)
-import Data.Map (fromFoldableWithIndex) as Map
+import Data.Map (empty, fromFoldableWithIndex) as Map
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
@@ -20,10 +21,10 @@ import Polyform.Batteries.UrlEncoded (Query(..)) as UrlEncoded
 import Polyform.Batteries.UrlEncoded.Query (unsafeEncode) as UrlEncoded
 import Prim.Row (class Union) as Row
 import Routing.Duplex (RouteDuplex')
-import Run (Run, runBaseAff')
+import Run (Run, runBaseAff', AFF, EFFECT)
 import Run (expand, liftEffect) as Run
 import Run.Reader (runReaderAt)
-import Run.State (STATE, evalStateAt, getAt, putAt, runStateAt)
+import Run.State (State, evalStateAt, getAt, putAt, runStateAt)
 import Run.Streaming (Client, Producer, Server, request, respond, yield) as S
 import Run.Streaming.Prelude (fold, take) as S.P
 import Run.Streaming.Pull (chain) as S.Pull
@@ -31,15 +32,13 @@ import Run.Streaming.Pull (feed) as Pull
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
 import Type.Row.Homogeneous (class Homogeneous)
-import WebRow.Contrib.Run (AffRow, EffRow)
-import WebRow.Crypto (Crypto, Secret(..), _crypto)
-import WebRow.HTTP (Cookies, HTTPExcept, ResponseCookies, SetHeader)
+import WebRow.Crypto (CRYPTO, Secret(..), _crypto)
+import WebRow.HTTP (COOKIES, HTTPEXCEPT, REQUEST, ResponseCookies, SETHEADER)
 import WebRow.HTTP.Cookies (_cookies)
 import WebRow.HTTP.Cookies.CookieStore (CookieStore(..))
 import WebRow.HTTP.Cookies.Types (RequestCookies)
-import WebRow.HTTP.Request (Request)
-import WebRow.Routing (Routing, runRouting)
-import WebRow.Session (Session)
+import WebRow.Routing (ROUTING, runRouting)
+import WebRow.Session (SESSION)
 import WebRow.Testing.HTTP.Cookies (toRequestCookies)
 import WebRow.Testing.HTTP.Response (Render) as Response
 import WebRow.Testing.HTTP.Response (Response) as Testing.HTTP
@@ -64,8 +63,8 @@ type HTTPSessionConfig
 
 _httpSession = SProxy ∷ SProxy "httpSession"
 
-type HTTPSession eff
-  = ( httpSession ∷ STATE ClientCookies | eff )
+type HTTPSESSION eff
+  = ( httpSession ∷ State ClientCookies | eff )
 
 -- | During request response exchange
 type Client session res eff
@@ -73,8 +72,8 @@ type Client session res eff
       { cookies ∷ RequestCookies, request ∷ HTTPure.Request }
       { cookies ∷ ResponseCookies, response ∷ Response res }
       ( S.Producer (Exchange res)
-          + HTTPSession
-          + Session session
+          + HTTPSESSION
+          + SESSION session
           + eff
       )
 
@@ -91,7 +90,7 @@ request req = do
     S.request
       { cookies: requestCookies, request: req }
   let
-    clientCookies' = responseCookies <> clientCookies
+    clientCookies' = responseCookies <|> clientCookies
   putAt _httpSession clientCookies'
   S.yield
     { clientCookies: clientCookies'
@@ -149,17 +148,17 @@ post_ ∷
 post_ url payload = post url payload *> pure unit
 
 type ServerRow session routes res eff
-  = ( AffRow
-        + Cookies
-        + Crypto
-        + EffRow
-        + HTTPSession
-        + HTTPExcept
+  = ( AFF
+        + COOKIES
+        + CRYPTO
+        + EFFECT
+        + HTTPSESSION
+        + HTTPEXCEPT
         + S.Producer (Exchange res)
-        + Routing routes
-        + Request
-        + Session session
-        + SetHeader
+        + ROUTING routes
+        + REQUEST
+        + SESSION session
+        + SETHEADER
         + eff
     )
 
@@ -184,31 +183,31 @@ run ∷
   RouteDuplex' routes →
   Response.Render (Server session routes res + eff) res →
   Run (Server session routes res + eff) res →
-  Run (AffRow + Client session res + EffRow + eff) Unit →
-  Run (AffRow + EffRow + eff) (History res)
+  Run (AFF + Client session res + EFFECT + eff) Unit →
+  Run (AFF + EFFECT + eff) (History res)
 run sessionStoreConfig routeDuplex render server client = do
   let
     runSession = Testing.Session.runInMemory sessionStoreConfig
   runSession
-    $ evalStateAt _httpSession (mempty ∷ ClientCookies)
+    $ evalStateAt _httpSession (Map.empty ∷ ClientCookies)
     $ httpExchange
   where
   -- | This can be a bit unintuitive but we have to expand
   -- | row with another yield so the consumer `take' 100`
   -- | can swallow it.
-  httpExchange ∷ Run (AffRow + EffRow + HTTPSession + Session session + eff) (List (Exchange res))
+  httpExchange ∷ Run (AFF + EFFECT + HTTPSESSION + SESSION session + eff) (List (Exchange res))
   httpExchange = go # Pull.feed (S.P.take 100) # S.P.fold (flip List.Cons) List.Nil List.reverse
 
   -- | I don't really need this signature here but
   -- | maybe it can be a small hint what is going on.
   go ∷
     Run
-      ( AffRow
-          + EffRow
-          + HTTPSession
+      ( AFF
+          + EFFECT
+          + HTTPSESSION
           + S.Producer (Exchange res)
           + S.Producer (Exchange res)
-          + Session session
+          + SESSION session
           + eff
       )
       Unit
@@ -220,7 +219,7 @@ run sessionStoreConfig routeDuplex render server client = do
       CookieStore
         { requestCookies: Lazy.defer \_ → requestCookies
         , secret
-        , responseCookies: mempty
+        , responseCookies: Map.empty
         }
 
     server' { cookies: requestCookies, request: req } =
@@ -250,7 +249,7 @@ runAff ∷
   RouteDuplex' routes →
   Response.Render (Server session routes res + ()) res →
   Run (Server session routes res + ()) res →
-  Run (AffRow + Client session res + EffRow + ()) Unit →
+  Run (AFF + Client session res + EFFECT + ()) Unit →
   Aff (History res)
 runAff sessionStore routeDuplex render server client = do
   runBaseAff' $ run sessionStore routeDuplex render server client
@@ -265,10 +264,10 @@ run' ∷
   RouteDuplex' routes →
   Response.Render (Server session routes res + eff) res →
   Run (Server session routes res + eff) res →
-  Run (AffRow + Client session res + EffRow + eff) Unit →
-  Run (AffRow + EffRow + eff) (History res)
+  Run (AFF + Client session res + EFFECT + eff) Unit →
+  Run (AFF + EFFECT + eff) (History res)
 run' defaultSession routeDuplex render server client = do
-  ref ← Run.liftEffect (Effect.Ref.new mempty)
+  ref ← Run.liftEffect (Effect.Ref.new Map.empty)
   let
     sc = { ref, default: defaultSession, key: Nothing }
   run sc routeDuplex render server client
@@ -283,10 +282,10 @@ runAff' ∷
   RouteDuplex' routes →
   Response.Render (Server session routes res + ()) res →
   Run (Server session routes res + ()) res →
-  Run (AffRow + Client session res + EffRow + ()) Unit →
+  Run (AFF + Client session res + EFFECT + ()) Unit →
   Aff (History res)
 runAff' defaultSession routeDuplex render server client = do
-  ref ← Effect.liftEffect (Effect.Ref.new mempty)
+  ref ← Effect.liftEffect (Effect.Ref.new Map.empty)
   let
     sc = { ref, default: defaultSession, key: Nothing }
   runBaseAff' $ run sc routeDuplex render server client

@@ -12,8 +12,8 @@ import Database.PostgreSQL.Pool (idleCount, totalCount) as Pool
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Exception (error) as Effect.Exception
-import Global.Unsafe (unsafeStringify)
-import Run (Run)
+import JS.Unsafe.Stringify (unsafeStringify)
+import Run (AFF, Run, EFFECT)
 import Run (liftAff, liftEffect) as Run
 import Run.Except (catchAt, throwAt)
 import Selda (Table(..))
@@ -22,12 +22,11 @@ import Test.Spec.Assertions (shouldEqual) as Assertions
 import Test.Spec.Assertions (shouldEqual) as Spec
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
-import WebRow.Contrib.Run (AffRow, EffRow)
-import WebRow.PostgreSQL (Outside, Pg, Query(..), Row0(..), Row1, Row3(..), PgExcept, _pgExcept)
+import WebRow.PostgreSQL (Outside, PGEXCEPT, Pg, Query(..), Row0(..), Row1, Row3(..), PG, _pgExcept)
 import WebRow.PostgreSQL (run) as PG
 import WebRow.PostgreSQL.PG (execute, query) as PG
 import WebRow.PostgreSQL.PG (withTransaction)
-import WebRow.Resource (Resource, runBaseResource')
+import WebRow.Resource (RESOURCE, runBaseResource')
 import WebRow.Testing.Assertions (shouldEqual)
 
 type PeopleRow = ( age ∷ Maybe Int, id ∷ Int, name ∷ String )
@@ -40,7 +39,7 @@ type PersonPGRow = Row3 Int String (Maybe Int)
 
 _testErr = SProxy ∷ SProxy "testErr"
 
-initDb ∷ ∀ eff mode. Run (Pg mode + eff) Unit
+initDb ∷ ∀ eff mode. Run (PG mode + eff) Unit
 initDb =
   do
     let
@@ -74,7 +73,7 @@ initDb =
     PG.execute sql Row0
 
 
-runTest ∷ ∀ a. Pool → Run (AffRow + EffRow + Pg Outside + PgExcept + Resource + ()) a → Aff a
+runTest ∷ ∀ a. Pool → Run (AFF + EFFECT + PG Outside + PGEXCEPT + RESOURCE + ()) a → Aff a
 runTest pool action =
   runBaseResource'
   <<< catchAt _pgExcept (\e → Run.liftEffect $ throwError $ Effect.Exception.error (unsafeStringify e))

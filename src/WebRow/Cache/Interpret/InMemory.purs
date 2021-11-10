@@ -2,7 +2,7 @@ module WebRow.Cache.Interpret.InMemory where
 
 import Prelude
 import Data.Map (Map)
-import Data.Map (delete, insert, lookup) as Map
+import Data.Map (delete, empty, insert, lookup) as Map
 import Effect (Effect)
 import Effect.Ref (Ref)
 import Effect.Ref (modify, new, read) as Ref
@@ -15,7 +15,7 @@ type InMemory attrs a
 -- | based implementation done through mutable
 -- | reference.
 new ∷ ∀ a attrs. Effect (InMemory attrs a)
-new = forRef <$> Ref.new mempty
+new = forRef <$> Ref.new Map.empty
 
 forRef ∷ ∀ a attrs. Ref (Map String a) → InMemory attrs a
 forRef ref =

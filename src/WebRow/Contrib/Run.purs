@@ -5,10 +5,8 @@ import Type.Prelude (SProxy(..))
 
 _effect = SProxy ∷ SProxy "effect"
 
-type EffRow eff
-  = ( effect ∷ EFFECT | eff )
+type EffRow eff = EFFECT eff
 
 _aff = SProxy ∷ SProxy "aff"
 
-type AffRow eff
-  = ( aff ∷ AFF | eff )
+type AffRow eff = AFF eff

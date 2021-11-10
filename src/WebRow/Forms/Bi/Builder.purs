@@ -1,7 +1,6 @@
 module WebRow.Forms.Bi.Builder where
 
 import Prelude
-
 import Data.Newtype (class Newtype, un)
 import Data.Profunctor (class Profunctor, dimap, lcmap)
 import Polyform (Dual(..))
@@ -11,6 +10,7 @@ import WebRow.Forms.BuilderM (BuilderM)
 
 type Default layout
   = { layout ∷ layout
+    , overwrite ∷ UrlEncoded.Query → layout
     , payload ∷ UrlEncoded.Query
     }
 

@@ -11,7 +11,7 @@ import Polyform.Batteries (Msg, error) as Batteries
 import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Polyform.Validator (check, checkM, liftFn, liftFnV) as Validator
 import Polyform.Validator.Dual (check) as Validator.Dual
-import Type.Prelude (SProxy(..))
+import Type.Prelude (Proxy(..))
 import Type.Row (type (+))
 import WebRow.Applets.Auth.Types (Password(..))
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
@@ -30,7 +30,7 @@ type Widgets
 type FormLayout
   = Forms.Layout Msg Widgets
 
-_emailTaken = SProxy ∷ SProxy "emailTaken"
+_emailTaken = Proxy ∷ Proxy "emailTaken"
 
 type EmailTaken r
   = ( emailTaken ∷ Email | r )
@@ -42,7 +42,7 @@ emailTakenForm = Uni.build $ Forms.Uni.emailInputBuilder { name: "email", policy
       (Batteries.error _emailTaken (const "Given email is already taken"))
       (map not <$> Effects.emailTaken)
 
-_passwordsMismatch = SProxy ∷ SProxy "passwordsMismatch"
+_passwordsMismatch = Proxy ∷ Proxy "passwordsMismatch"
 
 type PasswordsInput
   = { password1 ∷ String, password2 ∷ String }
@@ -63,7 +63,7 @@ passwordForm = Forms.Uni.build $ Forms.Uni.sectionValidator validator <<< passwo
       <$> Forms.Uni.passwordInputBuilder {}
       <*> Forms.Uni.passwordInputBuilder {}
 
--- _sameEmail = SProxy ∷ SProxy "sameEmail"
+-- _sameEmail = Proxy ∷ Proxy "sameEmail"
 -- 
 -- -- | This an example of "Forms.Dual.Form"
 -- -- | we are going to drop it from here

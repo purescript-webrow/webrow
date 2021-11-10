@@ -10,25 +10,26 @@ import HTTPure.Request (Request) as HTTPure
 import Polyform.Batteries.UrlEncoded (Query)
 import Polyform.Batteries.UrlEncoded.Query (parse) as Query
 import Run (Run)
-import Run.Reader (READER, askAt, runReaderAt)
-import Type.Prelude (SProxy(..))
+import Run.Reader (Reader, askAt, runReaderAt)
+import Type.Prelude (Proxy(..))
 import Type.Row (type (+))
 
-type Request r
-  = ( request ∷ READER HTTPure.Request | r )
+type Request = Reader HTTPure.Request
 
-_request = SProxy ∷ SProxy "request"
+type REQUEST r = ( request ∷ Request | r )
 
-fullPath ∷ ∀ eff. Run (Request + eff) String
+_request = Proxy ∷ Proxy "request"
+
+fullPath ∷ ∀ eff. Run (REQUEST + eff) String
 fullPath = _.url <$> askAt _request
 
-body ∷ ∀ eff. Run (Request + eff) String
+body ∷ ∀ eff. Run (REQUEST + eff) String
 body = _.body <$> askAt _request
 
-method ∷ ∀ eff. Run (Request + eff) HTTPure.Method
+method ∷ ∀ eff. Run (REQUEST + eff) HTTPure.Method
 method = _.method <$> askAt _request
 
-query ∷ ∀ eff. Run (Request + eff) Query
+query ∷ ∀ eff. Run (REQUEST + eff) Query
 query = parse <$> fullPath
   where
     split = String.Pattern >>> String.split
@@ -44,6 +45,6 @@ query = parse <$> fullPath
 runRequest ∷
   ∀ a eff.
   HTTPure.Request →
-  Run (Request + eff) a →
+  Run (REQUEST + eff) a →
   Run eff a
 runRequest r = runReaderAt _request r

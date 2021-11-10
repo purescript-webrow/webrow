@@ -14,12 +14,11 @@ import Polyform.Dual (hoistParser, parser) as Dual
 import Polyform.Dual (hoistSerializer)
 import Polyform.Reporter (lmapReporter)
 import Polyform.Reporter (runReporter) as Reporter
-import Polyform.Reporter.Dual (Dual, runSerializer) as Reporter.Dual
+import Polyform.Reporter.Dual (Dual, hoist, runSerializer) as Reporter.Dual
 import Type.Prelude (SProxy(..))
 import WebRow.Forms.Bi.Builder (Builder(..), BuilderD(..))
 import WebRow.Forms.Bi.Builder (Default) as Builder
 import WebRow.Forms.BuilderM (eval) as BuilderM
-import WebRow.Forms.Layout (Layout)
 import WebRow.Forms.Payload (UrlDecoded)
 
 -- | `m` in the context of `default` seems a bit
@@ -34,10 +33,14 @@ newtype Form m layout o
 
 -- | Should we change the order so layout is on the last position?
 -- | and we get a proper Functor instance for Form?
+-- | We are not able to provide any interesting instance for `o` because
+-- | it is part of the internal `Dual`.
 mapLayout ∷ ∀ layout layout' m o. Monad m ⇒ (layout → layout') → Form m layout o → Form m layout' o
 mapLayout f (Form r) = Form
   { dual: hoistSerializer (mapWriterT (map (second f))) <<< Dual.hoistParser (lmapReporter f) $ r.dual
-  , default: Lens.over (prop (SProxy ∷ SProxy "layout")) f r.default
+  , default:
+      Lens.over (prop (SProxy ∷ SProxy "overwrite")) (map f)
+      $ Lens.over (prop (SProxy ∷ SProxy "layout")) f r.default
   }
 
 build ∷ ∀ m o widget. Builder m widget UrlDecoded o → Form m widget o
@@ -47,23 +50,32 @@ build (Builder (BuilderD b)) =
   in
     Form { dual: Dual dualD, default }
 
+hoist ∷
+  ∀ layout m m' o.
+  Functor m ⇒
+  (m ~> m') →
+  Form m layout o →
+  Form m' layout o
+hoist f (Form { default: d, dual }) = Form { default: d, dual: Reporter.Dual.hoist f dual }
+
 default ∷
-  ∀ m msg o widget.
-  Form m (Layout msg widget) o →
-  Builder.Default (Layout msg widget)
+  ∀ layout m o.
+  Form m layout o →
+  Builder.Default layout
 default (Form { default: d }) = d
 
 serialize ∷
-  ∀ m msg o widget.
-  Form m (Layout msg widget) o →
+  ∀ layout m o.
+  Form m layout o →
   o →
-  UrlEncoded.Query /\ Layout msg widget
+  UrlEncoded.Query /\ layout
 serialize (Form { dual }) = Reporter.Dual.runSerializer $ dual
 
 validate ∷
-  ∀ m msg o widget.
+  ∀ layout m o.
   Monad m ⇒
-  Form m (Layout msg widget) o →
+  Form m layout o →
   UrlDecoded →
-  m (Maybe o /\ Layout msg widget)
+  m (Maybe o /\ layout)
 validate (Form { dual }) = Reporter.runReporter (Dual.parser dual)
+

@@ -1,7 +1,7 @@
 module WebRow.Applets.Registration.Testing.Templates where
 
 import Prelude
-import Global.Unsafe (unsafeStringify)
+import JS.Unsafe.Stringify (unsafeStringify)
 import Run (Run)
 import Text.Smolder.HTML (a, p) as M
 import Text.Smolder.HTML.Attributes as A
@@ -13,10 +13,10 @@ import WebRow.Applets.Registration.Responses (ChangeEmailResponse(..), Confirmat
 import WebRow.Applets.Registration.Responses (Response) as Registration
 import WebRow.HTTP (HTTPResponse)
 import WebRow.HTTP.Response (ok)
-import WebRow.Routing (FullUrl(..), Routing')
+import WebRow.Routing (FullUrl(..), ROUTING')
 import WebRow.Testing.Templates (form', html)
 
-render :: forall routes t7. Registration.Response -> Run (Routing' ( auth ∷ Auth.Routes.Route | routes ) + t7) HTTPResponse
+render :: forall routes t7. Registration.Response -> Run (ROUTING' ( auth ∷ Auth.Routes.Route | routes ) + t7) HTTPResponse
 render = case _ of
   RegisterEmailResponse r → case r of
     EmailValidationFailed formLayout → ok $ html $ form' formLayout

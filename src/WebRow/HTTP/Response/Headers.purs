@@ -4,41 +4,37 @@ import Prelude
 
 import Data.Maybe (Maybe(..))
 import Data.MediaType (MediaType(..))
-import Data.Symbol (SProxy(..))
-import Data.Variant.Internal (FProxy)
 import HTTPure (header) as HTTPure
 import Run (Run)
 import Run (lift, on, run, send) as Run
+import Type.Prelude (Proxy(..))
 import Type.Row (type (+))
 import WebRow.HTTP.Response.Except (HTTPException(..))
 import WebRow.HTTP.Response.Types (ContentDisposition(..), HTTPResponse(..), Parts)
 
--- | TODO: Change to `SetHeaders (Tuple String String)`
-data SetHeaderF a
-  = SetHeaderF String String a
+-- | TODO: Change to `SETHEADERs (Tuple String String)`
+data SetHeader a
+  = SetHeader String String a
 
-derive instance functorModifyF ∷ Functor SetHeaderF
+derive instance functorModifyF ∷ Functor SetHeader
 
-type SETHEADER
-  = FProxy SetHeaderF
+type SETHEADER r
+  = ( setHeader ∷ SetHeader | r )
 
-type SetHeader r
-  = ( setHeader ∷ SETHEADER | r )
-
-_setHeader = SProxy ∷ SProxy "setHeader"
+_setHeader = Proxy ∷ Proxy "setHeader"
 
 setHeader ∷
   ∀ eff.
   String →
   String →
-  Run ( setHeader ∷ SETHEADER | eff ) Unit
-setHeader k v = Run.lift _setHeader (SetHeaderF k v unit)
+  Run ( SETHEADER + eff ) Unit
+setHeader k v = Run.lift _setHeader (SetHeader k v unit)
 
-setContentType ∷ ∀ eff. MediaType → Run (SetHeader + eff) Unit
+setContentType ∷ ∀ eff. MediaType → Run (SETHEADER + eff) Unit
 setContentType (MediaType t) =
   setHeader "Content-Type" t
 
-setContentDisposition ∷ ∀ eff. ContentDisposition → Run (SetHeader + eff) Unit
+setContentDisposition ∷ ∀ eff. ContentDisposition → Run (SETHEADER + eff) Unit
 setContentDisposition = case _ of
   Inline → setHeader header "inline"
   Attachment Nothing → setHeader header "attachment"
@@ -58,10 +54,10 @@ setHeaderOnHTTPResponse k v (HTTPResponse parts) = HTTPResponse $ setHeaderOnPar
 
 runSetHeader ∷
   ∀ eff.
-  Run (SetHeader + eff) HTTPResponse →
+  Run (SETHEADER + eff) HTTPResponse →
   Run (eff) HTTPResponse
 runSetHeader =
   Run.run
     $ Run.on _setHeader setOnResponse Run.send
   where
-  setOnResponse (SetHeaderF k v a) = pure $ setHeaderOnHTTPResponse k v <$> a
+  setOnResponse (SetHeader k v a) = pure $ setHeaderOnHTTPResponse k v <$> a

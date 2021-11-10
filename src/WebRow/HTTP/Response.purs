@@ -1,7 +1,5 @@
 module WebRow.HTTP.Response
-  ( module Except
-  , module Headers
-  , module Types
+  ( module Exports
   , found
   , ok
   , okWithHeaders
@@ -17,18 +15,19 @@ import HTTPure.Status (found, ok) as HTTPure.Status
 import Run (Run)
 import Run.Except (catchAt)
 import Type.Row (type (+))
+import WebRow.HTTP.Response.BodyWriter (BodyWriter(..)) as Exports
 import WebRow.HTTP.Response.BodyWriter (BodyWriter(..)) as BodyWriter
-import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept)
-import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPExcept, notFound) as Except
-import WebRow.HTTP.Response.Headers (runSetHeader, SetHeader)
-import WebRow.HTTP.Response.Headers (runSetHeader, setHeader, _setHeader, SetHeader, SetHeaderF(..)) as Headers
+import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPEXCEPT)
+import WebRow.HTTP.Response.Except (_httpExcept, HTTPException(..), HTTPEXCEPT, HTTPExcept(..), notFound) as Exports
+import WebRow.HTTP.Response.Headers (runSetHeader, SETHEADER, SetHeader)
+import WebRow.HTTP.Response.Headers (runSetHeader, setHeader, _setHeader, SETHEADER, SetHeader(..)) as Exports
 import WebRow.HTTP.Response.Types (Body(..), HTTPResponse(..), Parts)
-import WebRow.HTTP.Response.Types (ContentDisposition(..), HTTPResponse(..), Parts) as Types
+import WebRow.HTTP.Response.Types (ContentDisposition(..), HTTPResponse(..), Parts) as Exports
 import WebRow.Routing.Types (Url(..))
 
 run ∷
   ∀ eff.
-  Run (SetHeader + HTTPExcept + eff) HTTPResponse →
+  Run (SETHEADER + HTTPEXCEPT + eff) HTTPResponse →
   Run eff HTTPure.Response
 run action = action'
   where

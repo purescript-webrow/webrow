@@ -18,7 +18,7 @@ import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Run (Run)
 import Type.Prelude (SProxy(..))
 import Type.Row (type (+))
-import WebRow.Applets.Registration.Effects (Registration, register)
+import WebRow.Applets.Registration.Effects (REGISTRATION, register)
 import WebRow.Applets.Registration.Effects (emailTaken) as Effects
 import WebRow.Applets.Registration.Forms (emailTakenForm, passwordForm)
 import WebRow.Applets.Registration.Messages (Messages)
@@ -29,33 +29,42 @@ import WebRow.Applets.Registration.Routes (Route(..), printFullRoute) as Routes
 import WebRow.Applets.Registration.Routes (RouteRow)
 import WebRow.Applets.Registration.Routes (localDuplex, routeBuilder, Route(..), RouteRow) as Exports
 import WebRow.Applets.Registration.Types (SignedEmail(..), _registration)
-import WebRow.Crypto (Crypto)
+import WebRow.Crypto (CRYPTO)
 import WebRow.Crypto (sign, unsign) as Crypto
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, defaultM, validate) as Forms.Uni
 import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.HTTP (method, methodNotAllowed')
-import WebRow.Mailer (Email(..), Mailer)
+import WebRow.Mailer (Email(..), MAILER)
 import WebRow.Mailer (send) as Mailer
 import WebRow.Routing (FullUrl)
 import WebRow.Types (WebRow)
 
 type AllMessages messages
-  = ( Messages
-        + InvalidEmailFormat
-        + MissingValue
-        + messages
-    )
+  = Messages
+      + InvalidEmailFormat
+      + MissingValue
+      + messages
 
+-- type WebRow messages session routes eff
+--  = ( COOKIES
+--        + HTTPEXCEPT
+--        + MESSAGE messages
+--        + REQUEST
+--        + ROUTING' routes
+--        + SESSION session
+--        + eff
+--    )
 type RegistartionRow messages routes session mails eff
   = ( WebRow
         (AllMessages + messages)
         session
         (RouteRow + routes)
-        + Crypto
-        + Mailer ( emailVerification ∷ FullUrl | mails )
-        + Registration
+        ( CRYPTO
+        + MAILER ( emailVerification ∷ FullUrl | mails )
+        + REGISTRATION
         + eff
+        )
     )
 
 router ::
@@ -84,9 +93,9 @@ _emailVerification = SProxy ∷ SProxy "emailVerification"
 registerEmail ::
   ∀ eff mails messages routes session.
   Run
-    ( Crypto
-        + Mailer ( emailVerification ∷ FullUrl | mails )
-        + Registration
+    ( CRYPTO
+        + MAILER ( emailVerification ∷ FullUrl | mails )
+        + REGISTRATION
         + WebRow
           (AllMessages messages)
           session
@@ -117,8 +126,8 @@ confirmation ::
   ∀ eff messages routes session.
   SignedEmail →
   Run
-    ( Crypto
-        + Registration
+    ( CRYPTO
+        + REGISTRATION
         + WebRow
           (AllMessages messages)
           session

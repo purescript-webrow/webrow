@@ -12,21 +12,21 @@ import Record (insert, get) as Record
 import Run (Run)
 import Run (on, onMatch, peel, run, send) as Run
 import Run.Reader (READER, Reader(..))
-import Type.Prelude (class IsSymbol, SProxy(..), RLProxy(..))
+import Type.Prelude (class IsSymbol, Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 withReaderAt ∷
   ∀ e1 e2 r_ r1 r2 s
   . IsSymbol s
-  ⇒ Row.Cons s (READER e1) r_ r1
-  ⇒ Row.Cons s (READER e2) r_ r2
-  ⇒ SProxy s
+  ⇒ Row.Cons s (Reader e1) r_ r1
+  ⇒ Row.Cons s (Reader e2) r_ r2
+  ⇒ Proxy s
   → (e2 → e1)
   → Run r1
   ~> Run r2
 withReaderAt sym f r = Run.run (Run.on sym handle (Run.send >>> expand' sym)) r
   where
-    expand' ∷ ∀ l b t t_. Row.Cons l b t_ t ⇒ SProxy l → Run t_ ~> Run t
+    expand' ∷ ∀ l b t t_. Row.Cons l b t_ t ⇒ Proxy l → Run t_ ~> Run t
     expand' _ = unsafeCoerce
 
     handle (Reader k) = Run.send (inj sym (Reader (k <<< f)))
@@ -41,8 +41,8 @@ withReaderAt sym f r = Run.run (Run.on sym handle (Run.send >>> expand' sym)) r
 -- 
 -- usingReaders :: forall eff. Run (x :: READER Int, y :: READER String | eff) String
 -- usingReaders = do
---   i ← askAt (SProxy ∷ SProxy "x")
---   s ← askAt (SProxy ∷ SProxy "y")
+--   i ← askAt (Proxy ∷ Proxy "x")
+--   s ← askAt (Proxy ∷ Proxy "y")
 --   pure $ s <> show i
 -- 
 -- interpreted :: forall eff. Run eff String
@@ -57,8 +57,8 @@ withReaderAt sym f r = Run.run (Run.on sym handle (Run.send >>> expand' sym)) r
 -- |
 -- | { x: \(Reader k) → Left (k 8) }
 -- |
-class RunReaders (il ∷ RowList) (i ∷ # Type) (o ∷ # Type) | il → o where
-  runReadersImpl ∷ RLProxy il → { | i } → { | o }
+class RunReaders (il ∷ RowList Type) (i ∷ Row Type) (o ∷ Row Type) | il → o where
+  runReadersImpl ∷ Proxy il → { | i } → { | o }
 
 instance runReadersNil ∷ RunReaders RL.Nil i () where
   runReadersImpl _ _ = {}
@@ -74,9 +74,9 @@ instance runReadersCons ∷
   RunReaders (RL.Cons s e t) i o where
   runReadersImpl _ i =
     let
-      l = SProxy ∷ SProxy s
+      l = Proxy ∷ Proxy s
 
-      o_ = runReadersImpl (RLProxy ∷ RLProxy t) i
+      o_ = runReadersImpl (Proxy ∷ Proxy t) i
     in
       Record.insert l (\(Reader k) → Left (k (Record.get l i))) o_
 
@@ -92,7 +92,7 @@ runReaders ∷
   Run r2 a
 runReaders e = loop
   where
-  e' = runReadersImpl (RLProxy ∷ RLProxy rl) e
+  e' = runReadersImpl (Proxy ∷ Proxy rl) e
 
   handle = Run.onMatch e' (Run.send >>> Right)
 

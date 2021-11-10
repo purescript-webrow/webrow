@@ -11,10 +11,11 @@ import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Data.Variant (Variant, inj, on)
 import HTTPure as HTTPure
+import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
 import Run (Run)
 import Type.Row (type (+))
-import WebRow.Applets.Auth.Effects (Auth, User)
 import WebRow.Applets.Auth.Effects (Auth, User) as Exports
+import WebRow.Applets.Auth.Effects (Auth, User, AUTH)
 import WebRow.Applets.Auth.Forms (AuthPayload, loginForm)
 import WebRow.Applets.Auth.Messages (Messages) as Exports
 import WebRow.Applets.Auth.Responses (LoginResponse(..), Response(..), ResponseRow)
@@ -25,6 +26,7 @@ import WebRow.Applets.Auth.Routes (localDuplex, routeBuilder, Route(..), RouteRo
 import WebRow.Applets.Auth.Types (_auth, namespace)
 import WebRow.Forms.Payload (fromBody)
 import WebRow.Forms.Uni (default, validate) as Forms.Uni
+import WebRow.Forms.Validators (InvalidEmailFormat)
 import WebRow.HTTP (methodNotAllowed', method, redirect)
 import WebRow.Routing (fromRelativeUrl)
 import WebRow.Routing (printRoute) as Routing
@@ -34,14 +36,15 @@ import WebRow.Types (WebRow)
 
 type AuthRow messages routes session user eff
   = ( WebRow
-        ( authFailed ∷ AuthPayload
-        , invalidEmailFormat ∷ String
-        , missingValue ∷ Unit
-        | messages
+        ( MissingValue
+        + InvalidEmailFormat
+        + ( authFailed ∷ AuthPayload
+          | messages
+          )
         )
         { user ∷ Maybe (User user) | session }
         (RouteRow + routes)
-        + Auth user
+        + AUTH user
         + eff
     )
 

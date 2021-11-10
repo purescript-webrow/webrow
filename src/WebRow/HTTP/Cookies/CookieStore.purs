@@ -7,7 +7,7 @@ import Data.Array.NonEmpty (head, singleton) as Array.NonEmpty
 import Data.Either (hush)
 import Data.Lazy (Lazy, defer)
 import Data.Lazy (force) as Lazy
-import Data.Map (insert, lookup, toUnfoldable) as Map
+import Data.Map (empty, insert, lookup, toUnfoldable) as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
@@ -34,7 +34,7 @@ cookieStore secret headers =
   CookieStore
     { requestCookies: defer \_ → requestCookies headers
     , secret
-    , responseCookies: mempty
+    , responseCookies: Map.empty
     }
 
 toSetCookieHeaders ∷ CookieStore → Array (Tuple String String)

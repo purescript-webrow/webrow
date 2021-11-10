@@ -2,46 +2,43 @@ module WebRow.Cache.Effect where
 
 import Prelude
 import Data.Maybe (Maybe)
-import Data.Symbol (SProxy(..))
-import Data.Variant.Internal (FProxy)
+
 import Prim.Row (class Cons) as Row
 import Run (Run)
 import Run as Run
 import Type.Prelude (class IsSymbol)
 import Type.Row (type (+))
+import Type.Prelude (Proxy(..))
 
 type Key
   = String
 
-data CacheF attrs value a
+data Cache attrs value a
   = DeleteF Key a
   | LookupF Key (Maybe value → a)
   | InsertF Key attrs value (Boolean → a)
 
-derive instance functorDataStoreF ∷ Functor (CacheF attrs val)
+derive instance functorDataStoreF ∷ Functor (Cache attrs val)
 
-type CACHE attrs v
-  = FProxy (CacheF attrs v)
-
-type Cache attrs v eff
-  = ( cache ∷ CACHE attrs v | eff )
+type CACHE attrs v eff
+  = ( cache ∷ Cache attrs v | eff )
 
 liftCacheAt ∷
   ∀ a attrs eff eff_ s v.
   IsSymbol s ⇒
-  Row.Cons s (CACHE attrs v) eff_ eff ⇒
-  SProxy s →
-  CacheF attrs v a →
+  Row.Cons s (Cache attrs v) eff_ eff ⇒
+  Proxy s →
+  Cache attrs v a →
   Run eff a
 liftCacheAt = Run.lift
 
-_cache = SProxy ∷ SProxy "cache"
+_cache = Proxy ∷ Proxy "cache"
 
 deleteAt ∷
   ∀ attrs eff eff_ l v.
   IsSymbol l ⇒
-  Row.Cons l (CACHE attrs v) eff_ eff ⇒
-  (SProxy l) →
+  Row.Cons l (Cache attrs v) eff_ eff ⇒
+  (Proxy l) →
   Key →
   Run eff Unit
 deleteAt l key = liftCacheAt l (DeleteF key unit)
@@ -49,14 +46,14 @@ deleteAt l key = liftCacheAt l (DeleteF key unit)
 delete ∷
   ∀ attrs eff v.
   Key →
-  Run (Cache attrs v + eff) Unit
+  Run (CACHE attrs v + eff) Unit
 delete = deleteAt _cache
 
 lookupAt ∷
   ∀ attrs eff eff_ l v.
   IsSymbol l ⇒
-  Row.Cons l (CACHE attrs v) eff_ eff ⇒
-  SProxy l →
+  Row.Cons l (Cache attrs v) eff_ eff ⇒
+  Proxy l →
   Key →
   Run eff (Maybe v)
 lookupAt l key = liftCacheAt l (LookupF key identity)
@@ -64,14 +61,14 @@ lookupAt l key = liftCacheAt l (LookupF key identity)
 lookup ∷
   ∀ attrs eff v.
   Key →
-  Run (Cache attrs v + eff) (Maybe v)
+  Run (CACHE attrs v + eff) (Maybe v)
 lookup = lookupAt _cache
 
 insertAt ∷
   ∀ attrs eff eff_ l v.
   IsSymbol l ⇒
-  Row.Cons l (CACHE attrs v) eff_ eff ⇒
-  SProxy l →
+  Row.Cons l (Cache attrs v) eff_ eff ⇒
+  Proxy l →
   Key →
   attrs →
   v →
@@ -83,6 +80,6 @@ insert ∷
   Key →
   attrs →
   v →
-  Run (Cache attrs v + eff) Boolean
+  Run (CACHE attrs v + eff) Boolean
 insert = insertAt _cache
 

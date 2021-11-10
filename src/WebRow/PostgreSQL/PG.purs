@@ -6,8 +6,9 @@ module WebRow.PostgreSQL.PG
   ( module Exports
   , command
   , execute
+  , scalar
   , _pgExcept
-  , PgExcept
+  , PGEXCEPT
   , query
   , run
   , withTransaction
@@ -20,7 +21,6 @@ import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Resource (acquire) as Resource
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
-import Data.Symbol (SProxy(..))
 import Data.Tuple (snd)
 import Data.Tuple.Nested ((/\))
 import Database.PostgreSQL (class FromSQLRow, class FromSQLValue, class ToSQLRow, ConnectResult, PGError(..), Pool, Query(..), Row0(..), Row1, fromClient) as PG
@@ -33,23 +33,24 @@ import Effect.Ref (new, read, write) as Ref
 import Prim.Row (class Cons) as Row
 import Run (Run)
 import Run as Run
-import Run.Except (EXCEPT)
+import Run.Except (Except)
 import Run.Except (throwAt) as Run.Except
 import Type.Row (type (+))
+import Type.Prelude (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
-import WebRow.PostgreSQL.Internal (Conn(..), Inside, Outside, PGF(..), Pg, _pg, connection, liftEffect, liftPGAff, pool)
-import WebRow.PostgreSQL.Internal (Pg, _pg, Inside, Outside, kind TransactionMode) as Exports
-import WebRow.Resource (Resource, liftResource)
+import WebRow.PostgreSQL.Internal (Conn(..), Inside, Outside, PG, Pg(..), _pg, connection, liftEffect, liftPgAff, pool)
+import WebRow.PostgreSQL.Internal (Pg, PG, _pg, Inside, Outside, TransactionMode) as Exports
+import WebRow.Resource (RESOURCE, liftResource)
 
 execute ::
   ∀ i mode o r.
   PG.ToSQLRow i ⇒
   PG.Query i o →
   i →
-  Run (Pg mode + r) Unit
+  Run (PG mode + r) Unit
 execute q i = do
   conn <- connection
-  liftPGAff (map liftErr $ PG.execute conn q i)
+  liftPgAff (map liftErr $ PG.execute conn q i)
   where
   liftErr Nothing = Right unit
 
@@ -61,10 +62,10 @@ query ::
   PG.FromSQLRow o =>
   PG.Query i o ->
   i ->
-  Run (Pg mode + r) (Array o)
+  Run (PG mode + r) (Array o)
 query q i = do
   conn <- connection
-  liftPGAff (PG.query conn q i)
+  liftPgAff (PG.query conn q i)
 
 scalar ::
   forall i mode o r.
@@ -72,26 +73,26 @@ scalar ::
   PG.FromSQLValue o =>
   PG.Query i (PG.Row1 o) ->
   i ->
-  Run (Pg mode + r) (Maybe o)
+  Run (PG mode + r) (Maybe o)
 scalar q i = do
   conn <- connection
-  liftPGAff (PG.scalar conn q i)
+  liftPgAff (PG.scalar conn q i)
 
 command ::
   forall i mode r.
   PG.ToSQLRow i =>
   PG.Query i Int ->
   i ->
-  Run (Pg mode + r) Int
+  Run (PG mode + r) Int
 command q i = do
   conn <- connection
-  liftPGAff (PG.command conn q i)
+  liftPgAff (PG.command conn q i)
 
 type Commited
   = Boolean
 
 rollback ∷ Ref Commited → Either PG.PGError PG.ConnectResult → Aff Unit
-rollback _ (Left err) = pure unit
+rollback _ (Left _) = pure unit
 
 rollback ref (Right { client, done }) = do
   commited ← Effect.Class.liftEffect $ Ref.read ref
@@ -124,22 +125,22 @@ rollback ref (Right { client, done }) = do
           PG.QueryCanceledError err -> err.error
           PG.TransactionRollbackError err -> err.error
 
-withTransaction ∷ ∀ a r. Run (Pg Inside + r) a → Run (Pg Outside + r) a
+withTransaction ∷ ∀ a r. Run (PG Inside + r) a → Run (PG Outside + r) a
 withTransaction action = do
   p ← pool
   ref ← liftEffect $ Ref.new false
-  { client } ← Run.lift _pg (PGF $ const $ snd <$> (Resource.acquire (connect p) (rollback ref)))
+  { client } ← Run.lift _pg (Pg $ const $ snd <$> (Resource.acquire (connect p) (rollback ref)))
   let
     conn = Conn (p /\ (Just $ PG.fromClient client))
 
     -- | Run.expand definition is based on `Union` constraint
-    -- | We want to use Row.Cons here instead
-    expand' ∷ ∀ l b t t_. Row.Cons l b t_ t ⇒ SProxy l → Run t_ ~> Run t
+    -- | We want to use `Row.Cons` constraint here instead.
+    expand' ∷ ∀ l b t t_. Row.Cons l b t_ t ⇒ Proxy l → Run t_ ~> Run t
     expand' _ = unsafeCoerce
 
-    handle (PGF k) = Run.send $ Run.inj _pg $ PGF \_ → k conn
+    handle (Pg k) = Run.send $ Run.inj _pg $ Pg \_ → k conn
   a ← Run.run (Run.on _pg handle (Run.send >>> expand' _pg)) action
-  liftPGAff $ map liftErr $ PG.execute (PG.fromClient client) (PG.Query "COMMIT TRANSACTION") PG.Row0
+  liftPgAff $ map liftErr $ PG.execute (PG.fromClient client) (PG.Query "COMMIT TRANSACTION") PG.Row0
   void $ liftEffect $ Ref.write true ref
   pure a
   where
@@ -157,15 +158,14 @@ withTransaction action = do
                   Just err → pure (Left err)
                   Nothing → pure res
 
-type PgExcept r
-  = ( pgExcept ∷ EXCEPT PG.PGError | r )
+type PGEXCEPT r = ( pgExcept ∷ Except PG.PGError | r )
 
-_pgExcept = SProxy ∷ SProxy "pgExcept"
+_pgExcept = Proxy ∷ Proxy "pgExcept"
 
-run ∷ ∀ a r. PG.Pool → Run (Pg Outside + PgExcept + Resource + r) a → Run (PgExcept + Resource + r) a
+run ∷ ∀ a r. PG.Pool → Run (PG Outside + PGEXCEPT + RESOURCE + r) a → Run (PGEXCEPT + RESOURCE + r) a
 run p action = Run.run (Run.on _pg handle Run.send) action
   where
-  handle (PGF k) = do
+  handle (Pg k) = do
     let
       conn = Conn (p /\ Nothing)
     liftResource (k conn)

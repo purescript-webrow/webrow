@@ -4,12 +4,11 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.String (Pattern(..), contains) as String
-import Data.Symbol (SProxy(..))
 import Data.Variant (Variant)
-import Data.Variant.Internal (FProxy)
 import Run (Run)
 import Run as Run
 import Type.Row (type (+))
+import Type.Prelude (Proxy(..))
 
 newtype Email
   = Email String
@@ -34,21 +33,17 @@ email e =
 type Mail mail
   = { to ∷ Email, context ∷ Variant mail }
 
-data MailerF mails a
-  = SendF (Mail mails) a
+data Mailer mails a = Send (Mail mails) a
 
-derive instance functorMailerF ∷ Functor (MailerF mails)
+derive instance functorMailerF ∷ Functor (Mailer mails)
 
-type MAILER mails
-  = FProxy (MailerF mails)
+type MAILER mails eff
+  = ( mailer ∷ Mailer mails | eff )
 
-type Mailer mails eff
-  = ( mailer ∷ MAILER mails | eff )
-
-_mailer = SProxy ∷ SProxy "mailer"
+_mailer = Proxy ∷ Proxy "mailer"
 
 send ∷
   ∀ eff mails.
   Mail mails →
-  Run (Mailer mails + eff) Unit
-send mail = Run.lift _mailer (SendF mail unit)
+  Run (MAILER mails + eff) Unit
+send mail = Run.lift _mailer (Send mail unit)
